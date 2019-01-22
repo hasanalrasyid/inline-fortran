@@ -20,7 +20,7 @@ extra-source-files:
 description:         Please see the README on GitHub at <https://github.com/hasanalrasyid/inline-fortran#readme>
 
 dependencies:
-- base >= 4.7 && < 5
+    - base >= 4.7 && < 5
 
 library:
   source-dirs: src
@@ -29,12 +29,19 @@ executables:
   inline-fortran-exe:
     main:                Main.hs
     source-dirs:         app
+    c-sources:           app/Main.c
+    cc-options:           -Wall -O2
+    extra-libraries:      gsl gslcblas m
     ghc-options:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
     - inline-fortran
+    - vector
+    - inline-c
+    - Chart
+    - Chart-cairo
 
 tests:
   inline-fortran-test:
