@@ -8,9 +8,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE MonoLocalBinds #-}
 
 module Language.Fortran.Inline.Internal
     ( -- * Context handling
@@ -45,25 +42,29 @@ module Language.Fortran.Inline.Internal
     , ParseTypedC(..)
     , parseTypedC
     , runParserInQ
-    , splitTypedC
 
       -- * Utility functions for writing quasiquoters
     , genericQuote
-    , funPtrQuote
     ) where
 
 import           Control.Applicative
-import           Control.Monad (forM, void, msum)
+import           Control.Exception (catch, throwIO)
+import           Control.Monad (forM, void, msum, when, unless)
 import           Control.Monad.State (evalStateT, StateT, get, put)
 import           Control.Monad.Trans.Class (lift)
+import qualified Crypto.Hash as CryptoHash
+import qualified Data.Binary as Binary
 import           Data.Foldable (forM_)
+import           Data.IORef (IORef, newIORef, readIORef, writeIORef)
 import qualified Data.Map as Map
 import           Data.Maybe (fromMaybe)
-import           Data.Traversable (for)
 import           Data.Typeable (Typeable, cast)
 import qualified Language.Haskell.TH as TH
 import qualified Language.Haskell.TH.Quote as TH
 import qualified Language.Haskell.TH.Syntax as TH
+import           System.Directory (removeFile)
+import           System.FilePath (addExtension, dropExtension)
+import           System.IO.Error (isDoesNotExistError)
 import           System.IO.Unsafe (unsafePerformIO)
 import qualified Text.Parsec as Parsec
 import qualified Text.Parsec.Pos as Parsec
@@ -73,96 +74,47 @@ import qualified Text.Parser.LookAhead as Parser
 import qualified Text.Parser.Token as Parser
 import           Text.PrettyPrint.ANSI.Leijen ((<+>))
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
-import qualified Data.List as L
-import qualified Data.Char as C
-import           Data.Hashable (Hashable)
-import           Foreign.Ptr (FunPtr)
 
--- We cannot use getQ/putQ before 7.10.3 because of <https://ghc.haskell.org/trac/ghc/ticket/10596>
-#define USE_GETQ (__GLASGOW_HASKELL__ > 710 || (__GLASGOW_HASKELL__ == 710 && __GLASGOW_HASKELL_PATCHLEVEL1__ >= 3))
-
-#if !USE_GETQ
-import           Control.Concurrent.MVar (MVar, newMVar, modifyMVar_, readMVar)
-#endif
-
+import qualified Language.Fortran.Types as C
 import           Language.Fortran.Inline.Context
 import           Language.Fortran.Inline.FunPtr
-import           Language.Fortran.Inline.HaskellIdentifier
-import qualified Language.Fortran.Types as C
 
 data ModuleState = ModuleState
-  { msContext :: Context
+  { msModuleName :: String
+  , msContext :: Context
   , msGeneratedNames :: Int
-  , msFileChunks :: [String]
-  } deriving (Typeable)
+  }
 
-getModuleState :: TH.Q (Maybe ModuleState)
-putModuleState :: ModuleState -> TH.Q ()
+{-# NOINLINE moduleStateRef #-}
+moduleStateRef :: IORef (Maybe ModuleState)
+moduleStateRef = unsafePerformIO $ newIORef Nothing
 
-#if USE_GETQ
-
-getModuleState = TH.getQ
-putModuleState = TH.putQ
-
-#else
-
--- | Identifier for the current module.  Currently we use the file name.
--- Since we're pairing Haskell files with C files, it makes more sense
--- to use the file name.  I'm not sure if it's possible to compile two
--- modules with the same name in one run of GHC, but in this way we make
--- sure that we don't run into trouble even it is.
-type ModuleId = String
-
-getModuleId :: TH.Q ModuleId
-getModuleId = TH.loc_filename <$> TH.location
-
--- | 'MVar' storing the state for all the modules we visited.  Note that
--- currently we do not bother with cleaning up the state after we're
--- done compiling a module.  TODO if there is an easy way, clean up the
--- state.
-{-# NOINLINE moduleStatesVar #-}
-moduleStatesVar :: MVar (Map.Map ModuleId ModuleState)
-moduleStatesVar = unsafePerformIO $ newMVar Map.empty
-
-getModuleState = do
-  moduleStates <- TH.runIO (readMVar moduleStatesVar)
-  moduleId <- getModuleId
-  return (Map.lookup moduleId moduleStates)
-
-putModuleState ms = do
-  moduleId <- getModuleId
-  TH.runIO (modifyMVar_ moduleStatesVar (return . Map.insert moduleId ms))
-
-#endif
-
-
--- | Make sure that 'moduleStatesVar' and the respective C file are up
---   to date.
+-- | Make sure that 'moduleStateRef' and the respective C file are up
+-- to date.
 initialiseModuleState
   :: Maybe Context
   -- ^ The 'Context' to use if we initialise the module.  If 'Nothing',
   -- 'baseCtx' will be used.
   -> TH.Q Context
 initialiseModuleState mbContext = do
-  mbModuleState <- getModuleState
+  cFile <- cSourceLoc context
+  mbModuleState <- TH.runIO $ readIORef moduleStateRef
+  thisModule <- TH.loc_module <$> TH.location
+  let recordThisModule = TH.runIO $ do
+        -- If the file exists and this is the first time we write
+        -- something from this module (in other words, if we are
+        -- recompiling the module), kill the file first.
+        removeIfExists cFile
+        writeIORef moduleStateRef $ Just ModuleState
+          { msModuleName = thisModule
+          , msContext = context
+          , msGeneratedNames = 0
+          }
+        return context
   case mbModuleState of
-    Just moduleState -> return (msContext moduleState)
-    Nothing -> do
-      -- Add hook to add the file
-      TH.addModFinalizer $ do
-        mbMs <- getModuleState
-        ms <- case mbMs of
-          Nothing -> fail "inline-c: ModuleState not present (initialiseModuleState)"
-          Just ms -> return ms
-        let lang = fromMaybe TH.LangC (ctxForeignSrcLang context)
-        TH.addForeignFile lang (concat (reverse (msFileChunks ms)))
-      let moduleState = ModuleState
-            { msContext = context
-            , msGeneratedNames = 0
-            , msFileChunks = mempty
-            }
-      putModuleState moduleState
-      return context
+    Nothing -> recordThisModule
+    Just ms | msModuleName ms == thisModule -> return $ msContext ms
+    Just _ms -> recordThisModule
   where
     context = fromMaybe baseCtx mbContext
 
@@ -171,15 +123,14 @@ initialiseModuleState mbContext = do
 getContext :: TH.Q Context
 getContext = initialiseModuleState Nothing
 
-modifyModuleState :: (ModuleState -> (ModuleState, a)) -> TH.Q a
-modifyModuleState f = do
-  mbModuleState <- getModuleState
+getModuleState :: TH.Q ModuleState
+getModuleState = do
+  mbModuleState <- TH.runIO $ readIORef moduleStateRef
+  thisModule <- TH.loc_module <$> TH.location
   case mbModuleState of
-    Nothing -> fail "inline-c: ModuleState not present (modifyModuleState)"
-    Just ms -> do
-      let (ms', x) = f ms
-      putModuleState ms'
-      return x
+    Nothing -> error "inline-c: ModuleState not present"
+    Just ms | msModuleName ms == thisModule -> return ms
+    Just _ms -> error "inline-c: stale ModuleState"
 
 -- $context
 --
@@ -193,28 +144,41 @@ modifyModuleState f = do
 -- module.  Fails if that's not the case.
 setContext :: Context -> TH.Q ()
 setContext ctx = do
-  mbModuleState <- getModuleState
-  forM_ mbModuleState $ \_ms ->
-    fail "inline-c: The module has already been initialised (setContext)."
+  mbModuleState <- TH.runIO $ readIORef moduleStateRef
+  forM_ mbModuleState $ \ms -> do
+    thisModule <- TH.loc_module <$> TH.location
+    when (msModuleName ms == thisModule) $
+      error "inline-c: The module has already been initialised (setContext)."
   void $ initialiseModuleState $ Just ctx
 
 bumpGeneratedNames :: TH.Q Int
 bumpGeneratedNames = do
-  modifyModuleState $ \ms ->
+  ms <- getModuleState
+  TH.runIO $ do
     let c' = msGeneratedNames ms
-    in (ms{msGeneratedNames = c' + 1}, c')
+    writeIORef moduleStateRef $ Just ms{msGeneratedNames = c' + 1}
+    return c'
 
 ------------------------------------------------------------------------
 -- Emitting
 
+cSourceLoc :: Context -> TH.Q FilePath
+cSourceLoc ctx = do
+  thisFile <- TH.loc_filename <$> TH.location
+  let ext = fromMaybe "c" $ ctxFileExtension ctx
+  return $ dropExtension thisFile `addExtension` ext
+
+removeIfExists :: FilePath -> IO ()
+removeIfExists fileName = removeFile fileName `catch` handleExists
+  where
+    handleExists e = unless (isDoesNotExistError e) $ throwIO e
+
 -- | Simply appends some string to the module's C file.  Use with care.
 emitVerbatim :: String -> TH.DecsQ
 emitVerbatim s = do
-  -- Make sure that the 'ModuleState' is initialized
-  void (initialiseModuleState Nothing)
-  let chunk = "\n" ++ s ++ "\n"
-  modifyModuleState $ \ms ->
-    (ms{msFileChunks = chunk : msFileChunks ms}, ())
+  ctx <- getContext
+  cFile <- cSourceLoc ctx
+  TH.runIO $ appendFile cFile $ "\n" ++ s ++ "\n"
   return []
 
 ------------------------------------------------------------------------
@@ -245,9 +209,6 @@ data Code = Code
     -- ^ Name of the function to call in the code below.
   , codeDefs :: String
     -- ^ The C code.
-  , codeFunPtr :: Bool
-    -- ^ If 'True', the type will be wrapped in 'FunPtr', and
-    -- the call will be static (e.g. prefixed by &).
   }
 
 -- TODO use the #line CPP macro to have the functions in the C file
@@ -281,36 +242,15 @@ inlineCode Code{..} = do
   void $ emitVerbatim $ out codeDefs
   -- Create and add the FFI declaration.
   ffiImportName <- uniqueFfiImportName
-  dec <- if codeFunPtr
-    then
-      TH.forImpD TH.CCall codeCallSafety ("&" ++ codeFunName) ffiImportName [t| FunPtr $(codeType) |]
-    else TH.forImpD TH.CCall codeCallSafety codeFunName ffiImportName codeType
+  dec <- TH.forImpD TH.CCall codeCallSafety codeFunName ffiImportName codeType
   TH.addTopDecls [dec]
   TH.varE ffiImportName
 
-uniqueCName :: Maybe String -> TH.Q String
-uniqueCName mbPostfix = do
-  -- The name looks like this:
-  -- inline_c_MODULE_INDEX_POSTFIX
-  --
-  -- Where:
-  --  * MODULE is the module name but with _s instead of .s;
-  --  * INDEX is a counter that keeps track of how many names we're generating
-  --    for each module.
-  --  * POSTFIX is an optional postfix to ease debuggability
-  --
-  -- we previously also generated a hash from the contents of the
-  -- C code because of problems when cabal recompiled but now this
-  -- is not needed anymore since we use 'addDependentFile' to compile
-  -- the C code.
+uniqueCName :: String -> TH.Q String
+uniqueCName x = do
   c' <- bumpGeneratedNames
-  module_ <- TH.loc_module <$> TH.location
-  let replaceDot '.' = '_'
-      replaceDot c = c
-  let postfix = case mbPostfix of
-        Nothing -> ""
-        Just s -> "_" ++ s ++ "_"
-  return $ "inline_c_" ++ map replaceDot module_ ++ "_" ++ show c' ++ postfix
+  let unique :: CryptoHash.Digest CryptoHash.SHA1 = CryptoHash.hashlazy $ Binary.encode x
+  return $ "inline_c_" ++ show c' ++ "_" ++ show unique
 
 -- | Same as 'inlineCItems', but with a single expression.
 --
@@ -320,7 +260,7 @@ uniqueCName mbPostfix = do
 --   TH.Unsafe
 --   [t| Double -> Double |]
 --   (quickCParser_ \"double\" parseType)
---   [("x", quickCParser_ \"double\" parseType)]
+--   [("x", quickCParser_ \"double\") parseType]
 --   "cos(x)")
 -- @
 inlineExp
@@ -328,15 +268,15 @@ inlineExp
   -- ^ Safety of the foreign call
   -> TH.TypeQ
   -- ^ Type of the foreign call
-  -> C.Type C.CIdentifier
+  -> C.Type
   -- ^ Return type of the C expr
-  -> [(C.CIdentifier, C.Type C.CIdentifier)]
+  -> [(C.Identifier, C.Type)]
   -- ^ Parameters of the C expr
   -> String
   -- ^ The C expression
   -> TH.ExpQ
 inlineExp callSafety type_ cRetType cParams cExp =
-  inlineItems callSafety False Nothing type_ cRetType cParams cItems
+  inlineItems callSafety type_ cRetType cParams cItems
   where
     cItems = case cRetType of
       C.TypeSpecifier _quals C.Void -> cExp ++ ";"
@@ -350,7 +290,6 @@ inlineExp callSafety type_ cRetType cParams cExp =
 -- c_cos :: Double -> Double
 -- c_cos = $(inlineItems
 --   TH.Unsafe
---   False
 --   [t| Double -> Double |]
 --   (quickCParser_ \"double\" parseType)
 --   [("x", quickCParser_ \"double\" parseType)]
@@ -359,28 +298,20 @@ inlineExp callSafety type_ cRetType cParams cExp =
 inlineItems
   :: TH.Safety
   -- ^ Safety of the foreign call
-  -> Bool
-  -- ^ Whether to return as a FunPtr or not
-  -> Maybe String
-  -- ^ Optional postfix for the generated name
   -> TH.TypeQ
   -- ^ Type of the foreign call
-  -> C.Type C.CIdentifier
+  -> C.Type
   -- ^ Return type of the C expr
-  -> [(C.CIdentifier, C.Type C.CIdentifier)]
+  -> [(C.Identifier, C.Type)]
   -- ^ Parameters of the C expr
   -> String
   -- ^ The C items
   -> TH.ExpQ
-inlineItems callSafety funPtr mbPostfix type_ cRetType cParams cItems = do
+inlineItems callSafety type_ cRetType cParams cItems = do
   let mkParam (id', paramTy) = C.ParameterDeclaration (Just id') paramTy
   let proto = C.Proto cRetType (map mkParam cParams)
-  funName <- uniqueCName mbPostfix
-  cFunName <- case C.cIdentifierFromString funName of
-    Left err -> fail $ "inlineItems: impossible, generated bad C identifier " ++
-                       "funName:\n" ++ err
-    Right x -> return x
-  let decl = C.ParameterDeclaration (Just cFunName) proto
+  funName <- uniqueCName $ show proto ++ cItems
+  let decl = C.ParameterDeclaration (Just (C.Identifier funName)) proto
   let defs =
         prettyOneLine decl ++ " {\n" ++
         cItems ++ "\n}\n"
@@ -389,26 +320,22 @@ inlineItems callSafety funPtr mbPostfix type_ cRetType cParams cItems = do
     , codeType = type_
     , codeFunName = funName
     , codeDefs = defs
-    , codeFunPtr = funPtr
     }
 
 ------------------------------------------------------------------------
 -- Parsing
 
 runParserInQ
-  :: (Hashable ident)
-  => String
-  -> C.CParserContext ident
-  -> (forall m. C.CParser ident m => m a) -> TH.Q a
-runParserInQ s ctx p = do
+  :: String -> C.IsTypeName -> (forall m. C.CParser m => m a) -> TH.Q a
+runParserInQ s isTypeName' p = do
   loc <- TH.location
   let (line, col) = TH.loc_start loc
   let parsecLoc = Parsec.newPos (TH.loc_filename loc) line col
   let p' = lift (Parsec.setPosition parsecLoc) *> p <* lift Parser.eof
-  case C.runCParser ctx (TH.loc_filename loc) s p' of
+  case C.runCParser isTypeName' (TH.loc_filename loc) s p' of
     Left err -> do
       -- TODO consider prefixing with "error while parsing C" or similar
-      fail $ show err
+      error $ show err
     Right res -> do
       return res
 
@@ -429,43 +356,49 @@ fromSomeEq :: (Eq a, Typeable a) => SomeEq -> Maybe a
 fromSomeEq (SomeEq x) = cast x
 
 data ParameterType
-  = Plain HaskellIdentifier                -- The name of the captured variable
+  = Plain String                -- The name of the captured variable
   | AntiQuote AntiQuoterId SomeEq
   deriving (Show, Eq)
 
 data ParseTypedC = ParseTypedC
-  { ptcReturnType :: C.Type C.CIdentifier
-  , ptcParameters :: [(C.CIdentifier, C.Type C.CIdentifier, ParameterType)]
+  { ptcReturnType :: C.Type
+  , ptcParameters :: [(C.Identifier, C.Type, ParameterType)]
   , ptcBody :: String
   }
 
--- To parse C declarations, we're faced with a bit of a problem: we want
--- to parse the anti-quotations so that Haskell identifiers are
--- accepted, but we want them to appear only as the root of
--- declarations.  For this reason, we parse allowing Haskell identifiers
--- everywhere, and then we "purge" Haskell identifiers everywhere but at
--- the root.
 parseTypedC
-  :: forall m. C.CParser HaskellIdentifier m
+  :: forall m. C.CParser m
   => AntiQuoters -> m ParseTypedC
   -- ^ Returns the return type, the captured variables, and the body.
 parseTypedC antiQs = do
   -- Parse return type (consume spaces first)
   Parser.spaces
-  cRetType <- purgeHaskellIdentifiers =<< C.parseType
+  cRetType <- C.parseType
   -- Parse the body
   void $ Parser.char '{'
   (cParams, cBody) <- evalStateT parseBody 0
   return $ ParseTypedC cRetType cParams cBody
   where
-    parseBody
-      :: StateT Int m ([(C.CIdentifier, C.Type C.CIdentifier, ParameterType)], String)
+    parseBody :: StateT Int m ([(C.Identifier, C.Type, ParameterType)], String)
     parseBody = do
       -- Note that this code does not use "lexing" combinators (apart
       -- when appropriate) because we want to make sure to preserve
       -- whitespace after we substitute things.
       s <- Parser.manyTill Parser.anyChar $
            Parser.lookAhead (Parser.char '}' <|> Parser.char '$')
+      let parseEscapedDollar = do
+            void $ Parser.char '$'
+            return ([], "$")
+      let parseTypedCapture = do
+            void $ Parser.symbolic '('
+            decl <- C.parseParameterDeclaration
+            s' <- case C.parameterDeclarationId decl of
+              Nothing -> fail $ pretty80 $
+                "Un-named captured variable in decl" <+> PP.pretty decl
+              Just id' -> return $ C.unIdentifier id'
+            id' <- freshId s'
+            void $ Parser.char ')'
+            return ([(id', C.parameterDeclarationType decl, Plain s')], C.unIdentifier id')
       (decls, s') <- msum
         [ do Parser.try $ do -- Try because we might fail to parse the 'eof'
                 -- 'symbolic' because we want to consume whitespace
@@ -483,55 +416,19 @@ parseTypedC antiQs = do
       return (decls, s ++ s')
       where
 
-    parseAntiQuote
-      :: StateT Int m ([(C.CIdentifier, C.Type C.CIdentifier, ParameterType)], String)
+    parseAntiQuote :: StateT Int m ([(C.Identifier, C.Type, ParameterType)], String)
     parseAntiQuote = msum
       [ do void $ Parser.try (Parser.string $ antiQId ++ ":") Parser.<?> "anti quoter id"
            (s, cTy, x) <- aqParser antiQ
            id' <- freshId s
-           return ([(id', cTy, AntiQuote antiQId (toSomeEq x))], C.unCIdentifier id')
+           return ([(id', cTy, AntiQuote antiQId (toSomeEq x))], C.unIdentifier id')
       | (antiQId, SomeAntiQuoter antiQ) <- Map.toList antiQs
       ]
-
-    parseEscapedDollar :: StateT Int m ([a], String)
-    parseEscapedDollar = do
-      void $ Parser.char '$'
-      return ([], "$")
-
-    parseTypedCapture
-      :: StateT Int m ([(C.CIdentifier, C.Type C.CIdentifier, ParameterType)], String)
-    parseTypedCapture = do
-      void $ Parser.symbolic '('
-      decl <- C.parseParameterDeclaration
-      declType <- purgeHaskellIdentifiers $ C.parameterDeclarationType decl
-      -- Purge the declaration type of all the Haskell identifiers.
-      hId <- case C.parameterDeclarationId decl of
-        Nothing -> fail $ pretty80 $
-          "Un-named captured variable in decl" <+> PP.pretty decl
-        Just hId -> return hId
-      id' <- freshId $ mangleHaskellIdentifier hId
-      void $ Parser.char ')'
-      return ([(id', declType, Plain hId)], C.unCIdentifier id')
 
     freshId s = do
       c <- get
       put $ c + 1
-      case C.cIdentifierFromString (C.unCIdentifier s ++ "_inline_c_" ++ show c) of
-        Left _err -> error "freshId: The impossible happened"
-        Right x -> return x
-
-    -- The @m@ is polymorphic because we use this both for the plain
-    -- parser and the StateT parser we use above.  We only need 'fail'.
-    purgeHaskellIdentifiers
-      :: forall n. (Applicative n, Monad n)
-      => C.Type HaskellIdentifier -> n (C.Type C.CIdentifier)
-    purgeHaskellIdentifiers cTy = for cTy $ \hsIdent -> do
-      let hsIdentS = unHaskellIdentifier hsIdent
-      case C.cIdentifierFromString hsIdentS of
-        Left err -> fail $ "Haskell identifier " ++ hsIdentS ++ " in illegal position" ++
-                           "in C type\n" ++ pretty80 cTy ++ "\n" ++
-                           "A C identifier was expected, but:\n" ++ err
-        Right cIdent -> return cIdent
+      return $ C.Identifier $ s ++ "_inline_c_" ++ show c
 
 quoteCode
   :: (String -> TH.ExpQ)
@@ -539,55 +436,54 @@ quoteCode
   -> TH.QuasiQuoter
 quoteCode p = TH.QuasiQuoter
   { TH.quoteExp = p
-  , TH.quotePat = fail "inline-c: quotePat not implemented (quoteCode)"
-  , TH.quoteType = fail "inline-c: quoteType not implemented (quoteCode)"
-  , TH.quoteDec = fail "inline-c: quoteDec not implemented (quoteCode)"
+  , TH.quotePat = error "inline-c: quotePat not implemented (quoteCode)"
+  , TH.quoteType = error "inline-c: quoteType not implemented (quoteCode)"
+  , TH.quoteDec = error "inline-c: quoteDec not implemented (quoteCode)"
   }
 
 genericQuote
-  :: Purity
-  -> (TH.TypeQ -> C.Type C.CIdentifier -> [(C.CIdentifier, C.Type C.CIdentifier)] -> String -> TH.ExpQ)
-  -- ^ Function building an Haskell expression, see 'inlineExp' for
-  -- guidance on the other args.
+  :: (TH.TypeQ -> C.Type -> [(C.Identifier, C.Type)] -> String -> TH.ExpQ)
+  -- ^ Function taking that something and building an expression, see
+  -- 'inlineExp' for other args.
   -> TH.QuasiQuoter
-genericQuote purity build = quoteCode $ \s -> do
+genericQuote build = quoteCode $ \s -> do
     ctx <- getContext
     ParseTypedC cType cParams cExp <-
-      runParserInQ s
-        (haskellCParserContext (typeNamesFromTypesTable (ctxTypesTable ctx)))
-        (parseTypedC (ctxAntiQuoters ctx))
+      runParserInQ s (isTypeName (ctxTypesTable ctx)) $ parseTypedC $ ctxAntiQuoters ctx
     hsType <- cToHs ctx cType
     hsParams <- forM cParams $ \(_cId, cTy, parTy) -> do
       case parTy of
         Plain s' -> do
           hsTy <- cToHs ctx cTy
-          let hsName = TH.mkName (unHaskellIdentifier s')
-          hsExp <- [| \cont -> cont ($(TH.varE hsName) :: $(return hsTy)) |]
+          mbHsName <- TH.lookupValueName s'
+          hsExp <- case mbHsName of
+            Nothing -> do
+              error $ "Cannot capture Haskell variable " ++ s' ++
+                      ", because it's not in scope. (genericQuote)"
+            Just hsName -> do
+              hsExp <- TH.varE hsName
+              [| \cont -> cont $(return hsExp) |]
           return (hsTy, hsExp)
         AntiQuote antiId dyn -> do
           case Map.lookup antiId (ctxAntiQuoters ctx) of
             Nothing ->
-              fail $ "IMPOSSIBLE: could not find anti-quoter " ++ show antiId ++
-                     ". (genericQuote)"
+              error $ "IMPOSSIBLE: could not find anti-quoter " ++ show antiId ++
+                      ". (genericQuote)"
             Just (SomeAntiQuoter antiQ) -> case fromSomeEq dyn of
               Nothing ->
-                fail  $ "IMPOSSIBLE: could not cast value for anti-quoter " ++
-                        show antiId ++ ". (genericQuote)"
+                error  $ "IMPOSSIBLE: could not cast value for anti-quoter " ++
+                         show antiId ++ ". (genericQuote)"
               Just x ->
-                aqMarshaller antiQ purity (ctxTypesTable ctx) cTy x
+                aqMarshaller antiQ (ctxTypesTable ctx) cTy x
     let hsFunType = convertCFunSig hsType $ map fst hsParams
     let cParams' = [(cId, cTy) | (cId, cTy, _) <- cParams]
-    ioCall <- buildFunCall ctx (build hsFunType cType cParams' cExp) (map snd hsParams) []
-    -- If the user requested a pure function, make it so.
-    case purity of
-      Pure -> [| unsafePerformIO $(return ioCall) |]
-      IO -> return ioCall
+    buildFunCall ctx (build hsFunType cType cParams' cExp) (map snd hsParams) []
   where
-    cToHs :: Context -> C.Type C.CIdentifier -> TH.TypeQ
+    cToHs :: Context -> C.Type -> TH.TypeQ
     cToHs ctx cTy = do
-      mbHsTy <- convertType purity (ctxTypesTable ctx) cTy
+      mbHsTy <- convertType (ctxTypesTable ctx) cTy
       case mbHsTy of
-        Nothing -> fail $ "Could not resolve Haskell type for C type " ++ pretty80 cTy
+        Nothing -> error $ "Could not resolve Haskell type for C type " ++ pretty80 cTy
         Just hsTy -> return hsTy
 
     buildFunCall :: Context -> TH.ExpQ -> [TH.Exp] -> [TH.Name] -> TH.ExpQ
@@ -606,86 +502,6 @@ genericQuote purity build = quoteCode $ \s -> do
           [t| IO $(return retType) |]
         go (paramType : params) = do
           [t| $(return paramType) -> $(go params) |]
-
-splitTypedC :: String -> (String, String)
-  -- ^ Returns the type and the body separately
-splitTypedC s = (trim ty, case body of
-                            [] -> []
-                            r  -> r)
-  where (ty, body) = span (/= '{') s
-        trim x = L.dropWhileEnd C.isSpace (dropWhile C.isSpace x)
-
--- | Data to parse for the 'funPtr' quasi-quoter.
-data FunPtrDecl = FunPtrDecl
-  { funPtrReturnType :: C.Type C.CIdentifier
-  , funPtrParameters :: [(C.CIdentifier, C.Type C.CIdentifier)]
-  , funPtrBody :: String
-  , funPtrName :: Maybe String
-  } deriving (Eq, Show)
-
-funPtrQuote :: TH.Safety -> TH.QuasiQuoter
-funPtrQuote callSafety = quoteCode $ \code -> do
-  ctx <- getContext
-  FunPtrDecl{..} <- runParserInQ code (C.cCParserContext (typeNamesFromTypesTable (ctxTypesTable ctx))) parse
-  hsRetType <- cToHs ctx funPtrReturnType
-  hsParams <- forM funPtrParameters (\(_ident, typ_) -> cToHs ctx typ_)
-  let hsFunType = convertCFunSig hsRetType hsParams
-  inlineItems callSafety True funPtrName hsFunType funPtrReturnType funPtrParameters funPtrBody
-  where
-    cToHs :: Context -> C.Type C.CIdentifier -> TH.TypeQ
-    cToHs ctx cTy = do
-      mbHsTy <- convertType IO (ctxTypesTable ctx) cTy
-      case mbHsTy of
-        Nothing -> fail $ "Could not resolve Haskell type for C type " ++ pretty80 cTy
-        Just hsTy -> return hsTy
-
-    convertCFunSig :: TH.Type -> [TH.Type] -> TH.TypeQ
-    convertCFunSig retType params0 = do
-      go params0
-      where
-        go [] =
-          [t| IO $(return retType) |]
-        go (paramType : params) = do
-          [t| $(return paramType) -> $(go params) |]
-
-    parse :: C.CParser C.CIdentifier m => m FunPtrDecl
-    parse = do
-      -- skip spaces
-      Parser.spaces
-      -- parse a proto
-      C.ParameterDeclaration mbName protoTyp <- C.parseParameterDeclaration
-      case protoTyp of
-        C.Proto retType paramList -> do
-          args <- forM paramList $ \decl -> case C.parameterDeclarationId decl of
-            Nothing -> fail $ pretty80 $
-              "Un-named captured variable in decl" <+> PP.pretty decl
-            Just declId -> return (declId, C.parameterDeclarationType decl)
-          -- get the rest of the body
-          void (Parser.symbolic '{')
-          body <- parseBody
-          return FunPtrDecl
-            { funPtrReturnType = retType
-            , funPtrParameters = args
-            , funPtrBody = body
-            , funPtrName = fmap C.unCIdentifier mbName
-            }
-        _ -> fail $ "Expecting function declaration"
-
-    parseBody :: C.CParser C.CIdentifier m => m String
-    parseBody = do
-      s <- Parser.manyTill Parser.anyChar $
-           Parser.lookAhead (Parser.char '}')
-      s' <- msum
-        [ do Parser.try $ do -- Try because we might fail to parse the 'eof'
-                -- 'symbolic' because we want to consume whitespace
-               void $ Parser.symbolic '}'
-               Parser.eof
-             return ""
-        , do void $ Parser.char '}'
-             s' <- parseBody
-             return ("}" ++ s')
-        ]
-      return (s ++ s')
 
 ------------------------------------------------------------------------
 -- Utils

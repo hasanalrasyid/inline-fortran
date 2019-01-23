@@ -2,3 +2,4 @@
 inline-fortran.cabal
 *.c
 *~
+inline-fortran-exe

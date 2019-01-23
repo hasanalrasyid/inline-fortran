@@ -43,7 +43,7 @@ mkFunPtrFromName name = do
 #else
     TH.VarI _ ty _ _ -> [| $(mkFunPtr (return ty)) $(TH.varE name) |]
 #endif
-    _ -> fail "mkFunPtrFromName: expecting a variable as argument."
+    _ -> error "mkFunPtrFromName: expecting a variable as argument."
 
 -- | @$('peekFunPtr' [t| 'CDouble' -> 'IO' 'CDouble' |])@ generates a foreign import
 -- dynamic of type

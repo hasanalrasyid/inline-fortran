@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes #-}
@@ -7,6 +6,8 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
+
+{-# OPTIONS_GHC -fno-warn-orphans #-} -- This is used for IsString C.Id
 
 -- | Enable painless embedding of C code in Haskell code. If you're interested
 -- in how to use the library, skip to the "Inline C" section. To build, read the
@@ -19,13 +20,12 @@
 -- @
 
 module Language.Fortran.Inline
-  ( -- * GHCi
+  ( -- * Build process
     -- $building
 
     -- * Contexts
     Context
   , baseCtx
-  , fptrCtx
   , funCtx
   , vecCtx
   , bsCtx
@@ -34,7 +34,6 @@ module Language.Fortran.Inline
     -- * Inline C
     -- $quoting
   , exp
-  , pure
   , block
   , include
   , verbatim
@@ -45,8 +44,6 @@ module Language.Fortran.Inline
   , WithPtrs(..)
 
     -- * 'FunPtr' utils
-  , funPtr
-    -- ** 'FunPtr' conversion
     --
     -- Functions to quickly convert from/to 'FunPtr's. They're provided here
     -- since they can be useful to work with Haskell functions in C, and
@@ -63,11 +60,7 @@ module Language.Fortran.Inline
   , module Foreign.C.Types
   ) where
 
-#if __GLASGOW_HASKELL__ < 710
 import           Prelude hiding (exp)
-#else
-import           Prelude hiding (exp, pure)
-#endif
 
 import           Control.Monad (void)
 import           Foreign.C.Types
@@ -83,18 +76,41 @@ import           Language.Fortran.Inline.FunPtr
 
 -- $building
 --
--- Currently @inline-c@ does not work in interpreted mode. However, GHCi
--- can still be used using the @-fobject-code@ flag. For speed, we
--- reccomend passing @-fobject-code -O0@, for example
+-- Each module that uses at least one of the TH functions in this module gets
+-- a C file associated to it, where the filename of said file will be the same
+-- as the module but with a `.c` extension. This C file must be built after the
+-- Haskell code and linked appropriately. If you use cabal, all you have to do
+-- is declare each associated C file in the @.cabal@ file.
+--
+-- For example:
 --
 -- @
--- stack ghci --ghci-options='-fobject-code -O0'
+-- executable foo
+--   main-is:             Main.hs, Foo.hs, Bar.hs
+--   hs-source-dirs:      src
+--   -- Here the corresponding C sources must be listed for every module
+--   -- that uses C code.  In this example, Main.hs and Bar.hs do, but
+--   -- Foo.hs does not.
+--   c-sources:           src\/Main.c, src\/Bar.c
+--   -- These flags will be passed to the C compiler
+--   cc-options:          -Wall -O2
+--   -- Libraries to link the code with.
+--   extra-libraries:     -lm
+--   ...
 -- @
 --
--- or
+-- Note that currently @cabal repl@ is not supported, because the C code is not
+-- compiled and linked appropriately.
+--
+-- If we were to compile the above manually, we could:
 --
 -- @
--- cabal repl --ghc-options='-fobject-code -O0'
+-- $ ghc -c Main.hs
+-- $ cc -c Main.c -o Main_c.o
+-- $ ghc Foo.hs
+-- $ ghc Bar.hs
+-- $ cc -c Bar.c -o Bar_c.o
+-- $ ghc Main.o Foo.o Bar.o Main_c.o Bar_c.o -lm -o Main
 -- @
 
 ------------------------------------------------------------------------
@@ -153,12 +169,13 @@ import           Language.Fortran.Inline.FunPtr
 -- type is assumed to be of the Haskell type corresponding to the C type
 -- provided.  For example, if we capture variable @x@ using @double x@
 -- in the parameter list, the code will expect a variable @x@ of type
--- 'CDouble' in Haskell (when using 'baseCtx').
+-- @CDouble@ in Haskell (when using 'baseCtx').
 --
--- === Purity
+-- == Function purity
 --
--- The 'exp' and 'block' quasi-quotes denote computations in the 'IO' monad.
--- 'pure' denotes a pure value, expressed as a C expression.
+-- All @inline-c@ quasiquotes live in 'IO'. If you know the embedded C code is
+-- pure, wrap it inside an @unsafePerformIO@ as you would do with standard
+-- impure-but-pure Haskell code.
 --
 -- === Safe and @unsafe@ calls
 --
@@ -209,79 +226,12 @@ import           Language.Fortran.Inline.FunPtr
 --   } |]
 --   'return' vec
 -- @
---
--- == How it works
---
--- For each quasi-quotation of C code, a C function is generated in a C file
--- corresponding to the current Haskell file. Every inline C expression will result
--- in a corresponding C function.
--- For example, if we define @c_cos@
--- as in the example above in @CCos.hs@, we will get a file containing
---
--- @
--- #include <math.h>
---
--- double inline_c_Main_0_a03fba228a6d8e36ea7d69381f87bade594c949d(double x_inline_c_0) {
---   return cos(x_inline_c_0);
--- }
--- @
---
--- Every anti-quotation will correspond to an argument in the C function. If the same
--- Haskell variable is anti-quoted twice, this will result in two arguments.
---
--- The C function is then automatically compiled and invoked from Haskell with the correct arguments passed in.
 
--- | C expressions.
 exp :: TH.QuasiQuoter
-exp = genericQuote IO $ inlineExp TH.Safe
+exp = genericQuote $ inlineExp TH.Safe
 
--- | Variant of 'exp', for use with expressions known to have no side effects.
---
--- BEWARE: use this function with caution, only when you know what you are
--- doing. If an expression does in fact have side-effects, then indiscriminate
--- use of 'pure' may endanger referential transparency, and in principle even
--- type safety.
-pure :: TH.QuasiQuoter
-pure = genericQuote Pure $ inlineExp TH.Safe
-
--- | C code blocks (i.e. statements).
 block :: TH.QuasiQuoter
-block = genericQuote IO $ inlineItems TH.Safe False Nothing
-
--- | Easily get a 'FunPtr':
---
--- @
--- let fp :: FunPtr (Ptr CInt -> IO ()) = [C.funPtr| void poke42(int *ptr) { *ptr = 42; } |]
--- @
---
--- Especially useful to generate finalizers that require C code.
---
--- Most importantly, this allows you to write `Foreign.ForeignPtr.newForeignPtr` invocations conveniently:
---
--- @
--- do
---   let c_finalizer_funPtr =
---         [C.funPtr| void myfree(char * ptr) { free(ptr); } |]
---   fp <- newForeignPtr c_finalizer_funPtr objPtr
--- @
---
--- Using where possible `Foreign.ForeignPtr.newForeignPtr` is superior to
--- resorting to its delayed-by-a-thread alternative `Foreign.Concurrent.newForeignPtr`
--- from "Foreign.Concurrent" which takes an @IO ()@ Haskell finaliser action:
--- With the non-concurrent `newForeignPtr` you can guarantee that the finaliser
--- will actually be run
---
--- * when a GC is executed under memory pressure, because it can point directly
---   to a C function that doesn't have to run any Haskell code (which is
---   problematic when you're out of memory)
--- * when the program terminates (`Foreign.Concurrent.newForeignPtr`'s finaliser
---   will likely NOT be called if your main thread exits, making your program
---   e.g. not Valgrind-clean if your finaliser is @free@ or C++'s @delete@).
---
--- `funPtr` makes the normal `newForeignPtr` as convenient as its concurrent
--- counterpart.
-funPtr :: TH.QuasiQuoter
-funPtr = funPtrQuote TH.Unsafe -- doesn't make much sense for this to be "safe", but it'd be good to verify what this means
+block = genericQuote $ inlineItems TH.Safe
 
 -- | Emits a CPP include directive for C code associated with the current
 -- module. To avoid having to escape quotes, the function itself adds them when
@@ -298,7 +248,7 @@ funPtr = funPtrQuote TH.Unsafe -- doesn't make much sense for this to be "safe",
 -- @
 include :: String -> TH.DecsQ
 include s
-  | null s = fail "inline-c: empty string (include)"
+  | null s = error "inline-c: empty string (include)"
   | head s == '<' = verbatim $ "#include " ++ s
   | otherwise = verbatim $ "#include \"" ++ s ++ "\""
 

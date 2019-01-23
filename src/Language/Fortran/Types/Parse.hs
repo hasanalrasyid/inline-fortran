@@ -1,12 +1,7 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE DeriveFoldable #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes #-}
@@ -29,23 +24,16 @@
 -- @'parameter_declaration'@.
 
 module Language.Fortran.Types.Parse
-  ( -- * Parser configuration
-    TypeNames
-  , CParserContext(..)
-    -- ** Default configuration
-  , CIdentifier
-  , unCIdentifier
-  , cIdentifierFromString
-  , cCParserContext
-
-    -- * Parser type
-  , CParser
+  ( -- * Parser type
+    CParser
+  , IsTypeName
   , runCParser
   , quickCParser
   , quickCParser_
 
     -- * Types and parsing
-  -- , identifier
+  , Identifier(..)
+  , identifier
   , identifier_no_lex
   , DeclarationSpecifier(..)
   , declaration_specifiers
@@ -68,7 +56,6 @@ module Language.Fortran.Types.Parse
   , Pointer(..)
   , pointer
   , ParameterDeclaration(..)
-  , DeclaratorOrAbstractDeclarator(..)
   , parameter_declaration
   , parameter_list
   , AbstractDeclarator(..)
@@ -80,21 +67,20 @@ module Language.Fortran.Types.Parse
     -- $yacc
 
     -- * Testing utilities
-  , cIdentStart
-  , cIdentLetter
-  , cReservedWords
-  , isTypeName
+  , ParameterDeclarationWithTypeNames(..)
   ) where
 
 import           Control.Applicative
 import           Control.Monad (msum, void, MonadPlus, unless, when)
-import           Control.Monad.Reader (MonadReader, runReaderT, ReaderT, asks, ask)
+import           Control.Monad.Reader (MonadReader, ask, runReaderT, ReaderT)
 import           Data.Functor.Identity (Identity)
 import qualified Data.HashSet as HashSet
-import           Data.Hashable (Hashable)
+import           Data.Maybe (mapMaybe)
 import           Data.Monoid ((<>))
+import qualified Data.Set as Set
 import           Data.String (IsString(..))
 import           Data.Typeable (Typeable)
+import qualified Test.QuickCheck as QC
 import qualified Text.Parsec as Parsec
 import           Text.Parser.Char
 import           Text.Parser.Combinators
@@ -104,121 +90,74 @@ import qualified Text.Parser.Token.Highlight as Highlight
 import           Text.PrettyPrint.ANSI.Leijen (Pretty(..), (<+>), Doc, hsep)
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
 
-#if __GLASGOW_HASKELL__ < 710
-import           Data.Foldable (Foldable)
-import           Data.Traversable (Traversable)
-#endif
-
-------------------------------------------------------------------------
--- Config
-
--- | A collection of named types (typedefs)
-type TypeNames = HashSet.HashSet CIdentifier
-
-data CParserContext i = CParserContext
-  { cpcIdentName :: String
-  , cpcTypeNames :: TypeNames
-    -- ^ Function used to determine whether an identifier is a type name.
-  , cpcParseIdent :: forall m. CParser i m => m i
-    -- ^ Parses an identifier, *without consuming whitespace afterwards*.
-  , cpcIdentToString :: i -> String
-  }
-
--- | A type for C identifiers.
-newtype CIdentifier = CIdentifier {unCIdentifier :: String}
-  deriving (Typeable, Eq, Ord, Show, Hashable)
-
-cIdentifierFromString :: String -> Either String CIdentifier
-cIdentifierFromString s =
-  -- Note: it's important not to use 'cidentifier_raw' here, otherwise
-  -- we go in a loop:
-  --
-  -- @
-  -- cIdentifierFromString => fromString => cIdentifierFromString => ...
-  -- @
-  case Parsec.parse (identNoLex cIdentStyle <* eof) "cIdentifierFromString" s of
-    Left err -> Left $ show err
-    Right x -> Right $ CIdentifier x
-
-instance IsString CIdentifier where
-  fromString s =
-    case cIdentifierFromString s of
-      Left err -> error $ "CIdentifier fromString: invalid string " ++ show s ++ "\n" ++ err
-      Right x -> x
-
-cCParserContext :: TypeNames -> CParserContext CIdentifier
-cCParserContext typeNames = CParserContext
-  { cpcTypeNames = typeNames
-  , cpcParseIdent = cidentifier_no_lex
-  , cpcIdentToString = unCIdentifier
-  , cpcIdentName = "C identifier"
-  }
-
 ------------------------------------------------------------------------
 -- Parser
+
+-- | Function used to determine whether an 'C.Id' is a type name.
+type IsTypeName = Identifier -> Bool
 
 -- | All the parsing is done using the type classes provided by the
 -- @parsers@ package. You can use the parsing routines with any of the parsers
 -- that implement the classes, such as @parsec@ or @trifecta@.
 --
--- We parametrize the parsing by the type of the variable identifiers,
--- @i@.  We do so because we use this parser to implement anti-quoters
--- referring to Haskell variables, and thus we need to parse Haskell
--- identifiers in certain positions.
-type CParser i m =
-  ( Monad m
-  , Functor m
-  , Applicative m
-  , MonadPlus m
-  , Parsing m
-  , CharParsing m
-  , TokenParsing m
-  , LookAheadParsing m
-  , MonadReader (CParserContext i) m
-  , Hashable i
-  )
+-- The 'MonadReader' with 'IsTypeName' is required for parsing C, see
+-- <http://en.wikipedia.org/wiki/The_lexer_hack>.
+type CParser m = (Monad m, Functor m, Applicative m, MonadPlus m, Parsing m, CharParsing m, TokenParsing m, LookAheadParsing m, MonadReader IsTypeName m)
 
 -- | Runs a @'CParser'@ using @parsec@.
 runCParser
   :: Parsec.Stream s Identity Char
-  => CParserContext i
+  => IsTypeName
+  -- ^ Function determining if an identifier is a type name.
   -> String
   -- ^ Source name.
   -> s
   -- ^ String to parse.
-  -> (ReaderT (CParserContext i) (Parsec.Parsec s ()) a)
-  -- ^ Parser.  Anything with type @forall m. CParser i m => m a@ is a
+  -> (ReaderT IsTypeName (Parsec.Parsec s ()) a)
+  -- ^ Parser.  Anything with type @forall m. CParser m => m a@ is a
   -- valid argument.
   -> Either Parsec.ParseError a
-runCParser typeNames fn s p = Parsec.parse (runReaderT p typeNames) fn s
+runCParser isTypeName fn s p = Parsec.parse (runReaderT p isTypeName) fn s
 
 -- | Useful for quick testing.  Uses @\"quickCParser\"@ as source name, and throws
 -- an 'error' if parsing fails.
 quickCParser
-  :: CParserContext i
+  :: IsTypeName
+  -- ^ Function determining if an identifier is a type name.
   -> String
   -- ^ String to parse.
-  -> (ReaderT (CParserContext i) (Parsec.Parsec String ()) a)
-  -- ^ Parser.  Anything with type @forall m. CParser i m => m a@ is a
+  -> (ReaderT IsTypeName (Parsec.Parsec String ()) a)
+  -- ^ Parser.  Anything with type @forall m. CParser m => m a@ is a
   -- valid argument.
   -> a
-quickCParser typeNames s p = case runCParser typeNames "quickCParser" s p of
+quickCParser isTypeName s p = case runCParser isTypeName "quickCParser" s p of
   Left err -> error $ "quickCParser: " ++ show err
   Right x -> x
 
--- | Like 'quickCParser', but uses @'cCParserContext' ('const' 'False')@ as
--- 'CParserContext'.
+-- | Like 'quickCParser', but uses @'const' 'False'@ as 'IsTypeName'.
 quickCParser_
   :: String
   -- ^ String to parse.
-  -> (ReaderT (CParserContext CIdentifier) (Parsec.Parsec String ()) a)
-  -- ^ Parser.  Anything with type @forall m. CParser i m => m a@ is a
+  -> (ReaderT IsTypeName (Parsec.Parsec String ()) a)
+  -- ^ Parser.  Anything with type @forall m. CParser m => m a@ is a
   -- valid argument.
   -> a
-quickCParser_ = quickCParser (cCParserContext HashSet.empty)
+quickCParser_ = quickCParser (const False)
 
-cReservedWords :: HashSet.HashSet String
-cReservedWords = HashSet.fromList
+newtype Identifier = Identifier {unIdentifier :: String}
+  deriving (Typeable, Eq, Ord, Show)
+
+instance IsString Identifier where
+  fromString s =
+    case runCParser (const False) "fromString" s (identifier_no_lex <* eof) of
+      Left _err -> error $ "Identifier fromString: invalid string " ++ show s
+      Right x -> x
+
+identLetter :: CParser m => m Char
+identLetter = oneOf $ ['a'..'z'] ++ ['A'..'Z'] ++ ['_']
+
+reservedWords :: HashSet.HashSet String
+reservedWords = HashSet.fromList
   [ "auto", "else", "long", "switch"
   , "break", "enum", "register", "typedef"
   , "case", "extern", "return", "union"
@@ -229,18 +168,12 @@ cReservedWords = HashSet.fromList
   , "do", "int", "struct", "double"
   ]
 
-cIdentStart :: [Char]
-cIdentStart = ['a'..'z'] ++ ['A'..'Z'] ++ ['_']
-
-cIdentLetter :: [Char]
-cIdentLetter = ['a'..'z'] ++ ['A'..'Z'] ++ ['_'] ++ ['0'..'9']
-
-cIdentStyle :: (TokenParsing m, Monad m) => IdentifierStyle m
-cIdentStyle = IdentifierStyle
+identStyle :: CParser m => IdentifierStyle m
+identStyle = IdentifierStyle
   { _styleName = "C identifier"
-  , _styleStart = oneOf cIdentStart
-  , _styleLetter = oneOf cIdentLetter
-  , _styleReserved = cReservedWords
+  , _styleStart = identLetter
+  , _styleLetter = identLetter <|> digit
+  , _styleReserved = reservedWords
   , _styleHighlight = Highlight.Identifier
   , _styleReservedHighlight = Highlight.ReservedIdentifier
   }
@@ -252,7 +185,7 @@ data DeclarationSpecifier
   | FunctionSpecifier FunctionSpecifier
   deriving (Typeable, Eq, Show)
 
-declaration_specifiers :: CParser i m => m [DeclarationSpecifier]
+declaration_specifiers :: forall m. CParser m => m [DeclarationSpecifier]
 declaration_specifiers = many1 $ msum
   [ StorageClassSpecifier <$> storage_class_specifier
   , TypeSpecifier <$> type_specifier
@@ -268,13 +201,13 @@ data StorageClassSpecifier
   | REGISTER
   deriving (Typeable, Eq, Show)
 
-storage_class_specifier :: CParser i m => m StorageClassSpecifier
+storage_class_specifier :: CParser m => m StorageClassSpecifier
 storage_class_specifier = msum
-  [ TYPEDEF <$ reserve cIdentStyle "typedef"
-  , EXTERN <$ reserve cIdentStyle "extern"
-  , STATIC <$ reserve cIdentStyle "static"
-  , AUTO <$ reserve cIdentStyle "auto"
-  , REGISTER <$ reserve cIdentStyle "register"
+  [ TYPEDEF <$ reserve identStyle "typedef"
+  , EXTERN <$ reserve identStyle "extern"
+  , STATIC <$ reserve identStyle "static"
+  , AUTO <$ reserve identStyle "auto"
+  , REGISTER <$ reserve identStyle "register"
   ]
 
 data TypeSpecifier
@@ -287,70 +220,44 @@ data TypeSpecifier
   | DOUBLE
   | SIGNED
   | UNSIGNED
-  | Struct CIdentifier
-  | Enum CIdentifier
-  | TypeName CIdentifier
+  | Struct Identifier
+  | Enum Identifier
+  | TypeName Identifier
   deriving (Typeable, Eq, Show)
 
-type_specifier :: CParser i m => m TypeSpecifier
+type_specifier :: CParser m => m TypeSpecifier
 type_specifier = msum
-  [ VOID <$ reserve cIdentStyle "void"
-  , CHAR <$ reserve cIdentStyle "char"
-  , SHORT <$ reserve cIdentStyle "short"
-  , INT <$ reserve cIdentStyle "int"
-  , LONG <$ reserve cIdentStyle "long"
-  , FLOAT <$ reserve cIdentStyle "float"
-  , DOUBLE <$ reserve cIdentStyle "double"
-  , SIGNED <$ reserve cIdentStyle "signed"
-  , UNSIGNED <$ reserve cIdentStyle "unsigned"
-  , Struct <$> (reserve cIdentStyle "struct" >> cidentifier)
-  , Enum <$> (reserve cIdentStyle "enum" >> cidentifier)
+  [ VOID <$ reserve identStyle "void"
+  , CHAR <$ reserve identStyle "char"
+  , SHORT <$ reserve identStyle "short"
+  , INT <$ reserve identStyle "int"
+  , LONG <$ reserve identStyle "long"
+  , FLOAT <$ reserve identStyle "float"
+  , DOUBLE <$ reserve identStyle "double"
+  , SIGNED <$ reserve identStyle "signed"
+  , UNSIGNED <$ reserve identStyle "unsigned"
+  , Struct <$> (reserve identStyle "struct" >> identifier)
+  , Enum <$> (reserve identStyle "enum" >> identifier)
   , TypeName <$> type_name
   ]
 
-identifier :: CParser i m => m i
-identifier = token identifier_no_lex
+identifier :: CParser m => m Identifier
+identifier =
+  try (do s <- ident identStyle
+          isTypeName <- ask
+          when (isTypeName s) $
+            fail "expecting identifier, got type name"
+          return s)
+  <?> "identifier"
 
-isTypeName :: TypeNames -> String -> Bool
-isTypeName typeNames id_ =
-  case cIdentifierFromString id_ of
-    -- If it's not a valid C identifier, then it's definitely not a C type name.
-    Left _err -> False
-    Right s -> HashSet.member s typeNames
-
-identifier_no_lex :: CParser i m => m i
-identifier_no_lex = try $ do
-  ctx <- ask
-  id_ <- cpcParseIdent ctx <?> cpcIdentName ctx
-  when (isTypeName (cpcTypeNames ctx) (cpcIdentToString ctx id_)) $
-    unexpected $ "type name " ++ cpcIdentToString ctx id_
-  return id_
-
--- | Same as 'cidentifier_no_lex', but does not check that the
--- identifier is not a type name.
-cidentifier_raw :: (TokenParsing m, Monad m) => m CIdentifier
-cidentifier_raw = identNoLex cIdentStyle
-
--- | This parser parses a 'CIdentifier' and nothing else -- it does not consume
--- trailing spaces and the like.
-cidentifier_no_lex :: CParser i m => m CIdentifier
-cidentifier_no_lex = try $ do
-  s <- cidentifier_raw
-  typeNames <- asks cpcTypeNames
-  when (HashSet.member s typeNames) $
-    unexpected $ "type name " ++ unCIdentifier s
-  return s
-
-cidentifier :: CParser i m => m CIdentifier
-cidentifier = token cidentifier_no_lex
-
-type_name :: CParser i m => m CIdentifier
-type_name = try $ do
-  s <- ident cIdentStyle <?> "type name"
-  typeNames <- asks cpcTypeNames
-  unless (HashSet.member s typeNames) $
-    unexpected $ "identifier  " ++ unCIdentifier s
-  return s
+type_name :: CParser m => m Identifier
+type_name =
+  try (do s <- ident identStyle
+          isTypeName <- ask
+          unless (isTypeName s) $
+            fail "expecting type name, got identifier"
+          return s)
+  <?> "type name"
 
 data TypeQualifier
   = CONST
@@ -358,56 +265,56 @@ data TypeQualifier
   | VOLATILE
   deriving (Typeable, Eq, Show)
 
-type_qualifier :: CParser i m => m TypeQualifier
+type_qualifier :: CParser m => m TypeQualifier
 type_qualifier = msum
-  [ CONST <$ reserve cIdentStyle "const"
-  , RESTRICT <$ reserve cIdentStyle "restrict"
-  , VOLATILE <$ reserve cIdentStyle "volatile"
+  [ CONST <$ reserve identStyle "const"
+  , RESTRICT <$ reserve identStyle "restrict"
+  , VOLATILE <$ reserve identStyle "volatile"
   ]
 
 data FunctionSpecifier
   = INLINE
   deriving (Typeable, Eq, Show)
 
-function_specifier :: CParser i m => m FunctionSpecifier
+function_specifier :: CParser m => m FunctionSpecifier
 function_specifier = msum
-  [ INLINE <$ reserve cIdentStyle "inline"
+  [ INLINE <$ reserve identStyle "inline"
   ]
 
-data Declarator i = Declarator
+data Declarator = Declarator
   { declaratorPointers :: [Pointer]
-  , declaratorDirect :: (DirectDeclarator i)
-  } deriving (Typeable, Eq, Show, Functor, Foldable, Traversable)
+  , declaratorDirect :: DirectDeclarator
+  } deriving (Typeable, Eq, Show)
 
-declarator :: CParser i m => m (Declarator i)
+declarator :: CParser m => m Declarator
 declarator = (Declarator <$> many pointer <*> direct_declarator) <?> "declarator"
 
-data DirectDeclarator i
-  = DeclaratorRoot i
-  | ArrayOrProto (DirectDeclarator i) (ArrayOrProto i)
-  | DeclaratorParens (Declarator i)
-  deriving (Typeable, Eq, Show, Functor, Foldable, Traversable)
+data DirectDeclarator
+  = DeclaratorRoot Identifier
+  | ArrayOrProto DirectDeclarator ArrayOrProto
+  | DeclaratorParens Declarator
+  deriving (Typeable, Eq, Show)
 
-data ArrayOrProto i
-  = Array (ArrayType i)
-  | Proto [ParameterDeclaration i] -- We don't include old prototypes.
-  deriving (Eq, Show, Typeable, Functor, Foldable, Traversable)
+data ArrayOrProto
+  = Array ArrayType
+  | Proto [ParameterDeclaration] -- We don't include old prototypes.
+  deriving (Typeable, Eq, Show)
 
-array_or_proto :: CParser i m => m (ArrayOrProto i)
+array_or_proto :: CParser m => m ArrayOrProto
 array_or_proto = msum
   [ Array <$> brackets array_type
   , Proto <$> parens parameter_list
   ]
 
 -- TODO handle more stuff in array brackets
-data ArrayType i
+data ArrayType
   = VariablySized
   | Unsized
   | SizedByInteger Integer
-  | SizedByIdentifier i
-  deriving (Typeable, Eq, Show, Functor, Foldable, Traversable)
+  | SizedByIdentifier Identifier
+  deriving (Typeable, Eq, Show)
 
-array_type :: CParser i m => m (ArrayType i)
+array_type :: CParser m => m ArrayType
 array_type = msum
   [ VariablySized <$ symbolic '*'
   , SizedByInteger <$> natural
@@ -415,55 +322,50 @@ array_type = msum
   , return Unsized
   ]
 
-direct_declarator :: CParser i m => m (DirectDeclarator i)
-direct_declarator = do
-  ddecltor <- msum
-    [ DeclaratorRoot <$> identifier
-    , DeclaratorParens <$> parens declarator
-    ]
-  aops <- many array_or_proto
-  return $ foldl ArrayOrProto ddecltor aops
+direct_declarator :: CParser m => m DirectDeclarator
+direct_declarator =
+  (do ddecltor <- msum
+        [ DeclaratorRoot <$> identifier
+        , DeclaratorParens <$> parens declarator
+        ]
+      aops <- many array_or_proto
+      return $ foldl ArrayOrProto ddecltor aops)
 
 data Pointer
   = Pointer [TypeQualifier]
   deriving (Typeable, Eq, Show)
 
-pointer :: CParser i m => m Pointer
+pointer :: CParser m => m Pointer
 pointer = do
   void $ symbolic '*'
   Pointer <$> many type_qualifier
 
-parameter_list :: CParser i m => m [ParameterDeclaration i]
+parameter_list :: CParser m => m [ParameterDeclaration]
 parameter_list =
   sepBy parameter_declaration $ symbolic ','
 
-data ParameterDeclaration i = ParameterDeclaration
+data ParameterDeclaration = ParameterDeclaration
   { parameterDeclarationSpecifiers :: [DeclarationSpecifier]
-  , parameterDeclarationDeclarator :: DeclaratorOrAbstractDeclarator i
-  } deriving (Eq, Show, Typeable, Functor, Foldable, Traversable)
+  , parameterDeclarationDeclarator :: Either Declarator AbstractDeclarator
+  } deriving (Typeable, Eq, Show)
 
-data DeclaratorOrAbstractDeclarator i
-  = IsDeclarator (Declarator i)
-  | IsAbstractDeclarator (AbstractDeclarator i)
-  deriving (Eq, Show, Typeable, Functor, Foldable, Traversable)
-
-parameter_declaration :: CParser i m => m (ParameterDeclaration i)
+parameter_declaration :: CParser m => m ParameterDeclaration
 parameter_declaration =
   ParameterDeclaration
     <$> declaration_specifiers
     <*> mbabstract
   where
    mbabstract =
-     IsDeclarator <$> try declarator <|>
-     IsAbstractDeclarator <$> try abstract_declarator <|>
-     return (IsAbstractDeclarator (AbstractDeclarator [] Nothing))
+     Left <$> try declarator <|>
+     Right <$> try abstract_declarator <|>
+     return (Right (AbstractDeclarator [] Nothing))
 
-data AbstractDeclarator i = AbstractDeclarator
+data AbstractDeclarator = AbstractDeclarator
   { abstractDeclaratorPointers :: [Pointer]
-  , abstractDeclaratorDirect :: Maybe (DirectAbstractDeclarator i)
-  } deriving (Typeable, Eq, Show, Functor, Foldable, Traversable)
+  , abstractDeclaratorDirect :: Maybe DirectAbstractDeclarator
+  } deriving (Typeable, Eq, Show)
 
-abstract_declarator :: CParser i m => m (AbstractDeclarator i)
+abstract_declarator :: CParser m => m AbstractDeclarator
 abstract_declarator = do
   ptrs <- many pointer
   -- If there are no pointers, there must be an abstract declarator.
@@ -472,26 +374,37 @@ abstract_declarator = do
         else (Just <$> try direct_abstract_declarator) <|> return Nothing
   AbstractDeclarator ptrs <$> p
 
-data DirectAbstractDeclarator i
-  = ArrayOrProtoHere (ArrayOrProto i)
-  | ArrayOrProtoThere (DirectAbstractDeclarator i) (ArrayOrProto i)
-  | AbstractDeclaratorParens (AbstractDeclarator i)
-  deriving (Typeable, Eq, Show, Functor, Foldable, Traversable)
+data DirectAbstractDeclarator
+  = ArrayOrProtoHere ArrayOrProto
+  | ArrayOrProtoThere DirectAbstractDeclarator ArrayOrProto
+  | AbstractDeclaratorParens AbstractDeclarator
+  deriving (Typeable, Eq, Show)
 
-direct_abstract_declarator :: CParser i m => m (DirectAbstractDeclarator i)
-direct_abstract_declarator = do
-  ddecltor <- msum
-    [ try (ArrayOrProtoHere <$> array_or_proto)
-    , AbstractDeclaratorParens <$> parens abstract_declarator
-    ] <?> "array, prototype, or parenthesised abstract declarator"
-  aops <- many array_or_proto
-  return $ foldl ArrayOrProtoThere ddecltor aops
+direct_abstract_declarator :: CParser m => m DirectAbstractDeclarator
+direct_abstract_declarator =
+  (do ddecltor <- msum
+        [ try (ArrayOrProtoHere <$> array_or_proto)
+        , AbstractDeclaratorParens <$> parens abstract_declarator
+        ] <?> "array, prototype, or parenthesised abstract declarator"
+      aops <- many array_or_proto
+      return $ foldl ArrayOrProtoThere ddecltor aops)
+
+-- | This parser parses an 'Id' and nothing else -- it does not consume
+-- trailing spaces and the like.
+identifier_no_lex :: CParser m => m Identifier
+identifier_no_lex =
+  try (do s <- Identifier <$> ((:) <$> identLetter <*> many (identLetter <|> digit))
+          isTypeName <- ask
+          when (isTypeName s) $
+            fail "expecting identifier, got type name"
+          return s)
+  <?> "identifier"
 
 ------------------------------------------------------------------------
 -- Pretty printing
 
-instance Pretty CIdentifier where
-  pretty = PP.text . unCIdentifier
+instance Pretty Identifier where
+  pretty = PP.text . unIdentifier
 
 instance Pretty DeclarationSpecifier where
   pretty dspec = case dspec of
@@ -533,7 +446,7 @@ instance Pretty FunctionSpecifier where
   pretty funSpec = case funSpec of
     INLINE -> "inline"
 
-instance Pretty i => Pretty (Declarator i) where
+instance Pretty Declarator where
   pretty (Declarator ptrs ddecltor) = case ptrs of
     [] -> pretty ddecltor
     _:_ -> prettyPointers ptrs <+> pretty ddecltor
@@ -545,13 +458,13 @@ prettyPointers (x : xs) = pretty x <> prettyPointers xs
 instance Pretty Pointer where
   pretty (Pointer tyQual) = "*" <> hsep (map pretty tyQual)
 
-instance Pretty i => Pretty (DirectDeclarator i) where
+instance Pretty DirectDeclarator where
   pretty decltor = case decltor of
     DeclaratorRoot x -> pretty x
     DeclaratorParens x -> "(" <> pretty x <> ")"
     ArrayOrProto ddecltor aorp -> pretty ddecltor <> pretty aorp
 
-instance Pretty i => Pretty (ArrayOrProto i) where
+instance Pretty ArrayOrProto where
   pretty aorp = case aorp of
     Array x -> "[" <> pretty x <> "]"
     Proto x -> "(" <> prettyParams x <> ")"
@@ -562,38 +475,192 @@ prettyParams xs = case xs of
   [x] -> pretty x
   x : xs'@(_:_) -> pretty x <> "," <+> prettyParams xs'
 
-instance Pretty i => Pretty (ArrayType i) where
+instance Pretty ArrayType where
   pretty at = case at of
     VariablySized -> "*"
     SizedByInteger n -> pretty n
     SizedByIdentifier s -> pretty s
     Unsized -> ""
 
-instance Pretty i => Pretty (ParameterDeclaration i) where
+instance Pretty ParameterDeclaration where
   pretty (ParameterDeclaration declSpecs decltor) = case declSpecs of
     [] -> decltorDoc
     _:_ -> hsep (map pretty declSpecs) <+> decltorDoc
     where
       decltorDoc = case decltor of
-        IsDeclarator x -> pretty x
-        IsAbstractDeclarator x -> pretty x
+        Left x -> pretty x
+        Right x -> pretty x
 
-instance Pretty i => Pretty (AbstractDeclarator i) where
+instance Pretty AbstractDeclarator where
   pretty (AbstractDeclarator ptrs mbDecltor) = case (ptrs, mbDecltor) of
     (_, Nothing) -> prettyPointers ptrs
     ([], Just x) -> pretty x
     (_:_, Just x) -> prettyPointers ptrs <+> pretty x
 
-instance Pretty i => Pretty (DirectAbstractDeclarator i) where
+instance Pretty DirectAbstractDeclarator where
   pretty ddecltor = case ddecltor of
     AbstractDeclaratorParens x -> "(" <> pretty x <> ")"
     ArrayOrProtoHere aop -> pretty aop
     ArrayOrProtoThere ddecltor' aop -> pretty ddecltor' <> pretty aop
 
 ------------------------------------------------------------------------
+-- Arbitrary
+
+data OneOfSized a
+  = Anyhow a
+  | IfPositive a
+  deriving (Typeable, Eq, Show)
+
+-- | Precondition: there is at least one 'Anyhow' in the list.
+oneOfSized :: [OneOfSized (QC.Gen a)] -> QC.Gen a
+oneOfSized xs = QC.sized $ \n -> do
+  let f (Anyhow a) = Just a
+      f (IfPositive x) | n > 0 = Just x
+      f (IfPositive _) = Nothing
+  QC.oneof $ mapMaybe f xs
+
+halveSize :: QC.Gen a -> QC.Gen a
+halveSize m = QC.sized $ \n -> QC.resize (n `div` 2) m
+
+arbitraryIdentifier :: QC.Gen Identifier
+arbitraryIdentifier = do
+    s <- ((:) <$> QC.elements letters <*> QC.listOf (QC.elements (letters ++ digits)))
+    if HashSet.member s reservedWords
+      then arbitraryIdentifier
+      else return $ Identifier s
+  where
+    letters = ['a'..'z'] ++ ['A'..'Z'] ++ ['_']
+    digits = ['0'..'9']
+
+-- | Type used to generate an 'QC.Arbitrary' 'ParameterDeclaration' with
+-- arbitrary allowed type names.
+data ParameterDeclarationWithTypeNames = ParameterDeclarationWithTypeNames
+  { pdwtnTypeNames :: Set.Set Identifier
+  , pdwtnParameterDeclaration :: ParameterDeclaration
+  } deriving (Typeable, Eq, Show)
+
+instance QC.Arbitrary ParameterDeclarationWithTypeNames where
+  arbitrary = do
+    names <- Set.fromList <$> QC.listOf arbitraryIdentifier
+    decl <- arbitraryParameterDeclarationFrom names
+    return $ ParameterDeclarationWithTypeNames names decl
+
+arbitraryDeclarationSpecifierFrom :: Set.Set Identifier -> QC.Gen DeclarationSpecifier
+arbitraryDeclarationSpecifierFrom typeNames = QC.oneof $
+  [ StorageClassSpecifier <$> QC.arbitrary
+  , TypeQualifier <$> QC.arbitrary
+  , FunctionSpecifier <$> QC.arbitrary
+  , TypeSpecifier <$> arbitraryTypeSpecifierFrom typeNames
+  ]
+
+instance QC.Arbitrary StorageClassSpecifier where
+  arbitrary = QC.oneof
+    [ return TYPEDEF
+    , return EXTERN
+    , return STATIC
+    , return AUTO
+    , return REGISTER
+    ]
+
+arbitraryTypeSpecifierFrom :: Set.Set Identifier -> QC.Gen TypeSpecifier
+arbitraryTypeSpecifierFrom typeNames = QC.oneof $
+  [ return VOID
+  , return CHAR
+  , return SHORT
+  , return INT
+  , return LONG
+  , return FLOAT
+  , return DOUBLE
+  , return SIGNED
+  , return UNSIGNED
+  , Struct <$> arbitraryIdentifierFrom typeNames
+  , Enum <$> arbitraryIdentifierFrom typeNames
+  ] ++ if Set.null typeNames then []
+       else [TypeName <$> QC.elements (Set.toList typeNames)]
+
+instance QC.Arbitrary TypeQualifier where
+  arbitrary = QC.oneof
+    [ return CONST
+    , return RESTRICT
+    , return VOLATILE
+    ]
+
+instance QC.Arbitrary FunctionSpecifier where
+  arbitrary = QC.oneof
+    [ return INLINE
+    ]
+
+arbitraryDeclaratorFrom :: Set.Set Identifier -> QC.Gen Declarator
+arbitraryDeclaratorFrom typeNames = halveSize $
+  Declarator <$> QC.arbitrary <*> arbitraryDirectDeclaratorFrom typeNames
+
+arbitraryIdentifierFrom :: Set.Set Identifier -> QC.Gen Identifier
+arbitraryIdentifierFrom typeNames = do
+  id' <- arbitraryIdentifier
+  if Set.member id' typeNames
+    then arbitraryIdentifierFrom typeNames
+    else return id'
+
+arbitraryDirectDeclaratorFrom :: Set.Set Identifier -> QC.Gen DirectDeclarator
+arbitraryDirectDeclaratorFrom typeNames = halveSize $ oneOfSized $
+  [ Anyhow $ DeclaratorRoot <$> arbitraryIdentifierFrom typeNames
+  , IfPositive $ DeclaratorParens <$> arbitraryDeclaratorFrom typeNames
+  , IfPositive $ ArrayOrProto
+      <$> arbitraryDirectDeclaratorFrom typeNames
+      <*> arbitraryArrayOrProtoFrom typeNames
+  ]
+
+arbitraryArrayOrProtoFrom :: Set.Set Identifier -> QC.Gen ArrayOrProto
+arbitraryArrayOrProtoFrom typeNames = halveSize $ oneOfSized $
+  [ Anyhow $ Array <$> arbitraryArrayTypeFrom typeNames
+  , IfPositive $ Proto <$> QC.listOf (arbitraryParameterDeclarationFrom typeNames)
+  ]
+
+arbitraryArrayTypeFrom :: Set.Set Identifier -> QC.Gen ArrayType
+arbitraryArrayTypeFrom typeNames = QC.oneof
+  [ return VariablySized
+  , SizedByInteger . QC.getNonNegative <$> QC.arbitrary
+  , SizedByIdentifier <$> arbitraryIdentifierFrom typeNames
+  , return Unsized
+  ]
+
+instance QC.Arbitrary Pointer where
+  arbitrary = Pointer <$> QC.arbitrary
+
+arbitraryParameterDeclarationFrom :: Set.Set Identifier -> QC.Gen ParameterDeclaration
+arbitraryParameterDeclarationFrom typeNames = halveSize $
+  ParameterDeclaration
+    <$> QC.listOf1 (arbitraryDeclarationSpecifierFrom typeNames)
+    <*> QC.oneof
+          [ Left <$> arbitraryDeclaratorFrom typeNames
+          , Right <$> arbitraryAbstractDeclaratorFrom typeNames
+          ]
+
+arbitraryAbstractDeclaratorFrom :: Set.Set Identifier -> QC.Gen AbstractDeclarator
+arbitraryAbstractDeclaratorFrom typeNames = halveSize $ do
+  ptrs <- QC.arbitrary
+  decl <- if null ptrs
+    then Just <$> arbitraryDirectAbstractDeclaratorFrom typeNames
+    else oneOfSized
+      [ Anyhow $ return Nothing
+      , IfPositive $ Just <$> arbitraryDirectAbstractDeclaratorFrom typeNames
+      ]
+  return $ AbstractDeclarator ptrs decl
+
+arbitraryDirectAbstractDeclaratorFrom
+  :: Set.Set Identifier -> QC.Gen DirectAbstractDeclarator
+arbitraryDirectAbstractDeclaratorFrom typeNames = halveSize $ oneOfSized $
+  [ Anyhow $ ArrayOrProtoHere <$> arbitraryArrayOrProtoFrom typeNames
+  , IfPositive $ AbstractDeclaratorParens <$> arbitraryAbstractDeclaratorFrom typeNames
+  , IfPositive $ ArrayOrProtoThere
+      <$> arbitraryDirectAbstractDeclaratorFrom typeNames
+      <*> arbitraryArrayOrProtoFrom typeNames
+  ]
+
+------------------------------------------------------------------------
 -- Utils
 
-many1 :: CParser i m => m a -> m [a]
+many1 :: CParser m => m a -> m [a]
 many1 p = (:) <$> p <*> many p
 
 ------------------------------------------------------------------------
@@ -739,13 +806,3 @@ many1 p = (:) <$> p <*> many p
 -- 	printf("\n%*s\n%*s\n", column, "^", column, s);
 -- }
 -- @
-
--- Utils
-------------------------------------------------------------------------
-
-identNoLex :: (TokenParsing m, Monad m, IsString s) => IdentifierStyle m -> m s
-identNoLex s = fmap fromString $ try $ do
-  name <- highlight (_styleHighlight s)
-          ((:) <$> _styleStart s <*> many (_styleLetter s) <?> _styleName s)
-  when (HashSet.member name (_styleReserved s)) $ unexpected $ "reserved " ++ _styleName s ++ " " ++ show name
-  return name

@@ -33,6 +33,12 @@ dependencies:
     - unordered-containers
     - vector
 
+    - QuickCheck
+    - directory
+    - filepath
+    - binary
+    - cryptonite
+
 library:
   source-dirs: src
 
@@ -52,7 +58,6 @@ executables:
     dependencies:
     - inline-fortran
     - vector
-    - inline-c
     - Chart
     - Chart-cairo
 
