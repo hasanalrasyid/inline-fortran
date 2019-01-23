@@ -165,7 +165,7 @@ bumpGeneratedNames = do
 cSourceLoc :: Context -> TH.Q FilePath
 cSourceLoc ctx = do
   thisFile <- TH.loc_filename <$> TH.location
-  let ext = fromMaybe "c" $ ctxFileExtension ctx
+  let ext = fromMaybe "F90" $ ctxFileExtension ctx
   return $ dropExtension thisFile `addExtension` ext
 
 removeIfExists :: FilePath -> IO ()
