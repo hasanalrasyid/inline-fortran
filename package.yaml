@@ -48,6 +48,7 @@ executables:
     - -rtsopts
     - -with-rtsopts=-N
     - -keep-tmp-files
+    - -tmpdir .stack-work/tmpdir
     dependencies:
     - inline-fortran
     - vector
