@@ -21,6 +21,17 @@ description:         Please see the README on GitHub at <https://github.com/hasa
 
 dependencies:
     - base >= 4.7 && < 5
+    - ansi-wl-pprint
+    - bytestring
+    - containers
+    - hashable
+    - mtl
+    - parsec
+    - parsers
+    - template-haskell >= 2.12.0.0
+    - transformers
+    - unordered-containers
+    - vector
 
 library:
   source-dirs: src

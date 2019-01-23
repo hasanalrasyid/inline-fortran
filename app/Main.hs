@@ -13,8 +13,8 @@ import           Foreign.Ptr (Ptr)
 import           Foreign.Storable (Storable)
 import qualified Graphics.Rendering.Chart.Backend.Cairo as Chart
 import qualified Graphics.Rendering.Chart.Easy as Chart
-import qualified Language.C.Inline as C
-import qualified Language.C.Inline.Unsafe as CU
+import qualified Language.Fortran.Inline as C
+import qualified Language.Fortran.Inline.Unsafe as CU
 import           System.IO.Unsafe (unsafePerformIO)
 
 #if __GLASGOW_HASKELL__ < 710
