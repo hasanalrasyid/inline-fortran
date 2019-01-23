@@ -47,6 +47,7 @@ executables:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
+    - -keep-tmp-files
     dependencies:
     - inline-fortran
     - vector
