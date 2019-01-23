@@ -3,3 +3,4 @@ inline-fortran.cabal
 *.c
 *~
 inline-fortran-exe
+_stack-work.local
