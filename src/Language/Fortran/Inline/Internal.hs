@@ -29,7 +29,9 @@ module Language.Fortran.Inline.Internal
     , Code(..)
     , inlineCode
     , inlineExp
+    , inlineExpFortran
     , inlineItems
+
 
       -- * Parsing
       --
@@ -246,6 +248,18 @@ inlineCode Code{..} = do
   TH.addTopDecls [dec]
   TH.varE ffiImportName
 
+inlineCodeFortran :: Code -> TH.ExpQ
+inlineCodeFortran Code{..} = do
+  -- Write out definitions
+  ctx <- getContext
+  let out = fromMaybe id $ ctxOutput ctx
+  void $ emitVerbatim $ out codeDefs
+  -- Create and add the FFI declaration.
+  ffiImportName <- uniqueFfiImportName
+  dec <- TH.forImpD TH.CCall codeCallSafety codeFunName ffiImportName codeType
+  TH.addTopDecls [dec]
+  TH.varE ffiImportName
+
 uniqueCName :: String -> TH.Q String
 uniqueCName x = do
   c' <- bumpGeneratedNames
@@ -282,6 +296,24 @@ inlineExp callSafety type_ cRetType cParams cExp =
       C.TypeSpecifier _quals C.Void -> cExp ++ ";"
       _ -> "return (" ++ cExp ++ ");"
 
+inlineExpFortran
+  :: TH.Safety
+  -- ^ Safety of the foreign call
+  -> TH.TypeQ
+  -- ^ Type of the foreign call
+  -> C.Type
+  -- ^ Return type of the C expr
+  -> [(C.Identifier, C.Type)]
+  -- ^ Parameters of the C expr
+  -> String
+  -- ^ The C expression
+  -> TH.ExpQ
+inlineExpFortran callSafety type_ cRetType cParams cExp =
+  inlineItemsFortran callSafety type_ cRetType cParams cItems
+  where
+    cItems = case cRetType of
+      C.TypeSpecifier _quals C.Void -> cExp ++ ";"
+      _ -> "returnfortran (" ++ cExp ++ ");"
 -- | Same as 'inlineCode', but accepts a string containing a list of C
 -- statements instead instead than a full-blown 'Code'.  A function
 -- containing the provided statement will be automatically generated.
@@ -322,6 +354,32 @@ inlineItems callSafety type_ cRetType cParams cItems = do
     , codeDefs = defs
     }
 
+inlineItemsFortran
+  :: TH.Safety
+  -- ^ Safety of the foreign call
+  -> TH.TypeQ
+  -- ^ Type of the foreign call
+  -> C.Type
+  -- ^ Return type of the C expr
+  -> [(C.Identifier, C.Type)]
+  -- ^ Parameters of the C expr
+  -> String
+  -- ^ The C items
+  -> TH.ExpQ
+inlineItemsFortran callSafety type_ cRetType cParams cItems = do
+  let mkParam (id', paramTy) = C.ParameterDeclaration (Just id') paramTy
+  let proto = C.Proto cRetType (map mkParam cParams)
+  funName <- uniqueCName $ show proto ++ cItems
+  let decl = C.ParameterDeclaration (Just (C.Identifier funName)) proto
+  let defs =
+        prettyOneLine decl ++ " {\n" ++
+        cItems ++ "\n}\n"
+  inlineCodeFortran $ Code
+    { codeCallSafety = callSafety
+    , codeType = type_
+    , codeFunName = funName
+    , codeDefs = defs
+    }
 ------------------------------------------------------------------------
 -- Parsing
 
