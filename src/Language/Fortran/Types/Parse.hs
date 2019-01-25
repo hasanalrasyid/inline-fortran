@@ -215,13 +215,11 @@ data TypeSpecifier
   | CHAR
   | SHORT
   | INT
-  | INTFORTRAN_
   | LONG
   | FLOAT
   | DOUBLE
   | SIGNED
   | UNSIGNED
-  | UNSIGNEDFORTRAN_
   | Struct Identifier
   | Enum Identifier
   | TypeName Identifier
@@ -233,7 +231,6 @@ type_specifier = msum
   , CHAR <$ reserve identStyle "char"
   , SHORT <$ reserve identStyle "short"
   , INT <$ reserve identStyle "int"
-  , INTFORTRAN_ <$ reserve identStyle "integerFortran"
   , LONG <$ reserve identStyle "long"
   , FLOAT <$ reserve identStyle "float"
   , DOUBLE <$ reserve identStyle "double"
@@ -430,13 +427,11 @@ instance Pretty TypeSpecifier where
    CHAR -> "char"
    SHORT -> "short"
    INT -> "int"
-   INTFORTRAN_ -> "int"
    LONG -> "long"
    FLOAT -> "float"
    DOUBLE -> "double"
    SIGNED -> "signed"
    UNSIGNED -> "unsigned"
-   UNSIGNEDFORTRAN_ -> "unsignedFortran_"
    Struct x -> "struct" <+> pretty x
    Enum x -> "enum" <+> pretty x
    TypeName x -> pretty x

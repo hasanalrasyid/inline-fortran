@@ -78,7 +78,8 @@ solveOdeC fun x0 f0 xend = unsafePerformIO $ do
       return status;
     } |]
   -- Check the error code
-  maxSteps <- [C.exp| int{ GSL_EMAXITER } |]
+  maxSteps <- [C.expFortran| int{ GSL_EMAXITER } |]
+  maxSteps2 <- [C.expFortran| float{ GSL_EMAXITER_FLOAT } |]
   smallStep <- [C.exp| int{ GSL_ENOPROG } |]
   good <- [C.exp| int{ GSL_SUCCESS } |]
   if | res == good -> Right <$> V.freeze fMut

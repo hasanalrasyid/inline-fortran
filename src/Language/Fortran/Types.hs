@@ -78,7 +78,6 @@ data TypeSpecifier
   | Char (Maybe Sign)
   | Short Sign
   | Int Sign
-  | IntFortran_ Sign
   | Long Sign
   | LLong Sign
   | Float
@@ -197,8 +196,6 @@ untangleDeclarationSpecifiers declSpecs = do
     P.CHAR -> do
       checkNoLength
       return $ Char mbSign
-    P.INTFORTRAN_ | longs == 0 && shorts == 0 -> do
-      return $ IntFortran_ sign
     P.INT | longs == 0 && shorts == 0 -> do
       return $ Int sign
     P.INT | longs == 1 -> do
@@ -354,8 +351,6 @@ tangleTypeSpecifier (Specifiers storages tyQuals funSpecs) tySpec =
         Char (Just Unsigned) -> [P.UNSIGNED, P.CHAR]
         Short Signed -> [P.SHORT]
         Short Unsigned -> [P.UNSIGNED, P.SHORT]
-        IntFortran_ Signed -> [P.INTFORTRAN_]
-        IntFortran_ Unsigned -> [P.UNSIGNEDFORTRAN_]
         Int Signed -> [P.INT]
         Int Unsigned -> [P.UNSIGNED]
         Long Signed -> [P.LONG]
@@ -451,8 +446,6 @@ instance PP.Pretty TypeSpecifier where
     Short Unsigned -> "unsigned short"
     Int Signed -> "int"
     Int Unsigned -> "unsigned"
-    IntFortran_ Signed -> "int"
-    IntFortran_ Unsigned -> "unsigned"
     Long Signed -> "long"
     Long Unsigned -> "unsigned long"
     LLong Signed -> "long long"
