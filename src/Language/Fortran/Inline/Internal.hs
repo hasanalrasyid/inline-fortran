@@ -29,7 +29,7 @@ module Language.Fortran.Inline.Internal
     , Code(..)
     , inlineCode
     , inlineExp
-    , inlineExpFortran
+    , inlineExpFORTRAN_
     , inlineItems
 
 
@@ -164,10 +164,16 @@ bumpGeneratedNames = do
 ------------------------------------------------------------------------
 -- Emitting
 
+cSourceLocFORTRAN_ :: Context -> TH.Q FilePath
+cSourceLocFORTRAN_ ctx = do
+  thisFile <- TH.loc_filename <$> TH.location
+  let ext = fromMaybe "F90" $ ctxFileExtension ctx
+  return $ dropExtension thisFile `addExtension` ext
+
 cSourceLoc :: Context -> TH.Q FilePath
 cSourceLoc ctx = do
   thisFile <- TH.loc_filename <$> TH.location
-  let ext = fromMaybe "F90" $ ctxFileExtension ctx
+  let ext = fromMaybe "c" $ ctxFileExtension ctx
   return $ dropExtension thisFile `addExtension` ext
 
 removeIfExists :: FilePath -> IO ()
@@ -175,6 +181,12 @@ removeIfExists fileName = removeFile fileName `catch` handleExists
   where
     handleExists e = unless (isDoesNotExistError e) $ throwIO e
 
+emitVerbatimFORTRAN_ :: String -> TH.DecsQ
+emitVerbatimFORTRAN_ s = do
+  ctx <- getContext
+  cFile <- cSourceLocFORTRAN_ ctx
+  TH.runIO $ appendFile cFile $ "\n" ++ s ++ "\n"
+  return []
 -- | Simply appends some string to the module's C file.  Use with care.
 emitVerbatim :: String -> TH.DecsQ
 emitVerbatim s = do
@@ -248,12 +260,12 @@ inlineCode Code{..} = do
   TH.addTopDecls [dec]
   TH.varE ffiImportName
 
-inlineCodeFortran :: Code -> TH.ExpQ
-inlineCodeFortran Code{..} = do
+inlineCodeFORTRAN_ :: Code -> TH.ExpQ
+inlineCodeFORTRAN_ Code{..} = do
   -- Write out definitions
   ctx <- getContext
   let out = fromMaybe id $ ctxOutput ctx
-  void $ emitVerbatim $ out codeDefs
+  void $ emitVerbatimFORTRAN_ $ out codeDefs
   -- Create and add the FFI declaration.
   ffiImportName <- uniqueFfiImportName
   dec <- TH.forImpD TH.CCall codeCallSafety codeFunName ffiImportName codeType
@@ -296,7 +308,7 @@ inlineExp callSafety type_ cRetType cParams cExp =
       C.TypeSpecifier _quals C.Void -> cExp ++ ";"
       _ -> "return (" ++ cExp ++ ");"
 
-inlineExpFortran
+inlineExpFORTRAN_
   :: TH.Safety
   -- ^ Safety of the foreign call
   -> TH.TypeQ
@@ -308,12 +320,12 @@ inlineExpFortran
   -> String
   -- ^ The C expression
   -> TH.ExpQ
-inlineExpFortran callSafety type_ cRetType cParams cExp =
-  inlineItemsFortran callSafety type_ cRetType cParams cItems
+inlineExpFORTRAN_ callSafety type_ cRetType cParams cExp =
+  inlineItemsFORTRAN_ callSafety type_ cRetType cParams cItems
   where
     cItems = case cRetType of
       C.TypeSpecifier _quals C.Void -> cExp ++ ";"
-      _ -> "returnfortran (" ++ cExp ++ ");"
+      _ -> "returnFORTRAN_ (" ++ cExp ++ ");"
 -- | Same as 'inlineCode', but accepts a string containing a list of C
 -- statements instead instead than a full-blown 'Code'.  A function
 -- containing the provided statement will be automatically generated.
@@ -354,7 +366,7 @@ inlineItems callSafety type_ cRetType cParams cItems = do
     , codeDefs = defs
     }
 
-inlineItemsFortran
+inlineItemsFORTRAN_
   :: TH.Safety
   -- ^ Safety of the foreign call
   -> TH.TypeQ
@@ -366,7 +378,7 @@ inlineItemsFortran
   -> String
   -- ^ The C items
   -> TH.ExpQ
-inlineItemsFortran callSafety type_ cRetType cParams cItems = do
+inlineItemsFORTRAN_ callSafety type_ cRetType cParams cItems = do
   let mkParam (id', paramTy) = C.ParameterDeclaration (Just id') paramTy
   let proto = C.Proto cRetType (map mkParam cParams)
   funName <- uniqueCName $ show proto ++ cItems
@@ -374,7 +386,7 @@ inlineItemsFortran callSafety type_ cRetType cParams cItems = do
   let defs =
         prettyOneLine decl ++ " {\n" ++
         cItems ++ "\n}\n"
-  inlineCodeFortran $ Code
+  inlineCodeFORTRAN_ $ Code
     { codeCallSafety = callSafety
     , codeType = type_
     , codeFunName = funName

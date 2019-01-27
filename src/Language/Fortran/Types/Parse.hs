@@ -161,7 +161,7 @@ reservedWords = HashSet.fromList
   [ "auto", "else", "long", "switch"
   , "break", "enum", "register", "typedef"
   , "case", "extern", "return", "union"
-  , "char", "float", "short", "unsigned"
+  , "char", "float", "floatFORTRAN_", "short", "unsigned"
   , "const", "for", "signed", "void"
   , "continue", "goto", "sizeof", "volatile"
   , "default", "if", "static", "while"
@@ -217,6 +217,7 @@ data TypeSpecifier
   | INT
   | LONG
   | FLOAT
+  | FLOATFORTRAN_
   | DOUBLE
   | SIGNED
   | UNSIGNED
@@ -233,6 +234,7 @@ type_specifier = msum
   , INT <$ reserve identStyle "int"
   , LONG <$ reserve identStyle "long"
   , FLOAT <$ reserve identStyle "float"
+  , FLOATFORTRAN_ <$ reserve identStyle "floatFORTRAN_"
   , DOUBLE <$ reserve identStyle "double"
   , SIGNED <$ reserve identStyle "signed"
   , UNSIGNED <$ reserve identStyle "unsigned"
@@ -429,6 +431,7 @@ instance Pretty TypeSpecifier where
    INT -> "int"
    LONG -> "long"
    FLOAT -> "float"
+   FLOATFORTRAN_ -> "floatFORTRAN_"
    DOUBLE -> "double"
    SIGNED -> "signed"
    UNSIGNED -> "unsigned"
@@ -570,6 +573,7 @@ arbitraryTypeSpecifierFrom typeNames = QC.oneof $
   , return INT
   , return LONG
   , return FLOAT
+  , return FLOATFORTRAN_
   , return DOUBLE
   , return SIGNED
   , return UNSIGNED

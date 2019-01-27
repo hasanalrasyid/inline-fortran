@@ -2,5 +2,6 @@
 inline-fortran.cabal
 *.c
 *~
+*swp
 inline-fortran-exe
 _stack-work.local

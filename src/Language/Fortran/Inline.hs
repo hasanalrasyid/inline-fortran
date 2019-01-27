@@ -34,7 +34,7 @@ module Language.Fortran.Inline
     -- * Inline C
     -- $quoting
   , exp
-  , expFortran
+  , expFORTRAN_
   , block
   , include
   , verbatim
@@ -231,8 +231,8 @@ import           Language.Fortran.Inline.FunPtr
 exp :: TH.QuasiQuoter
 exp = genericQuote $ inlineExp TH.Safe
 
-expFortran :: TH.QuasiQuoter
-expFortran = genericQuote $ inlineExpFortran TH.Safe
+expFORTRAN_ :: TH.QuasiQuoter
+expFORTRAN_ = genericQuote $ inlineExpFORTRAN_ TH.Safe
 
 block :: TH.QuasiQuoter
 block = genericQuote $ inlineItems TH.Safe
