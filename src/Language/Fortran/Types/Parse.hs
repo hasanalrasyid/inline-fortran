@@ -217,7 +217,7 @@ data TypeSpecifier
   | INT
   | LONG
   | FLOAT
-  | FLOATFORTRAN_
+  | FLOATFORTRANX
   | DOUBLE
   | SIGNED
   | UNSIGNED
@@ -234,7 +234,7 @@ type_specifier = msum
   , INT <$ reserve identStyle "int"
   , LONG <$ reserve identStyle "long"
   , FLOAT <$ reserve identStyle "float"
-  , FLOATFORTRAN_ <$ reserve identStyle "floatFORTRAN_"
+  , FLOATFORTRANX <$ reserve identStyle "floatFORTRANX"
   , DOUBLE <$ reserve identStyle "double"
   , SIGNED <$ reserve identStyle "signed"
   , UNSIGNED <$ reserve identStyle "unsigned"
