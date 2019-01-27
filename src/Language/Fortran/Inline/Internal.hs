@@ -189,7 +189,7 @@ emitVerbatimFORTRAN_ :: String -> TH.DecsQ
 emitVerbatimFORTRAN_ s = do
   ctx <- getContext
   cFile <- cSourceLocFORTRAN_ ctx
-  TH.runIO $ appendFile cFile $ "emitVerbatim_FORTRANY\n\n" ++ s ++ "\n!emitVerbatim_FORTRANY\n"
+  TH.runIO $ appendFile cFile $ "\n" ++ s ++ "\n"
   return []
 -- | Simply appends some string to the module's C file.  Use with care.
 emitVerbatim :: String -> TH.DecsQ
@@ -393,9 +393,9 @@ inlineItemsFORTRAN_ callSafety type_ cRetType cParams cItems = do
   let proto = C.Proto cRetType (map mkParam cParams)
   funName <- uniqueCNameFORTRANY $ show proto ++ cItems
   let decl = C.ParameterDeclaration (Just (C.Identifier funName)) proto
-  let defs =
-        prettyOneLine decl ++ " {FORTRANY \n" ++
-        cItems ++ "\n}FORTRANY \n"
+  let defs = unlines $ map ((take 6 $ repeat ' ') ++) $ lines $
+        prettyOneLine decl ++ "\n" ++
+        cItems ++ "\nEND \n"
   inlineCodeFORTRAN_ $ Code
     { codeCallSafety = callSafety
     , codeType = type_
