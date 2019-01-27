@@ -161,7 +161,7 @@ reservedWords = HashSet.fromList
   [ "auto", "else", "long", "switch"
   , "break", "enum", "register", "typedef"
   , "case", "extern", "return", "union"
-  , "char", "float", "floatFORTRAN_", "short", "unsigned"
+  , "char", "float", "floatFORTRANX", "short", "unsigned"
   , "const", "for", "signed", "void"
   , "continue", "goto", "sizeof", "volatile"
   , "default", "if", "static", "while"
