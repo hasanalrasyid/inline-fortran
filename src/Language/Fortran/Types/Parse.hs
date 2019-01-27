@@ -573,7 +573,7 @@ arbitraryTypeSpecifierFrom typeNames = QC.oneof $
   , return INT
   , return LONG
   , return FLOAT
-  , return FLOATFORTRAN_
+  , return FLOATFORTRANX
   , return DOUBLE
   , return SIGNED
   , return UNSIGNED
