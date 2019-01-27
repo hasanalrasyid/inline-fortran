@@ -189,7 +189,7 @@ emitVerbatimFORTRAN_ :: String -> TH.DecsQ
 emitVerbatimFORTRAN_ s = do
   ctx <- getContext
   cFile <- cSourceLocFORTRAN_ ctx
-  TH.runIO $ appendFile cFile $ "\n" ++ s ++ "\n"
+  TH.runIO $ appendFile cFile $ "emitVerbatim_FORTRANY\n\n" ++ s ++ "\n!emitVerbatim_FORTRANY\n"
   return []
 -- | Simply appends some string to the module's C file.  Use with care.
 emitVerbatim :: String -> TH.DecsQ
@@ -653,3 +653,10 @@ pretty80 x = PP.displayS (PP.renderPretty 0.8 80 (PP.pretty x)) ""
 
 prettyOneLine :: PP.Pretty a => a -> String
 prettyOneLine x = PP.displayS (PP.renderCompact (PP.pretty x)) ""
+
+--prettyOneLineFORTRANY :: PP.Pretty a => a -> String
+prettyOneLineFORTRANY x = xx
+  where
+    xx = case x of
+           C.ParameterDeclaration a b -> show x
+           _ ->  PP.displayS (PP.renderCompact (PP.pretty xx)) ""

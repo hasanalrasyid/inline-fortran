@@ -404,9 +404,14 @@ identifier_no_lex =
 
 ------------------------------------------------------------------------
 -- Pretty printing
-
+{-
 instance Pretty Identifier where
   pretty = PP.text . unIdentifier
+-}
+
+instance Pretty Identifier where
+  pretty = let go x = "function " ++ unIdentifier x
+            in PP.text . go
 
 instance Pretty DeclarationSpecifier where
   pretty dspec = case dspec of
@@ -502,7 +507,7 @@ instance Pretty AbstractDeclarator where
 
 instance Pretty DirectAbstractDeclarator where
   pretty ddecltor = case ddecltor of
-    AbstractDeclaratorParens x -> "(" <> pretty x <> ")"
+    AbstractDeclaratorParens x -> "(FORTRANZ" <> pretty x <> ")"
     ArrayOrProtoHere aop -> pretty aop
     ArrayOrProtoThere ddecltor' aop -> pretty ddecltor' <> pretty aop
 
