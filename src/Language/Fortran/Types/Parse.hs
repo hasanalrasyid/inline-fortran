@@ -431,7 +431,7 @@ instance Pretty TypeSpecifier where
    INT -> "int"
    LONG -> "long"
    FLOAT -> "float"
-   FLOATFORTRAN_ -> "floatFORTRAN_"
+   FLOATFORTRANX -> "floatFORTRANX"
    DOUBLE -> "double"
    SIGNED -> "signed"
    UNSIGNED -> "unsigned"
