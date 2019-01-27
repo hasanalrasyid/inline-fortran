@@ -79,12 +79,13 @@ solveOdeC fun x0 f0 xend = unsafePerformIO $ do
     } |]
   -- Check the error code
   --
-  --
+  {--
   maxSteps2 <- [C.expFORTRAN_| floatFORTRANX{ 
     int x;
     x = $(int dim) + 1;
     return x;
-    } |]
+--    } |]
+--}
   maxSteps  <- [C.exp| int{ GSL_EMAXITER_FLOAT } |]
   smallStep <- [C.exp| int{ GSL_ENOPROG } |]
   good <- [C.exp| int{ GSL_SUCCESS } |]

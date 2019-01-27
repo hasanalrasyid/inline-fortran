@@ -189,7 +189,8 @@ emitVerbatimFORTRAN_ :: String -> TH.DecsQ
 emitVerbatimFORTRAN_ s = do
   ctx <- getContext
   cFile <- cSourceLocFORTRAN_ ctx
-  TH.runIO $ appendFile cFile $ "\n" ++ s ++ "\n"
+  TH.runIO $ do
+    appendFile cFile $ "\n" ++ s ++ "\n"
   return []
 -- | Simply appends some string to the module's C file.  Use with care.
 emitVerbatim :: String -> TH.DecsQ
@@ -262,6 +263,8 @@ inlineCode Code{..} = do
   ffiImportName <- uniqueFfiImportName
   dec <- TH.forImpD TH.CCall codeCallSafety codeFunName ffiImportName codeType
   TH.addTopDecls [dec]
+  aa <- TH.runIO $ do
+          putStrLn $ "====mungkinkahCCCC" ++ show dec 
   TH.varE ffiImportName
 
 inlineCodeFORTRAN_ :: Code -> TH.ExpQ
@@ -311,8 +314,11 @@ inlineExp
   -> String
   -- ^ The C expression
   -> TH.ExpQ
-inlineExp callSafety type_ cRetType cParams cExp =
-  inlineItems callSafety type_ cRetType cParams cItems
+inlineExp callSafety type_ cRetType cParams cExp = do
+  a <- inlineItems callSafety type_ cRetType cParams cItems
+  b <- TH.runIO $ do
+         putStrLn "==123aaa"
+  return a
   where
     cItems = case cRetType of
       C.TypeSpecifier _quals C.Void -> cExp ++ ";"
@@ -330,8 +336,11 @@ inlineExpFORTRAN_
   -> String
   -- ^ The C expression
   -> TH.ExpQ
-inlineExpFORTRAN_ callSafety type_ cRetType cParams cExp =
-  inlineItemsFORTRAN_ callSafety type_ cRetType cParams cItems
+inlineExpFORTRAN_ callSafety type_ cRetType cParams cExp = do
+  a <- inlineItemsFORTRAN_ callSafety type_ cRetType cParams cItems
+  b <- TH.runIO $ do
+         putStrLn "==123"
+  return a
   where
     cItems = case cRetType of
       C.TypeSpecifier _quals C.Void -> cExp ++ ";"
@@ -557,7 +566,10 @@ genericQuoteFORTRANY build = quoteCode $ \s -> do
                 aqMarshaller antiQ (ctxTypesTable ctx) cTy x
     let hsFunType = convertCFunSig hsType $ map fst hsParams
     let cParams' = [(cId, cTy) | (cId, cTy, _) <- cParams]
-    buildFunCall ctx (build hsFunType cType cParams' cExp) (map snd hsParams) []
+    a <- buildFunCall ctx (build hsFunType cType cParams' cExp) (map snd hsParams) []
+    _ <- TH.runIO $ do
+           putStrLn "=========berapa"
+    return a
   where
     cToHs :: Context -> C.Type -> TH.TypeQ
     cToHs ctx cTy = do
@@ -567,8 +579,11 @@ genericQuoteFORTRANY build = quoteCode $ \s -> do
         Just hsTy -> return hsTy
 
     buildFunCall :: Context -> TH.ExpQ -> [TH.Exp] -> [TH.Name] -> TH.ExpQ
-    buildFunCall _ctx f [] args =
-      foldl (\f' arg -> [| $f' $(TH.varE arg) |]) f args
+    buildFunCall _ctx f [] args = do
+      aa <- foldl (\f' arg -> [| $f' $(TH.varE arg) |]) f args
+      ab <- TH.runIO $ do
+              putStrLn "======avcd"
+      return aa
     buildFunCall ctx f (hsExp : params) args =
        [| $(return hsExp) $ \arg ->
             $(buildFunCall ctx f params (args ++ ['arg]))
@@ -619,7 +634,10 @@ genericQuote build = quoteCode $ \s -> do
                 aqMarshaller antiQ (ctxTypesTable ctx) cTy x
     let hsFunType = convertCFunSig hsType $ map fst hsParams
     let cParams' = [(cId, cTy) | (cId, cTy, _) <- cParams]
-    buildFunCall ctx (build hsFunType cType cParams' cExp) (map snd hsParams) []
+    a <- buildFunCall ctx (build hsFunType cType cParams' cExp) (map snd hsParams) []
+    _ <- TH.runIO $ do
+           putStrLn "=========berapaC"
+    return a
   where
     cToHs :: Context -> C.Type -> TH.TypeQ
     cToHs ctx cTy = do
@@ -629,8 +647,11 @@ genericQuote build = quoteCode $ \s -> do
         Just hsTy -> return hsTy
 
     buildFunCall :: Context -> TH.ExpQ -> [TH.Exp] -> [TH.Name] -> TH.ExpQ
-    buildFunCall _ctx f [] args =
-      foldl (\f' arg -> [| $f' $(TH.varE arg) |]) f args
+    buildFunCall _ctx f [] args = do
+      aa <- foldl (\f' arg -> [| $f' $(TH.varE arg) |]) f args
+      ab <- TH.runIO $ do
+              putStrLn "======axxxxvcd"
+      return aa
     buildFunCall ctx f (hsExp : params) args =
        [| $(return hsExp) $ \arg ->
             $(buildFunCall ctx f params (args ++ ['arg]))
