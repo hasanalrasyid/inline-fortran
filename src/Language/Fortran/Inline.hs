@@ -232,7 +232,7 @@ exp :: TH.QuasiQuoter
 exp = genericQuote $ inlineExp TH.Safe
 
 expFORTRAN_ :: TH.QuasiQuoter
-expFORTRAN_ = genericQuote $ inlineExpFORTRAN_ TH.Safe
+expFORTRAN_ = genericQuoteFORTRANY $ inlineExpFORTRAN_ TH.Safe
 
 block :: TH.QuasiQuoter
 block = genericQuote $ inlineItems TH.Safe
