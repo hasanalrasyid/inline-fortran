@@ -82,6 +82,9 @@ import qualified Language.Fortran.Types as C
 import           Language.Fortran.Inline.Context
 import           Language.Fortran.Inline.FunPtr
 
+import Data.Hashable
+import Numeric (showHex)
+
 data ModuleState = ModuleState
   { msModuleName :: String
   , msContext :: Context
@@ -276,8 +279,8 @@ inlineCodeFORTRAN_ Code{..} = do
 uniqueCNameFORTRANY :: String -> TH.Q String
 uniqueCNameFORTRANY x = do
   c' <- bumpGeneratedNames
-  let unique :: CryptoHash.Digest CryptoHash.SHA1 = CryptoHash.hashlazy $ Binary.encode x
-  return $ "inline_fortran_" ++ show c' ++ "_" ++ show unique
+  let unique = showHex (abs $ hash $ Binary.encode x) ""
+  return $ "infort_" ++ show c' ++ "_" ++ unique
 
 uniqueCName :: String -> TH.Q String
 uniqueCName x = do
