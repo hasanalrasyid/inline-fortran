@@ -210,7 +210,7 @@ untangleDeclarationSpecifiers declSpecs = do
     P.FLOAT -> do
       checkNoLength
       return Float
-    P.FLOATFORTRAN_ -> do
+    P.FLOATFORTRANX -> do
       checkNoLength
       return FloatFORTRAN_
     P.DOUBLE -> do
@@ -362,7 +362,7 @@ tangleTypeSpecifier (Specifiers storages tyQuals funSpecs) tySpec =
         LLong Signed -> [P.LONG, P.LONG]
         LLong Unsigned -> [P.UNSIGNED, P.LONG, P.LONG]
         Float -> [P.FLOAT]
-        FloatFORTRAN_ -> [P.FLOATFORTRAN_]
+        FloatFORTRAN_ -> [P.FLOATFORTRANX]
         Double -> [P.DOUBLE]
         LDouble -> [P.LONG, P.DOUBLE]
         TypeName s -> [P.TypeName s]
