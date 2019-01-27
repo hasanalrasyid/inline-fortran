@@ -81,7 +81,7 @@ data TypeSpecifier
   | Long Sign
   | LLong Sign
   | Float
-  | FloatFORTRAN_
+  | FloatFORTRANX
   | Double
   | LDouble
   | TypeName P.Identifier
@@ -212,7 +212,7 @@ untangleDeclarationSpecifiers declSpecs = do
       return Float
     P.FLOATFORTRANX -> do
       checkNoLength
-      return FloatFORTRAN_
+      return FloatFORTRANX
     P.DOUBLE -> do
       if longs == 1
         then return LDouble
@@ -362,7 +362,7 @@ tangleTypeSpecifier (Specifiers storages tyQuals funSpecs) tySpec =
         LLong Signed -> [P.LONG, P.LONG]
         LLong Unsigned -> [P.UNSIGNED, P.LONG, P.LONG]
         Float -> [P.FLOAT]
-        FloatFORTRAN_ -> [P.FLOATFORTRANX]
+        FloatFORTRANX -> [P.FLOATFORTRANX]
         Double -> [P.DOUBLE]
         LDouble -> [P.LONG, P.DOUBLE]
         TypeName s -> [P.TypeName s]
@@ -457,7 +457,7 @@ instance PP.Pretty TypeSpecifier where
     LLong Signed -> "long long"
     LLong Unsigned -> "unsigned long long"
     Float -> "float"
-    FloatFORTRAN_ -> "floatFORTRAN_"
+    FloatFORTRANX -> "floatFORTRANX"
     Double -> "double"
     LDouble -> "long double"
     TypeName s -> PP.pretty s

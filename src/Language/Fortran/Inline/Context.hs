@@ -163,6 +163,7 @@ baseTypesTable = Map.fromList
   , (C.LLong C.Signed, [t| CLLong |])
   , (C.LLong C.Unsigned, [t| CULLong |])
   , (C.Float, [t| CFloat |])
+  , (C.FloatFORTRANX, [t| CFloat |])
   , (C.Double, [t| CDouble |])
   ]
 
