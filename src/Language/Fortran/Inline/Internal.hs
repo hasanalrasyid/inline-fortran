@@ -332,7 +332,7 @@ inlineExpFORTRAN_ callSafety type_ cRetType cParams cExp =
   where
     cItems = case cRetType of
       C.TypeSpecifier _quals C.Void -> cExp ++ ";"
-      _ -> "returnFORTRAN_ (" ++ cExp ++ ");"
+      _ -> "returnFORTRAN_ " ++ cExp 
 -- | Same as 'inlineCode', but accepts a string containing a list of C
 -- statements instead instead than a full-blown 'Code'.  A function
 -- containing the provided statement will be automatically generated.
@@ -391,8 +391,8 @@ inlineItemsFORTRAN_ callSafety type_ cRetType cParams cItems = do
   funName <- uniqueCNameFORTRANY $ show proto ++ cItems
   let decl = C.ParameterDeclaration (Just (C.Identifier funName)) proto
   let defs =
-        prettyOneLine decl ++ " {\n" ++
-        cItems ++ "\n}\n"
+        prettyOneLine decl ++ " {FORTRANY \n" ++
+        cItems ++ "\n}FORTRANY \n"
   inlineCodeFORTRAN_ $ Code
     { codeCallSafety = callSafety
     , codeType = type_
