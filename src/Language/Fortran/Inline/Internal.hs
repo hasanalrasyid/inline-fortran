@@ -139,9 +139,10 @@ cargoFinalizer extraArgs dependencies = do
   (pkg, mods) <- currentFile
 
   let dir = ".inline-fortran" </> pkg
-      thisFile = foldr1 (</>) mods <.> "rs"
+      thisFile = foldr1 (</>) mods <.> "f"
       crate = "quasiquote_" ++ pkg
 
+  {-
   -- Make contents of a @Cargo.toml@ file
   let cargoToml = dir </> "Cargo" <.> "toml"
       cargoSrc = unlines [ "[package]"
@@ -159,7 +160,7 @@ cargoFinalizer extraArgs dependencies = do
                          ]
   runIO $ createDirectoryIfMissing True dir
   runIO $ writeFile cargoToml cargoSrc
-
+-}
   -- Run Cargo to compile the project
   --
   -- NOTE: We set `--print native-static-libs` to inform the user these are the
@@ -173,18 +174,21 @@ cargoFinalizer extraArgs dependencies = do
   --         * We could automatically link in these libraries, if GHC supported
   --           specifying libraries to pass to the final linker call.
   --
+  {--
   runIO $ setEnv "RUSTFLAGS" "--print native-static-libs"
   let cargoArgs = [ "build"
                   , "--release"
                   , "--manifest-path=" ++ cargoToml
                   ] ++ extraArgs
       msgFormat = [ "--message-format=json" ]
-
-  ec <- runIO $ spawnProcess "cargo" cargoArgs >>= waitForProcess
+  -}
+  let fortranArgs = [ "-c" ] ++ extraArgs
+  ec <- runIO $ spawnProcess "gfortran" fortranArgs >>= waitForProcess
   when (ec /= ExitSuccess)
     (reportError rustcErrMsg)
 
   -- Run Cargo again to get the static library path
+    {-
   jOuts <- runIO $ readProcess "cargo" (cargoArgs ++ msgFormat) ""
   let jOut = last (lines jOuts)
   rustLibFp <-
@@ -193,7 +197,8 @@ cargoFinalizer extraArgs dependencies = do
       Ok jObj -> case lookup "filenames" (fromJSObject jObj) of
                    Just (JSArray [ JSString jStr ]) -> pure (fromJSString jStr)
                    _ -> fail ("cargoFinalizer: did not find one static library")
-
+    -}
+  let rustLibFp = "Main.o"
   -- Move the library to a GHC temporary file
   let ext = takeExtension rustLibFp
   rustLibFp' <- addTempFile ext
@@ -221,7 +226,7 @@ fileFinalizer = do
   (pkg, mods) <- currentFile
 
   let dir = ".inline-fortran" </> pkg
-      thisFile = foldr1 (</>) mods <.> "rs"
+      thisFile = foldr1 (</>) mods <.> "f"
 
   -- Figure out what we are putting into this file
   Just cb <- getQ

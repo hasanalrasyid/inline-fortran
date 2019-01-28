@@ -72,7 +72,6 @@ executables:
     - -rtsopts
     - -with-rtsopts=-N
     - -keep-tmp-files
-    - -Wno-orphans
     - -tmpdir .stack-work/tmpdir
     dependencies:
     - inline-fortran
