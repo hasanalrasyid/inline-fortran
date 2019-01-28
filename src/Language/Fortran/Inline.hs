@@ -34,7 +34,7 @@ module Language.Fortran.Inline (
   -- $interruptible
   rustInterruptible,
   rustInterruptibleIO,
- 
+
   -- * Contexts
   Context(..),
   RType,
@@ -77,8 +77,8 @@ module Language.Fortran.Inline (
  -- externCrate,
 ) where
 
-import Language.Fortran.Inline.Context 
-import Language.Fortran.Inline.Context.Prelude  ( prelude ) 
+import Language.Fortran.Inline.Context
+import Language.Fortran.Inline.Context.Prelude  ( prelude )
 import Language.Fortran.Inline.Internal
 import Language.Fortran.Inline.Marshal
 import Language.Fortran.Inline.Parser
@@ -92,7 +92,7 @@ import Language.Haskell.TH.Quote             ( QuasiQuoter(..) )
 import Language.Haskell.TH                   ( pprParendType )
 
 import Foreign.Marshal.Utils                 ( with, new )
-import Foreign.Marshal.Alloc                 ( alloca, free ) 
+import Foreign.Marshal.Alloc                 ( alloca, free )
 import Foreign.Marshal.Array                 ( withArrayLen, newArray )
 import Foreign.Marshal.Unsafe                ( unsafeLocalState )
 import Foreign.Ptr                           ( freeHaskellFunPtr, Ptr )
@@ -112,7 +112,7 @@ import System.Random                         ( randomIO )
 -- This works by the magic of Template Haskell. In a nutshell, for every Haskell
 -- source with a Rust quasiquote in it, a Rust source file is generated. Into
 -- this file are added
--- 
+--
 --   - all top-level Rust quasiquotes (contents are added in as-is)
 --
 --   - functions for all expression-level quasiquotes (function arguments
@@ -156,7 +156,7 @@ import System.Random                         ( randomIO )
 -- @
 --     rustInc x :: Int32 -> Int32
 --     rustInc x = [rust| i32 { 1i32 + $(x: i32) } |]
--- @ 
+-- @
 rust :: QuasiQuoter
 rust = rustQuasiQuoter Safe True True
 
@@ -166,7 +166,7 @@ rust = rustQuasiQuoter Safe True True
 -- @
 --     rustHello :: Int32 -> IO ()
 --     rustHello n = [rustIO| () { println!("Your number: {}", $(n: i32)) } |]
--- @ 
+-- @
 rustIO :: QuasiQuoter
 rustIO = rustQuasiQuoter Safe False True
 
@@ -233,9 +233,9 @@ rustQuasiQuoter :: Safety      -- ^ safety of FFI
                 -> Bool        -- ^ support declarations
                 -> QuasiQuoter
 rustQuasiQuoter safety isPure supportDecs = QuasiQuoter { quoteExp = expQuoter
-                                                        , quotePat = err 
+                                                        , quotePat = err
                                                         , quoteType = err
-                                                        , quoteDec = decQuoter 
+                                                        , quoteDec = decQuoter
                                                         }
   where
     who | supportDecs = "expressions and declarations"
@@ -278,7 +278,7 @@ processQQ safety isPure (QQParse rustRet rustBody rustNamedArgs) = do
 
   -- Find out what the corresponding Haskell representations are for the
   -- argument and return types
-  let (rustArgNames, rustArgs) = unzip rustNamedArgs 
+  let (rustArgNames, rustArgs) = unzip rustNamedArgs
   (haskRet, reprCRet) <- getRType (void rustRet)
   (haskArgs, reprCArgs) <- unzip <$> traverse (getRType . void) rustArgs
 
@@ -325,7 +325,7 @@ processQQ safety isPure (QQParse rustRet rustBody rustNamedArgs) = do
              -> Q Exp             -- ^ FFI call
 
       -- Once we run out of arguments we call the quasiquote function with all the
-      -- accumulated arguments. If the return value is not marshallable, we have to 
+      -- accumulated arguments. If the return value is not marshallable, we have to
       -- 'alloca' some space to put the return value.
       goArgs acc []
         | returnFfi /= BoxedIndirect = appsE (varE qqName : reverse acc)
@@ -335,7 +335,7 @@ processQQ safety isPure (QQParse rustRet rustBody rustNamedArgs) = do
                   do { $(appsE (varE qqName : reverse (varE ret : acc)))
                      ; peek $(varE ret)
                      }) |]
-     
+
       -- If an argument is by value, we just stack it into the accumulated arguments.
       -- Otherwise, we use 'with' to get a pointer to its stack position.
       goArgs acc ((argStr, byVal) : args) = do
@@ -356,11 +356,11 @@ processQQ safety isPure (QQParse rustRet rustBody rustNamedArgs) = do
   -- Generate the Rust function arguments and the converted arguments
   let (rustArgs', rustConvertedArgs) = unzip $ zipWith mergeArgs rustArgs reprCArgs
       (rustRet', rustConvertedRet) = mergeArgs rustRet reprCRet
-      
+
      -- mergeArgs :: Ty Span -> Maybe RType -> (Ty Span, Ty Span)
       mergeArgs t Nothing       = (t, t)
       mergeArgs t (Just tInter) = (fmap (const mempty) tInter, t)
-  
+
   -- Generate the Rust function.
   let retByVal = returnFfi /= BoxedIndirect
       (retArg, retTy, ret)
@@ -372,6 +372,22 @@ processQQ safety isPure (QQParse rustRet rustBody rustNamedArgs) = do
                        , "()"
                        , "unsafe { ::std::ptr::write(ret_" ++ qqStrName ++ ", out.marshal()) }"
                        )
+  void . emitCodeBlock . unlines $
+    [ retTy ++ " function " ++ qqStrName ++ "("
+    , "  " ++ intercalate ", " ([ s ++ ": " ++ marshal (renderType t)
+                                | (s,t,v) <- zip3 rustArgNames rustArgs' argsByVal
+                                , let marshal x = if v then x else "*const " ++ x
+                                ] ++ retArg)
+    , ") -> " ++ retTy ++ " {"
+    , unlines [ "  let " ++ s ++ ": " ++ renderType t ++ " = " ++ marshal s ++ ".marshal();"
+              | (s,t,v) <- zip3 rustArgNames rustConvertedArgs argsByVal
+              , let marshal x = if v then x else "unsafe { ::std::ptr::read(" ++ x ++ ") }"
+              ]
+    , "  let out: " ++ renderType rustConvertedRet ++ " = (|| {" ++ renderTokens rustBody ++ "})();"
+    , "  " ++ ret
+    , "}"
+    ]
+      {-
   void . emitCodeBlock . unlines $
     [ "#[no_mangle]"
     , "pub extern \"C\" fn " ++ qqStrName ++ "("
@@ -388,7 +404,7 @@ processQQ safety isPure (QQParse rustRet rustBody rustNamedArgs) = do
     , "  " ++ ret
     , "}"
     ]
-
+-}
   -- Return the Haskell call to the FFI import
   haskCall
 
