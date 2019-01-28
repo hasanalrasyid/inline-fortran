@@ -25,7 +25,7 @@ import Language.Fortran.Inline.Context
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
 
-import Control.Monad               ( when ) 
+import Control.Monad               ( when )
 import Data.Typeable               ( Typeable )
 import Data.Monoid                 ( Endo(..) )
 import Data.Maybe                  ( fromMaybe )
@@ -54,17 +54,17 @@ newtype CodeBlocks = CodeBlocks { showsCodeBlocks :: ShowS }
 -- | Initialize the 'CodeBlocks' of the current module. Crash if it is already
 -- intialized. This must be called exactly once.
 initCodeBlocks :: Maybe [(String,String)]  -- ^ dependencies, if crate root
-               -> Q () 
+               -> Q ()
 initCodeBlocks dependenciesOpt = do
   -- check if there is already something there
   cb <- getQ
   case cb of
     Nothing -> pure ()
     Just (CodeBlocks _) -> fail "initCodeBlocks: CodeBlocks already initialized"
-  
+
   -- add hooks for writing out files (and possibly compiling the project)
   let finalizer = case dependenciesOpt of
-                    Nothing -> fileFinalizer 
+                    Nothing -> fileFinalizer
                     Just deps -> fileFinalizer *> cargoFinalizer [] deps
   addModFinalizer finalizer
 
@@ -74,13 +74,13 @@ initCodeBlocks dependenciesOpt = do
 -- | Emit a raw 'String' of Rust code into the current 'ModuleState'.
 emitCodeBlock :: String -> Q [Dec]
 emitCodeBlock code = do
-  Just (CodeBlocks cbs) <- getQ 
+  Just (CodeBlocks cbs) <- getQ
   putQ (CodeBlocks (cbs . showString code . showString "\n"))
   pure []
 
 -- | Freeze the context and begin the part of the module which can contain Rust
 -- quasiquotes. If this module is also the crate root, use 'setCrateRoot'
--- instead. 
+-- instead.
 --
 -- This function must be called before any other Rust quasiquote in the file.
 setCrateModule :: Q [Dec]
@@ -105,12 +105,12 @@ setCrateRoot dependencies = do
 getContext :: Q Context
 getContext = fromMaybe mempty <$> getQ
 
--- | Append to the existing context 
+-- | Append to the existing context
 extendContext :: Q Context -> Q [Dec]
 extendContext qExtension = do
   extension <- qExtension
   ctx <- getContext
-  putQ (ctx <> extension) 
+  putQ (ctx <> extension)
   pure []
 
 -- | Search in a 'Context' for the Haskell type corresponding to a Rust type.
@@ -128,17 +128,17 @@ getHType haskType = getHTypeInContext haskType =<< getContext
 
 -- | A finalizer to run Cargo and link in the static library. This function
 -- should be the very last @inline-rust@ related TH to run.
--- 
+--
 -- After generating an appropriate @Cargo.toml@ file, it calls out to Cargo to
 -- compile all the Rust files into a static library and which it then tells TH
--- to link in. 
+-- to link in.
 cargoFinalizer :: [String]           -- ^ Extra @cargo@ arguments
                -> [(String, String)] -- ^ Dependencies
                -> Q ()
 cargoFinalizer extraArgs dependencies = do
   (pkg, mods) <- currentFile
 
-  let dir = ".inline-rust" </> pkg
+  let dir = ".inline-fortran" </> pkg
       thisFile = foldr1 (</>) mods <.> "rs"
       crate = "quasiquote_" ++ pkg
 
@@ -177,13 +177,13 @@ cargoFinalizer extraArgs dependencies = do
   let cargoArgs = [ "build"
                   , "--release"
                   , "--manifest-path=" ++ cargoToml
-                  ] ++ extraArgs 
+                  ] ++ extraArgs
       msgFormat = [ "--message-format=json" ]
 
   ec <- runIO $ spawnProcess "cargo" cargoArgs >>= waitForProcess
   when (ec /= ExitSuccess)
     (reportError rustcErrMsg)
- 
+
   -- Run Cargo again to get the static library path
   jOuts <- runIO $ readProcess "cargo" (cargoArgs ++ msgFormat) ""
   let jOut = last (lines jOuts)
@@ -220,13 +220,13 @@ fileFinalizer :: Q ()
 fileFinalizer = do
   (pkg, mods) <- currentFile
 
-  let dir = ".inline-rust" </> pkg
+  let dir = ".inline-fortran" </> pkg
       thisFile = foldr1 (</>) mods <.> "rs"
 
-  -- Figure out what we are putting into this file 
+  -- Figure out what we are putting into this file
   Just cb <- getQ
   Just (Context (_,_,impls)) <- getQ
-  let code = showsCodeBlocks cb 
+  let code = showsCodeBlocks cb
            . showString "pub mod marshal {\n"
            . showString "#[allow(unused_imports)] use super::*;\n"
            . showString "pub trait MarshalInto<T> { fn marshal(self) -> T; }\n"
