@@ -9,9 +9,10 @@ extendContext basic
 
 setCrateRoot []
 
+
 main = do
   putStrLn "Haskell: Hello. Enter a number:"
-  x <- readLn
+  x :: String <- readLn
   y <- [rustIO| i32 {
 C--------1---------2---------3---------4---------5---------6---------7---------8
       COMPLEX*16 FUNCTION XCSUM( N, DX, INCX )
@@ -40,5 +41,6 @@ C
    10 CONTINUE
       RETURN
       END
+C-------------------------------------------------------------------------------
   } |]
   putStrLn $ "Haskell: Rust says number plus 1 is " ++ show y

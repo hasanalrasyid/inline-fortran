@@ -18,7 +18,7 @@ import Language.Rust.Parser
 import Language.Rust.Data.Position ( Spanned(..) )
 import Language.Rust.Data.Ident    ( Ident(..) )
 
-import Language.Haskell.TH         ( Q )
+import Language.Haskell.TH         ( Q, runIO )
 
 import Control.Monad               ( void )
 
@@ -67,8 +67,7 @@ parseQQ input = do
   (tyToks, rest2) <-
     case break openBrace rest1 of
       (_, []) -> fail "Ran out of input parsing leading type in quasiquote"
-      (tyToks, brace : rest2) -> pure (tyToks, brace : rest2)
-
+      (tyToks, brace : rest2) -> pure (tyToks, removeBrace $ brace : rest2)
   -- Parse leading type
   leadingTy <-
     case parseFromToks tyToks of
@@ -77,12 +76,16 @@ parseQQ input = do
 
   -- Parse body of quasiquote
   (bodyToks, vars) <- parseBody [] [] rest2
-
+  runIO $ do
+    putStrLn $ show rest1
+    putStrLn $ (++) "=========" $ show $ take 90 rest2
   -- Done!
   pure (QQParse leadingTy bodyToks vars)
 
   where
     -- Parse the body of the quasiquote
+    parseBody :: [SpTok] -> [(String, Ty Span)] -> [SpTok]
+              -> Q ([SpTok], [(String, Ty Span)])
     parseBody toks vars rest1
       = case rest1 of
           [] -> pure (reverse toks, vars)
@@ -133,6 +136,12 @@ parseFromToks toks = execParserTokens parser toks initPos
 openBrace :: SpTok -> Bool
 openBrace (Spanned (OpenDelim Brace) _) = True
 openBrace _ = False
+
+removeBrace :: [SpTok] -> [SpTok]
+removeBrace x = let braceExist = openBrace $ head x
+                    noOpCloseBrace = drop 1 $ init x
+                 in if braceExist then noOpCloseBrace
+                                  else x
 
 -- | Identifies an open paren token
 openParen :: SpTok -> Bool

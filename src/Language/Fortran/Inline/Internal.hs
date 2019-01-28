@@ -140,9 +140,9 @@ cargoFinalizer extraArgs dependencies = do
 
   let dir = ".inline-fortran" </> pkg
       thisFile = foldr1 (</>) mods <.> "f"
+  {-
       crate = "quasiquote_" ++ pkg
 
-  {-
   -- Make contents of a @Cargo.toml@ file
   let cargoToml = dir </> "Cargo" <.> "toml"
       cargoSrc = unlines [ "[package]"
@@ -182,7 +182,9 @@ cargoFinalizer extraArgs dependencies = do
                   ] ++ extraArgs
       msgFormat = [ "--message-format=json" ]
   -}
-  let fortranArgs = [ "-c" ] ++ extraArgs
+  let fortranArgs = [ "-c"
+                    , dir </> thisFile
+                    ] ++ extraArgs
   ec <- runIO $ spawnProcess "gfortran" fortranArgs >>= waitForProcess
   when (ec /= ExitSuccess)
     (reportError rustcErrMsg)
@@ -231,6 +233,8 @@ fileFinalizer = do
   -- Figure out what we are putting into this file
   Just cb <- getQ
   Just (Context (_,_,impls)) <- getQ
+  let code = showsCodeBlocks cb ""
+    {-
   let code = showsCodeBlocks cb
            . showString "pub mod marshal {\n"
            . showString "#[allow(unused_imports)] use super::*;\n"
@@ -239,10 +243,15 @@ fileFinalizer = do
            . showString "}\n"
            . showString "#[allow(unused_imports)]  use self::marshal::*;\n"
            $ ""
-
+  -}
   -- Write out the file
   runIO $ createDirectoryIfMissing True dir
-  runIO $ writeFile (dir </> thisFile) code
+  runIO $ writeFile (dir </> thisFile)
+            $ unlines $ map removeFrontSpace $ lines code
+
+removeFrontSpace :: String -> String
+removeFrontSpace (' ':bs) = bs
+removeFrontSpace bs = bs
 
 -- | Figure out what file we are currently in.
 currentFile :: Q ( String    -- ^ package name, amended to be a valid crate name
