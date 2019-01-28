@@ -102,6 +102,9 @@ import Data.List                             ( intercalate )
 import Data.Traversable                      ( for )
 import System.Random                         ( randomIO )
 
+import Data.Word
+import Numeric
+
 -- $overview
 --
 -- This module provides the facility for dropping in bits of Rust code into your
@@ -271,10 +274,14 @@ processQQ :: Safety -> Bool -> RustQuasiquoteParse -> Q Exp
 processQQ safety isPure (QQParse rustRet rustBody rustNamedArgs) = do
 
   -- Make a name to thread through Haskell/Rust (see Trac #13054)
-  q <- runIO randomIO :: Q Int
-  qqName' <- newName $ "quasiquote" ++ show (abs q)
+  q <- runIO randomIO :: Q Word32
+    {-
+  qqName' <- newName $ "inlineFORT" ++ showHex q ""
   qqName <- newName (show qqName')
   let qqStrName = show qqName
+  -}
+  qqName <- newName $ "inlineFORT" ++ showHex q ""
+  let qqStrName =  "inlineFORT" ++ showHex q ""
 
   -- Find out what the corresponding Haskell representations are for the
   -- argument and return types
