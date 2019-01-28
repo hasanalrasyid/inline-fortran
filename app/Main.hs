@@ -2,7 +2,7 @@
 
 module Main where
 
-import Language.Rust.Inline
+import Language.Fortran.Inline
 import Data.Int
 
 extendContext basic
