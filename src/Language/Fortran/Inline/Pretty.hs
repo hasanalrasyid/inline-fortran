@@ -1,5 +1,5 @@
 {-|
-Module      : Language.Rust.Inline.Pretty
+Module      : Language.Fortran.Inline.Pretty
 Description : Utility functions for pretty-printing
 Copyright   : (c) Alec Theriault, 2017
 License     : BSD-style
@@ -8,7 +8,7 @@ Stability   : experimental
 Portability : GHC
 -}
 
-module Language.Rust.Inline.Pretty (
+module Language.Fortran.Inline.Pretty (
   renderType,
   renderItem,
   renderTokens,

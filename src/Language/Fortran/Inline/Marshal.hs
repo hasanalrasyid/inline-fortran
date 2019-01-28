@@ -1,5 +1,5 @@
 {-|
-Module      : Language.Rust.Inline.Marshal
+Module      : Language.Fortran.Inline.Marshal
 Description : Utilities for marshalling HAskell values
 Copyright   : (c) Alec Theriault, 2017
 License     : BSD-style
@@ -11,9 +11,9 @@ Portability : GHC
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE MagicHash #-}
 
-module Language.Rust.Inline.Marshal where
+module Language.Fortran.Inline.Marshal where
 
-import Language.Rust.Inline.Context
+import Language.Fortran.Inline.Context
 
 import Language.Haskell.TH 
 import Language.Haskell.TH.Syntax  ( addTopDecls ) 

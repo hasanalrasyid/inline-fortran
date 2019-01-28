@@ -1,5 +1,5 @@
 {-|
-Module      : Language.Rust.Inline.TH.Storable
+Module      : Language.Fortran.Inline.TH.Storable
 Description : Generate Storable instances
 Copyright   : (c) Alec Theriault, 2018
 License     : BSD-style
@@ -13,12 +13,12 @@ Portability : GHC
 {-# LANGUAGE FlexibleInstances #-}
 {-# OPTIONS_GHC -Wwarn #-}         -- TODO: GHC bug around "unused pattern binds" in splices
                                    -- TODO: GHC feature around setting extensions from within TH
-module Language.Rust.Inline.TH.Storable (
+module Language.Fortran.Inline.TH.Storable (
   mkStorable,
   mkTupleStorable,
 ) where
 
-import Language.Rust.Inline.TH.Utilities
+import Language.Fortran.Inline.TH.Utilities
 
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax hiding (lift)
@@ -28,7 +28,6 @@ import Data.Traversable          ( for )
 import Foreign.Ptr               ( plusPtr, castPtr, Ptr )
 import Data.Word                 ( Word8, Word16, Word32, Word64 )
 import Foreign.Storable
-import Data.Semigroup
 
 -- | Generate 'Storable' instance for a non-recursive simple algebraic data
 -- type. The instance follows the usual C layout for determining alignment and

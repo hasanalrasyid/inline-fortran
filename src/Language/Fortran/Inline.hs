@@ -1,5 +1,5 @@
 {-|
-Module      : Language.Rust.Inline
+Module      : Language.Fortran.Inline
 Description : Quasiquotes for writing Rust code inline in Haskell
 Copyright   : (c) Alec Theriault, 2017
 License     : BSD-style
@@ -10,7 +10,7 @@ Portability : GHC
 {-# LANGUAGE ForeignFunctionInterface #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Language.Rust.Inline (
+module Language.Fortran.Inline (
   -- * Overview
   --
   -- $overview
@@ -77,14 +77,14 @@ module Language.Rust.Inline (
  -- externCrate,
 ) where
 
-import Language.Rust.Inline.Context 
-import Language.Rust.Inline.Context.Prelude  ( prelude ) 
-import Language.Rust.Inline.Internal
-import Language.Rust.Inline.Marshal
-import Language.Rust.Inline.Parser
-import Language.Rust.Inline.Pretty
-import Language.Rust.Inline.TH.Storable      ( mkStorable )
-import Language.Rust.Inline.TH.ReprC         ( mkReprC )
+import Language.Fortran.Inline.Context 
+import Language.Fortran.Inline.Context.Prelude  ( prelude ) 
+import Language.Fortran.Inline.Internal
+import Language.Fortran.Inline.Marshal
+import Language.Fortran.Inline.Parser
+import Language.Fortran.Inline.Pretty
+import Language.Fortran.Inline.TH.Storable      ( mkStorable )
+import Language.Fortran.Inline.TH.ReprC         ( mkReprC )
 
 import Language.Haskell.TH.Syntax
 import Language.Haskell.TH.Lib

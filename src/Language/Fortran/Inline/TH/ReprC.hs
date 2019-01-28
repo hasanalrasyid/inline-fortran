@@ -1,5 +1,5 @@
 {-|
-Module      : Language.Rust.Inline.TH.ReprC
+Module      : Language.Fortran.Inline.TH.ReprC
 Description : Generate #[repr(C)] Rust types
 Copyright   : (c) Alec Theriault, 2018
 License     : BSD-style
@@ -10,7 +10,7 @@ Portability : GHC
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Language.Rust.Inline.TH.ReprC (
+module Language.Fortran.Inline.TH.ReprC (
   mkReprC,
   mkGenPathTy,
 ) where
@@ -18,8 +18,8 @@ module Language.Rust.Inline.TH.ReprC (
 -- TODO: Map haskell records to Rust records
 -- TODO: Way for users to specify the attributes they want on generated data types
 
-import Language.Rust.Inline.TH.Utilities
-import Language.Rust.Inline.Context
+import Language.Fortran.Inline.TH.Utilities
+import Language.Fortran.Inline.Context
 
 import Language.Haskell.TH hiding (Stmt, Match, WildP, Unsafe, LitP, Pat)
 import Language.Rust.Syntax
@@ -126,7 +126,7 @@ mkReprC :: Context         -- ^ current context (in order to lookup what Rust ty
                            -- Haskell ones)
         -> Type            -- ^ Haskell type to convert
         -> Q ( Ident       --   Name of Rust enum
-             , Maybe Ident --   Name of #[repr(C)] tagged union  
+             , Maybe Ident --   Name of #[repr(C)] tagged union
              , [Item ()]   --   Support type definitions
              , [Item ()]   --   'impl's of @MarshalInto@
              )
@@ -157,12 +157,12 @@ mkReprC ctx ty = do
             Translated (_, (i1', c'), item1) Nothing -> (i1',i1',c',[item1])
       impls <- mkMarshalStructImpls dict i1 i2 c
 
-      pure (i1, Just i2, items, impls)   
+      pure (i1, Just i2, items, impls)
     _ -> do
       (tys, is,     items) <- unzip3 <$> traverse (\(n',ts) ->  let nc = (mkName (nameBase n' ++ "C")) in fmap getReprC (mkStruct ctx' dict True nc nc ts)) cons
-      
+
       (tyU, iUnion, itemU) <- mkUnion dict (mkName (nameBase n ++ "CUnion")) tys
-      
+
       let numDiscs = length cons
           disc = snd . head . dropWhile (\(m,_) -> numDiscs > m + 1) $
               [ (fromIntegral (maxBound :: Word8),  "u8")
@@ -171,7 +171,7 @@ mkReprC ctx ty = do
               , (fromIntegral (maxBound :: Word64), "u64")
               ]
       (_, iTagged, item) <- mkTagged dict (mkName (nameBase n ++ "C")) (mkPathTy disc) tyU
-     
+
       (_, iEnum, iVars, itemE) <- mkEnum ctx' dict n cons
       (impl1, impl2) <- mkMarshalEnumImpls dict iTagged iUnion is iEnum iVars
 
@@ -253,7 +253,7 @@ mkMarshalEnumImpls :: TyVarDict     -- ^ Mapping of Haskell type variables to Ru
 mkMarshalEnumImpls dict
             nTagged nUnion nStructs
             nEnum nVariants = do
-  
+
   let -- two copies of type parameters: @T, U, ...@ and @T1, U1, ...@
       (ts, ts1) = unzip [ (TyParam [] i' [] Nothing (), TyParam [] (i' <> "1") [] Nothing ())
                         | (_, TyParam _ (Ident i _ _) _ _ _) <- dict
@@ -263,7 +263,7 @@ mkMarshalEnumImpls dict
       -- type parameters with @Into@ bound: @T1 + Into<T>, U1 + Into<U>, ...@
       ts1BoundIntoT = zipWith consBound (map (marshalBound . tyParam2Ty) ts) ts1
 
-      -- full parameters: @T: Copy, U: Copy, ..., T1: Copy + Into<T>, U1: Copy + Into<U>, ...@ 
+      -- full parameters: @T: Copy, U: Copy, ..., T1: Copy + Into<T>, U1: Copy + Into<U>, ...@
       fullImplBds = map (consBound copyBound) (ts ++ ts1BoundIntoT)
 
       -- MarshalInto<TaggedUnion<T, U, ...>>
@@ -272,7 +272,7 @@ mkMarshalEnumImpls dict
       -- Enum<T1, U1, ...> and TaggedUnion<T, U, ...>
       enumTy1 = mkGenPathTy nEnum (map tyParam2Ty ts1)
       taggedTy = mkGenPathTy nTagged (map tyParam2Ty ts)
-  
+
       flds = [ FieldPat Nothing (mkIdentPat "tag") ()
              , FieldPat Nothing (mkIdentPat "payload") ()
              ]
@@ -286,8 +286,8 @@ mkMarshalEnumImpls dict
                                . ('y' :)
                                . show )
                                [0..(n-1)]
-              , let access = FieldAccess [] (mkPathExpr "payload") (mkIdent ("v" ++ show i)) () 
-              , let pat2 = [ TupleStructP (mkPath s) vars Nothing () | not (null vars) ] 
+              , let access = FieldAccess [] (mkPathExpr "payload") (mkIdent ("v" ++ show i)) ()
+              , let pat2 = [ TupleStructP (mkPath s) vars Nothing () | not (null vars) ]
               , let stmts = [ Local p Nothing (Just access) [] () | p <- pat2 ] ++
                             [ if n == 0
                                 then NoSemi (mkPathExpr' [nEnum, v]) ()
@@ -313,7 +313,7 @@ mkMarshalEnumImpls dict
 
       -- From<Enum<T1, U1, ...>>
       fromEnumTr = mkMarshalInto nEnum ts
-      
+
       -- TaggedUnion<T, U, ...> and Enum<T1, U1, ...>
       taggedTy1 = mkGenPathTy nTagged (map tyParam2Ty ts1)
       enumTy = mkGenPathTy nEnum (map tyParam2Ty ts)
@@ -348,9 +348,9 @@ mkMarshalEnumImpls dict
                    (mkGenerics fullImplBds) (Just fromEnumTr)
                    taggedTy1 [mkMarshalFunc taggedTy1 enumTy body1] ()
 
-      
+
   pure (impl1, impl2)
-    
+
 mkMarshalInto :: Ident -> [TyParam ()] -> TraitRef ()
 mkMarshalInto n t = TraitRef (mkGenPath "MarshalInto" [ mkGenPathTy n (map tyParam2Ty t) ])
 
@@ -358,7 +358,7 @@ mkMarshalFunc :: Ty () -> Ty () -> [Stmt ()] -> ImplItem ()
 mkMarshalFunc _     retTy body = let gen = mkGenerics []
                                      arg = SelfValue Immutable ()
                                      decl = FnDecl [arg] (Just retTy) False ()
-                                     sig = MethodSig Normal NotConst Rust decl 
+                                     sig = MethodSig Normal NotConst Rust decl
                                      blk = Block body Normal ()
                                      in MethodI [] InheritedV Final "marshal" gen sig blk ()
 
@@ -396,7 +396,7 @@ mkEnum ctx dict n cons = do
       outTy = mkGenPathTy itemN [ mkPathTy i' | TyParam _ (Ident i _ _) _ _ _ <- ps
                                               , let i' = mkIdent (map toUpper i)
                                               ]
-  
+
   (varNs, vars) <- fmap unzip $
     for cons $ \(nCon, flds) -> do
       let varN = mkIdent (nameBase nCon)
@@ -431,7 +431,7 @@ mkUnion :: TyVarDict   -- ^ Mapping of Haskell type variables to Rust type param
 mkUnion dict n tys = do
   let itemN = mkIdent (nameBase n)
       copyPs = [ consBound copyBound typ  | (_, typ) <- dict ]
-      fields = [ StructField (Just fld) InheritedV ty [] () 
+      fields = [ StructField (Just fld) InheritedV ty [] ()
                | (ty, i) <- zip tys [(0 :: Int)..]
                , let fld = mkIdent ("v" ++ show i)
                ]
@@ -490,7 +490,7 @@ mkStruct :: Context          -- ^ current context (in order to lookup what Rust 
                              -- Haskell ones)
          -> TyVarDict        -- ^ Mapping of Haskell type variables to Rust type parameters
          -> Bool             -- ^ Enforce a 'Copy' constraint on type parameters
-         -> Name             -- ^ What name to give the struct 
+         -> Name             -- ^ What name to give the struct
          -> Name             -- ^ What name to give the reprC struct
          -> [Type]           -- ^ Fields of the struct
          -> Q (TranslatedTy ( Ty ()        --   Output type
@@ -514,7 +514,7 @@ mkStruct ctx dict copy n1 n2  tys = do
     Translated v Nothing  ->
       let si = mkStructItem [reprC, deriveCopyClone] itemN1 v
       in pure (Translated (mkOutTy itemN1, (itemN1, length tys), si) Nothing)
-    Translated v (Just r) -> 
+    Translated v (Just r) ->
       let si = mkStructItem [deriveCopyClone] itemN1 v
           si' = mkStructItem [reprC, deriveCopyClone] itemN2 r
       in pure (Translated (mkOutTy itemN1, (itemN1, length tys), si)
@@ -527,7 +527,7 @@ mkVariant :: Context                           -- ^ current context
           -> Q (TranslatedTy (VariantData ())) -- ^ Rust data
 mkVariant _ [] _ = pure (Translated (UnitD ()) Nothing)
 mkVariant ctx tys pub = do
-  let vis = if pub then PublicV else InheritedV 
+  let vis = if pub then PublicV else InheritedV
 
   -- Regular Rust types corresponding to Haskell ones
   rustTys <- traverse (\ht -> getHTypeInContext ht ctx) tys

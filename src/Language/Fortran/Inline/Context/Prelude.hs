@@ -1,5 +1,5 @@
 {-|
-Module      : Language.Rust.Inline.Context.Prelude
+Module      : Language.Fortran.Inline.Context.Prelude
 Description : Defines contexts for Prelude types
 Copyright   : (c) Alec Theriault, 2017
 License     : BSD-style
@@ -13,17 +13,16 @@ Portability : GHC
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_GHC -w #-}
 
-module Language.Rust.Inline.Context.Prelude where
+module Language.Fortran.Inline.Context.Prelude where
 
-import Language.Rust.Inline.Context
-import Language.Rust.Inline.TH
+import Language.Fortran.Inline.Context
+import Language.Fortran.Inline.TH
 
 import Language.Rust.Data.Ident            ( Ident(..), mkIdent )
+import Language.Rust.Syntax
 
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
-
-import Language.Rust.Syntax
 
 import Foreign.Storable
 
@@ -233,7 +232,7 @@ eitherItems = map unlines
 -- | Given the arity of a tuple, produce a corresponding Rust intermediate
 -- @#[repr(C)]@ struct type, along with the @MarshalInto@ type.
 tupleItems :: Int -> [String]
-tupleItems n = map unlines 
+tupleItems n = map unlines
     -- Struct declaration for intermediate type
   [ [ "#[repr(C)]"
     , "#[derive(Debug,Clone,Copy)]"
@@ -243,7 +242,7 @@ tupleItems n = map unlines
   , [ "impl<" ++ params ++ "> MarshalInto<" ++ reprTupleTy ts ++ "> for " ++ tuple ts1 ++ " {"
     , "  fn marshal(self) -> " ++ reprTupleTy ts ++ "{"
     , "    let " ++ tuple xs ++ " = self;"
-    , "    " ++ reprTuple [ x ++ ".marshal()" | x <- xs ] 
+    , "    " ++ reprTuple [ x ++ ".marshal()" | x <- xs ]
     , "  }"
     , "}"
     ]
@@ -251,7 +250,7 @@ tupleItems n = map unlines
   , [ "impl<" ++ params ++ "> MarshalInto<" ++ tuple ts ++ "> for " ++ reprTupleTy ts1 ++ " {"
     , "  fn marshal(self) -> " ++ tuple ts ++ "{"
     , "    let " ++ reprTuple xs ++ " = self;"
-    , "    " ++ tuple [ x ++ ".marshal()" | x <- xs ] 
+    , "    " ++ tuple [ x ++ ".marshal()" | x <- xs ]
     , "  }"
     , "}"
     ]
@@ -261,15 +260,15 @@ tupleItems n = map unlines
     ts, ts1 :: [String]
     ts  = take n [ l : i | i <- "" : map show [(1 :: Int)..], l <- ['A'..'Z'] ]
     ts1 = [ 'C' : t | t <- ts ]
-    
+
     -- Full type parameters given to either @impl@
     params = intercalate ", " (ts ++ zipWith (\t1 t -> t1 ++ ": MarshalInto<" ++ t ++ ">") ts1 ts )
 
     -- Variables
     xs = take n [ 'x' : show i | i <- [(0 :: Int)..] ]
-    
+
     -- Construct type/value tuples and their @#[repr(C)]@ equivalents
     tuple vs = "(" ++ intercalate ", " vs ++ ")"
     reprTuple vs = "Tuple" ++ show n ++ "(" ++ intercalate ", " vs ++ ")"
     reprTupleTy vs = "Tuple" ++ show n ++ "<" ++ intercalate ", " vs ++ ">"
-   
+

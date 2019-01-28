@@ -1,5 +1,5 @@
 {-|
-Module      : Language.Rust.Inline.Context
+Module      : Language.Fortran.Inline.Context
 Description : Defines contexts (rules mapping Rust types to Haskell types)
 Copyright   : (c) Alec Theriault, 2017
 License     : BSD-style
@@ -14,9 +14,9 @@ Portability : GHC
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MagicHash #-}
 
-module Language.Rust.Inline.Context where
+module Language.Fortran.Inline.Context where
 
-import Language.Rust.Inline.Pretty ( renderType )
+import Language.Fortran.Inline.Pretty ( renderType )
 
 import Language.Rust.Quote         ( ty )
 import Language.Rust.Syntax        ( Ty(BareFn, Ptr), Abi(..), FnDecl(..),
@@ -78,7 +78,6 @@ instance Monoid (Q Context) where
 
 instance Fail.MonadFail First where
   fail = error
-
 
 -- | Search in a 'Context' for the Haskell type corresponding to a Rust type.
 -- If the Rust type is not C-compatible, also return a C compatible type. It is

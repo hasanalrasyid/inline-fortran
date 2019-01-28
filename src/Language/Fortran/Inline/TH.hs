@@ -1,22 +1,22 @@
 
-module Language.Rust.Inline.TH ( adtCtx, rustTyCtx, mkStorable, mkTupleStorable ) where
+module Language.Fortran.Inline.TH ( adtCtx, rustTyCtx, mkStorable, mkTupleStorable ) where
 
-import Language.Rust.Inline.TH.Utilities  ( getTyConOpt, getTyCon )
-import Language.Rust.Inline.TH.ReprC
-import Language.Rust.Inline.TH.Storable ( mkStorable, mkTupleStorable )
-import Language.Rust.Inline.Context
-import Language.Rust.Inline.Internal
-import Language.Rust.Inline.Pretty
+import Language.Fortran.Inline.TH.Utilities  ( getTyConOpt, getTyCon )
+import Language.Fortran.Inline.TH.ReprC
+import Language.Fortran.Inline.TH.Storable ( mkStorable, mkTupleStorable )
+import Language.Fortran.Inline.Context
+import Language.Fortran.Inline.Internal
+import Language.Fortran.Inline.Pretty
 
 import Language.Haskell.TH ( Name, Q, TypeQ, Type(ForallT) )
 import Language.Haskell.TH.Lib ( appT, conT )
-import Language.Rust.Data.Ident ( Ident ) 
+import Language.Rust.Data.Ident ( Ident )
 import Language.Rust.Syntax ( Ty(PathTy), Path(..), PathSegment(..), PathParameters(..) )
 
 import Data.Maybe  ( isJust, fromMaybe )
 import Data.Monoid ( First, Any(..) )
 
-adtCtx :: Name         -- ^ name of the 'Storable' Haskell type 
+adtCtx :: Name         -- ^ name of the 'Storable' Haskell type
        -> Ident        -- ^ name of the Rust type
        -> Maybe Ident  -- ^ name of the intermediate Rust type (if there is one)
        -> Int          -- ^ how many generic parameters
@@ -48,12 +48,12 @@ adtCtx hADT rEnum rReprCOpt n impls = pure (Context ([ goRType ], [ goHType ], i
                             rInterGen = zipWith (\x m -> maybe (pure x) id m) rGen rInterGenOpt
                         in Just (mkGenPathTy rReprC <$> sequence rInterGen)
                    else Nothing
-    
+
     -- Compute the Haskell type
     let hTy = foldl appT (conT hADT) hGen
 
     pure (hTy, rInter)
-    
+
 
   goHType :: HType -> Context -> First (Q RType)
   goHType hTy ctx = do
@@ -62,7 +62,7 @@ adtCtx hADT rEnum rReprCOpt n impls = pure (Context ([ goRType ], [ goHType ], i
     -- Filter out incorrect type constructors
     () <- if hName == hADT     then pure () else fail "Wrong name"
     () <- if length hArgs == n then pure () else fail "Wrong number of parameters"
-   
+
     -- Look up parameters recursively
     rGen <- traverse (`lookupHTypeInContext` ctx) hArgs
 
@@ -76,7 +76,7 @@ rustTyCtx :: TypeQ      -- ^ a Haskell type representing the desired Rust type
 rustTyCtx tyq = do
 
   ty' <- tyq
-  
+
   -- TODO: this work is done again in mkReprC - do it only once and here
   -- Extract the context
   (_, ty) <-
@@ -89,13 +89,13 @@ rustTyCtx tyq = do
   (hADT, args) <- getTyCon ty
 
   -- Get the current context
-  ctx <- getContext 
+  ctx <- getContext
 
   -- Generate and emit the Rust types
   (rEnum, rReprCOpt, items, impls) <- mkReprC ctx ty'
 
   -- Produce the context
   adtCtx hADT rEnum rReprCOpt (length args) (map renderItem (impls ++ items))
-  
+
 
 

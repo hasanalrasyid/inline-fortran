@@ -1,5 +1,5 @@
 {-|
-Module      : Language.Rust.Inline.TH.Utilities
+Module      : Language.Fortran.Inline.TH.Utilities
 Description : Generate Storable instances
 Copyright   : (c) Alec Theriault, 2018
 License     : BSD-style
@@ -9,7 +9,7 @@ Portability : GHC
 -}
 {-# LANGUAGE RankNTypes #-}
 
-module Language.Rust.Inline.TH.Utilities (
+module Language.Fortran.Inline.TH.Utilities (
   getConstructors,
   varName,
   getAllVars,
