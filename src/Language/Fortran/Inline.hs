@@ -77,6 +77,9 @@ module Language.Fortran.Inline (
  -- externCrate,
 ) where
 
+import Numeric
+import Data.Word
+
 import Language.Fortran.Inline.Context
 import Language.Fortran.Inline.Context.Prelude  ( prelude )
 import Language.Fortran.Inline.Internal
@@ -271,11 +274,9 @@ processQQ :: Safety -> Bool -> RustQuasiquoteParse -> Q Exp
 processQQ safety isPure (QQParse rustRet rustBody rustNamedArgs) = do
 
   -- Make a name to thread through Haskell/Rust (see Trac #13054)
-  q <- runIO randomIO :: Q Int
-  qqName' <- newName $ "infort" ++ show (abs q)
-  qqName <- newName (show qqName')
+  q <- runIO randomIO :: Q Word16
+  qqName <- newName $ "infort" ++ showHex q ""
   let qqStrName = show qqName
-
   -- Find out what the corresponding Haskell representations are for the
   -- argument and return types
   let (rustArgNames, rustArgs) = unzip rustNamedArgs

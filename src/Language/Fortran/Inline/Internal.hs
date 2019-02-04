@@ -227,12 +227,14 @@ fileFinalizer = do
   Just cb <- getQ
   Just (Context (_,_,impls)) <- getQ
   let code = showsCodeBlocks cb
+    {-
            . showString "pub mod marshal {\n"
            . showString "#[allow(unused_imports)] use super::*;\n"
            . showString "pub trait MarshalInto<T> { fn marshal(self) -> T; }\n"
            . appEndo (foldMap (\s -> Endo (showString s . showString "\n")) impls)
            . showString "}\n"
            . showString "#[allow(unused_imports)]  use self::marshal::*;\n"
+           -}
            $ ""
 
   -- Write out the file
