@@ -25,17 +25,18 @@ import Language.Fortran.Inline.Context
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
 
-import Control.Monad               ( when )
+--import Control.Monad               ( when )
 import Data.Typeable               ( Typeable )
-import Data.Monoid                 ( Endo(..) )
+--import Data.Monoid                 ( Endo(..) )
 import Data.Maybe                  ( fromMaybe )
 import Data.List                   ( unfoldr )
 import Data.Char                   ( isAlpha, isAlphaNum )
 
 import System.FilePath             ( (</>), (<.>), takeExtension )
 import System.Directory            ( copyFile, createDirectoryIfMissing )
-import System.Process              ( spawnProcess, readProcess, waitForProcess )
-import System.Exit                 ( ExitCode(..) )
+--import System.Process              ( spawnProcess, readProcess, waitForProcess )
+import System.Process              ( readProcess)
+--import System.Exit                 ( ExitCode(..) )
 import System.Environment          ( setEnv )
 
 import Text.JSON
