@@ -7,13 +7,15 @@ Maintainer  : alec.theriault@gmail.com
 Stability   : experimental
 Portability : GHC
 -}
+{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE FlexibleContexts #-}
 
 module Language.Fortran.Inline.Parser where
 
 import Language.Fortran.Inline.Pretty ( renderType )
 
-import Language.Rust.Syntax        ( Token(..), Delim(..), Ty )
+import Language.Rust.Syntax        ( Token(..), Delim(..), Ty(..))
 import Language.Rust.Parser
 import Language.Rust.Data.Position ( Spanned(..) )
 import Language.Rust.Data.Ident    ( Ident(..) )
@@ -78,7 +80,7 @@ parseQQ input = do
   -- Parse body of quasiquote
   (bodyToks, vars) <- parseBody [] [] rest2
   runIO $ do
-    putStrLn $ show bodyToks
+    putStrLn $ show rest2
 
   -- Done!
   pure (QQParse leadingTy bodyToks vars)
@@ -90,31 +92,36 @@ parseQQ input = do
     parseBody toks vars rest1
       = case rest1 of
           [] -> pure (reverse toks, vars)
+          (Spanned Dollar _             :
+           Spanned (OpenDelim Paren) _  :
+           Spanned (IdentTok i) _       :
+           Spanned (CloseDelim Paren) _ : rest2) -> do
+             let i' = name i
+             parseBody (pure (IdentTok i) : toks) vars rest2
 
           (Spanned Dollar _            :
            Spanned (OpenDelim Paren) _ :
            Spanned (IdentTok i) _      :
            Spanned Colon _             : rest2) -> do
 
+            let i' = name i
             -- Parse the rest of the escape
             (t1, rest3) <- parseEscape [] 1 rest2
-
-            -- Add it to 'vars' if it isn't a duplicate
-            let i' = name i
-            let dupMsg t2 = concat [ "Variable `", i', ": ", renderType t1
-                                    , "' has already been given type `"
-                                    , renderType t2, "'"
-                                    ]
             newVars <- case lookup i' vars of
                          Nothing -> pure ((i', t1) : vars)
                          Just t2 | void t1 == void t2 -> pure vars
-                                 | otherwise -> fail (dupMsg t2)
+                                 | otherwise -> fail (dupMsg i' t1 t2)
 
             -- Continue parsing
             parseBody (pure (IdentTok i) : toks) newVars rest3
 
           (tok : rest2) -> parseBody (tok : toks) vars rest2
 
+    -- Add it to 'vars' if it isn't a duplicate
+    dupMsg ia t1a t2a = concat [ "Variable `", ia, ": ", renderType t1a
+                               , "' has already been given type `"
+                               , renderType t2a, "'"
+                               ]
     -- Parse the part of escapes like @$(x: i32)@ that comes after the @:@.
     parseEscape :: [SpTok] -> Int -> [SpTok] -> Q (Ty Span, [SpTok])
     parseEscape toks p rest1
