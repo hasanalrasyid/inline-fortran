@@ -139,9 +139,9 @@ cargoFinalizer extraArgs dependencies = do
   (pkg, mods) <- currentFile
 
   let dir = ".inline-fortran" </> pkg
-      thisFile = foldr1 (</>) mods <.> "rs"
+      thisFile = foldr1 (</>) mods <.> "F90"
+  {-
       crate = "quasiquote_" ++ pkg
-
   -- Make contents of a @Cargo.toml@ file
   let cargoToml = dir </> "Cargo" <.> "toml"
       cargoSrc = unlines [ "[package]"
@@ -159,7 +159,7 @@ cargoFinalizer extraArgs dependencies = do
                          ]
   runIO $ createDirectoryIfMissing True dir
   runIO $ writeFile cargoToml cargoSrc
-
+  -}
   -- Run Cargo to compile the project
   --
   -- NOTE: We set `--print native-static-libs` to inform the user these are the
@@ -174,6 +174,7 @@ cargoFinalizer extraArgs dependencies = do
   --           specifying libraries to pass to the final linker call.
   --
   runIO $ setEnv "RUSTFLAGS" "--print native-static-libs"
+    {-
   let cargoArgs = [ "build"
                   , "--release"
                   , "--manifest-path=" ++ cargoToml
@@ -181,11 +182,14 @@ cargoFinalizer extraArgs dependencies = do
       msgFormat = [ "--message-format=json" ]
 
   ec <- runIO $ spawnProcess "cargo" cargoArgs >>= waitForProcess
+  ec <- runIO $ spawnProcess "cargo" cargoArgs >>= waitForProcess
   when (ec /= ExitSuccess)
     (reportError rustcErrMsg)
 
   -- Run Cargo again to get the static library path
   jOuts <- runIO $ readProcess "cargo" (cargoArgs ++ msgFormat) ""
+  -}
+  jOuts <- runIO $ readProcess "cargo" [] ""
   let jOut = last (lines jOuts)
   rustLibFp <-
     case decode jOut of
@@ -221,7 +225,7 @@ fileFinalizer = do
   (pkg, mods) <- currentFile
 
   let dir = ".inline-fortran" </> pkg
-      thisFile = foldr1 (</>) mods <.> "rs"
+      thisFile = foldr1 (</>) mods <.> "F90"
 
   -- Figure out what we are putting into this file
   Just cb <- getQ
