@@ -272,7 +272,7 @@ processQQ safety isPure (QQParse rustRet rustBody rustNamedArgs) = do
 
   -- Make a name to thread through Haskell/Rust (see Trac #13054)
   q <- runIO randomIO :: Q Int
-  qqName' <- newName $ "quasiquote" ++ show (abs q)
+  qqName' <- newName $ "infort" ++ show (abs q)
   qqName <- newName (show qqName')
   let qqStrName = show qqName
 
@@ -373,19 +373,15 @@ processQQ safety isPure (QQParse rustRet rustBody rustNamedArgs) = do
                        , "unsafe { ::std::ptr::write(ret_" ++ qqStrName ++ ", out.marshal()) }"
                        )
   void . emitCodeBlock . unlines $
-    [ retTy ++ " function " ++ qqStrName ++ "("
-    , "  " ++ intercalate ", " ([ s ++ ": " ++ marshal (renderType t)
-                                | (s,t,v) <- zip3 rustArgNames rustArgs' argsByVal
-                                , let marshal x = if v then x else "*const " ++ x
-                                ] ++ retArg)
-    , ") -> " ++ retTy ++ " {"
-    , unlines [ "  let " ++ s ++ ": " ++ renderType t ++ " = " ++ marshal s ++ ".marshal();"
-              | (s,t,v) <- zip3 rustArgNames rustConvertedArgs argsByVal
-              , let marshal x = if v then x else "unsafe { ::std::ptr::read(" ++ x ++ ") }"
+    -- Function statement
+    [ retTy ++ " function " ++ qqStrName ++ "(" ++ intercalate ", " ([ s
+                                | (s,_,_) <- zip3 rustArgNames rustArgs' argsByVal
+                                ] ) ++ ")"
+    -- variables statement
+    , unlines [ unwords [renderType t, s]
+              | (s,t,_) <- zip3 rustArgNames rustConvertedArgs argsByVal
               ]
-    , "  let out: " ++ renderType rustConvertedRet ++ " = (|| {" ++ renderTokens rustBody ++ "})();"
-    , "  " ++ ret
-    , "}"
+    , renderTokens rustBody
     ]
       {-
   void . emitCodeBlock . unlines $
