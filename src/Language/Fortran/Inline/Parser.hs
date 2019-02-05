@@ -17,7 +17,7 @@ import Language.Fortran.Inline.Pretty ( renderType )
 
 import Language.Rust.Syntax        ( Token(..), Delim(..), Ty(..))
 
-import qualified Language.Fortran.Lexer.FreeForm as FF (collectFreeTokens, Token(..))
+import qualified Language.Fortran.Lexer.FreeForm as FF ( collectFreeTokens, Token(..), lexer', initParseState )
 import qualified Data.ByteString.Char8 as B8
 import qualified Language.Fortran.ParserMonad as FPM
 
@@ -77,8 +77,7 @@ parseQQ input = do
     --newStream <- parseSrcString Nothing emptyModFiles $ clearBracket input
     --let newStream = clearBracket input
 --    let newStream = FF.collectFreeTokens FPM.Fortran95 $ B8.pack $ input
-    let newStream = FF.collectFreeTokens FPM.Fortran95 $ B8.pack
-                      $ clearBracket input
+    let newStream = FPM.collectTokens FF.lexer' $ FF.initParseState (B8.pack $ clearBracket input) FPM.Fortran95 "<unknown>"
       {-
                     $ unlines
                     [ "","     double precision a,b,c,d,eps"
