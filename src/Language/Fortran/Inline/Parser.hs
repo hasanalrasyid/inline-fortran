@@ -24,6 +24,11 @@ import Language.Haskell.TH         ( Q, runIO )
 
 import Control.Monad               ( void )
 
+import Language.Fortran.Util.ModFile ( emptyModFiles )
+import Language.Fortran.Input ( parseSrcString )
+import Language.Fortran.Parser
+
+
 -- All the tokens we deal with are 'Spanned'...
 type SpTok = Spanned Token
 
@@ -58,10 +63,10 @@ parseQQ input = do
 
   let lexer = lexTokens lexNonSpace
   let stream = inputStreamFromString input
-
+--  newStream <- parseSrcString Nothing emptyModFiles input
   -- Lex the quasiquote tokens
   rest1 <-
-    case execParser lexer stream initPos of
+    case execParser lexer stream initPos' of
       Left (ParseFail _ msg) -> fail msg
       Right parsed -> pure parsed
 

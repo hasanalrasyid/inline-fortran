@@ -57,6 +57,12 @@ dependencies:
     - process
     - random
 
+    - fortran-src
+
+    - uniplate
+    - text
+    - lens
+
 library:
   source-dirs: src
 
