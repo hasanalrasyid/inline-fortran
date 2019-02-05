@@ -64,6 +64,9 @@ dependencies:
     - lens
 
 library:
+  build-tools:
+    - alex
+    - happy
   source-dirs: src
 
 executables:

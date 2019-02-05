@@ -17,9 +17,13 @@ import Language.Fortran.Inline.Pretty ( renderType )
 
 import Language.Rust.Syntax        ( Token(..), Delim(..), Ty(..))
 
-import qualified Language.Fortran.Lexer.FreeForm as FF ( collectFreeTokens, Token(..), lexer', initParseState )
+--import qualified Language.Fortran.Lexer.FreeForm as Free ( collectFreeTokens, Token(..), lexer', initParseState, LexAction(..),AlexInput(..),AlexReturn(..),resetLexeme,scActual,normaliseStartCode,User(..),alexScanUser,StartCode(..),StartCodeStatus(..))
+import qualified Language.Fortran.Lexer.FreeForm as Free
+import qualified Language.Fortran.Inline.Lexer as L
 import qualified Data.ByteString.Char8 as B8
 import qualified Language.Fortran.ParserMonad as FPM
+import qualified Language.Fortran.Util.Position as FP
+import Control.Monad.State (get)
 
 import Language.Rust.Parser
 import Language.Rust.Data.Position ( Spanned(..) )
@@ -31,7 +35,6 @@ import Control.Monad               ( void )
 
 import Language.Fortran.Util.ModFile ( emptyModFiles )
 import Language.Fortran.Input ( parseSrcString )
-
 
 -- All the tokens we deal with are 'Spanned'...
 type SpTok = Spanned Token
@@ -68,7 +71,6 @@ clearBracket s = takeWhile (/= '}') $ tail $ dropWhile (/='{') s
 
 parseQQ :: String -> Q RustQuasiquoteParse
 parseQQ input = do
-
   let lexer = lexTokens lexNonSpace
   let stream = inputStreamFromString input
   runIO $ do
@@ -77,8 +79,10 @@ parseQQ input = do
     --newStream <- parseSrcString Nothing emptyModFiles $ clearBracket input
     --let newStream = clearBracket input
 --    let newStream = FF.collectFreeTokens FPM.Fortran95 $ B8.pack $ input
-    let newStream = FPM.collectTokens FF.lexer' $ FF.initParseState (B8.pack $ clearBracket input) FPM.Fortran95 "<unknown>"
+    let newStream = L.collectFreeTokens FPM.Fortran95 $ B8.pack $ clearBracket input
       {-
+    let newStream = FPM.collectTokens L.lexerFortranQQ $ Free.initParseState (B8.pack $ clearBracket input) FPM.Fortran95 "<unknown>"
+--    let newStream = Fixed.collectFixedTokens FPM.Fortran95 $ B8.pack $ input
                     $ unlines
                     [ "","     double precision a,b,c,d,eps"
                     , "a = 4.0d0/3.0d0"
@@ -95,9 +99,9 @@ parseQQ input = do
     putStrLn "====!newStream"
   -- Lex the quasiquote tokens
   {--
-  let lexerFortran = lexTokens
+  let lexerFortranQQ = lexTokens
   rest1Fortran <-
-    case execParserFortran lexerFortran stream initPos of
+    case execParserFortran lexerFortranQQ stream initPos of
       Left (ParseFail _ msg) -> fail msg
       Right parsed -> pure parsed
   runIO $ do
@@ -197,4 +201,3 @@ openParen _ = False
 closeParen :: SpTok -> Bool
 closeParen (Spanned (CloseDelim Paren) _) = True
 closeParen _ = False
-
