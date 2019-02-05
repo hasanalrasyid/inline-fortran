@@ -14,10 +14,14 @@ main = do
   x <- readLn
   z <- readLn
   y <- [rustIO| i32 {
-    println!("Rust: Your number is {}", $(x: i32));
-    $(x: i32) + 1
-    $(z: i32) + 2
-    $(ret) = 32
-  } |]
+      double precision a,b,c,eps
+          a = 4.0d0/3.0d0
+   10 b = a - 1.0d0
+      c = b + b + b
+      eps = dabs(c-1.0d0)
+      if (eps .eq. 0.0d0) go to 10
+      $(ret) = eps*dabs(x)
+      return
+                    } |]
   putStrLn $ "Haskell: Rust says number plus 1 is " ++ show y
 
