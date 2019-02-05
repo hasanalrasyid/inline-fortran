@@ -315,7 +315,7 @@ tokens :-
 <scN> "." $letter+ "."                            { addSpanAndMatch TOpCustom }
 
 <scN> @name                                       { addSpanAndMatch TId }
-
+<0,scN> "$"                                         { addSpan TSigil }
 {
 
 --------------------------------------------------------------------------------
@@ -1076,12 +1076,11 @@ lexer' = do
   let user = User version paranthesesCount
   case alexScanUser user newAlex' startCode of
     AlexEOF -> return $ TEOF $ SrcSpan (getPos alex) (getPos alex)
-    AlexError _ -> do
+    AlexError ae -> do
       parseState <- get
       fail $ psFilename parseState ++ ": lexing failed. "
-#ifdef DEBUG
-        ++ '\n' : show newAlex ++ "\n"
-#endif
+        -- ++ '\n' : show newAlex' ++ show ae ++ "\n"
+        ++ '\n' : show ae ++ "\n"
     AlexSkip newAlex _ -> do
       putAlex $ newAlex { aiStartCode = StartCode startCode Return }
       lexer'
@@ -1278,6 +1277,7 @@ data Token =
   | TIOStat             SrcSpan
   | TIOMsg              SrcSpan
   | TErr                SrcSpan
+  | TSigil              SrcSpan
   deriving (Eq, Show, Data, Typeable, Generic)
 
 instance FirstParameter Token SrcSpan
