@@ -16,6 +16,11 @@ module Language.Fortran.Inline.Parser where
 import Language.Fortran.Inline.Pretty ( renderType )
 
 import Language.Rust.Syntax        ( Token(..), Delim(..), Ty(..))
+
+import qualified Language.Fortran.Lexer.FreeForm as FF (collectFreeTokens, Token(..))
+import qualified Data.ByteString.Char8 as B8
+import qualified Language.Fortran.ParserMonad as FPM
+
 import Language.Rust.Parser
 import Language.Rust.Data.Position ( Spanned(..) )
 import Language.Rust.Data.Ident    ( Ident(..) )
@@ -68,10 +73,37 @@ parseQQ input = do
   let stream = inputStreamFromString input
   runIO $ do
     putStrLn "=====newStream"
-    newStream <- parseSrcString Nothing emptyModFiles $ clearBracket input
+    putStrLn $ clearBracket input
+    --newStream <- parseSrcString Nothing emptyModFiles $ clearBracket input
+    --let newStream = clearBracket input
+--    let newStream = FF.collectFreeTokens FPM.Fortran95 $ B8.pack $ input
+    let newStream = FF.collectFreeTokens FPM.Fortran95 $ B8.pack
+                      $ clearBracket input
+      {-
+                    $ unlines
+                    [ "","     double precision a,b,c,d,eps"
+                    , "a = 4.0d0/3.0d0"
+                    , "! this is comment "
+                    , "   10 b = a - 1.0d0"
+                    , "      c = b + b + b"
+                    , "      eps = dabs(c-1.0d0)"
+                    , "      if (eps .eq. 0.0d0) go to 10 ret = eps*dabs(x)"
+                    , "      return"
+                    , ""
+                    ]
+                    -}
     putStrLn $ show newStream
-    putStrLn "====!newStream Failed"
+    putStrLn "====!newStream"
   -- Lex the quasiquote tokens
+  {--
+  let lexerFortran = lexTokens
+  rest1Fortran <-
+    case execParserFortran lexerFortran stream initPos of
+      Left (ParseFail _ msg) -> fail msg
+      Right parsed -> pure parsed
+  runIO $ do
+    putStrLn $ show rest1Fortran
+    -}
   rest1 <-
     case execParser lexer stream initPos of
       Left (ParseFail _ msg) -> fail msg

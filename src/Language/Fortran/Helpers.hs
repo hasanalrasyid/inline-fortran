@@ -92,7 +92,7 @@ instance Foldable (Reverse Str.Str) where
 instance Traversable (Reverse Str.Str) where
     traverse _ (Reverse Str.Zero) = pure $ Reverse Str.Zero
     traverse f (Reverse (Str.One x)) = (Reverse . Str.One) <$> f x
-    traverse f (Reverse (Str.Two x y)) = (\y x -> Reverse $ Str.Two x y)
+    traverse f (Reverse (Str.Two x y)) = (\y' x' -> Reverse $ Str.Two x' y')
                              <$> (fmap unwrapReverse . traverse f . Reverse $ y)
                              <*> (fmap unwrapReverse . traverse f . Reverse $ x)
 
