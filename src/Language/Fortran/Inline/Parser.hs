@@ -26,7 +26,6 @@ import Control.Monad               ( void )
 
 import Language.Fortran.Util.ModFile ( emptyModFiles )
 import Language.Fortran.Input ( parseSrcString )
-import Language.Fortran.Parser
 
 
 -- All the tokens we deal with are 'Spanned'...
@@ -58,15 +57,23 @@ data RustQuasiquoteParse = QQParse
 --                    | <tok> <body>
 --                    | {- empty -}
 -- @
+
+clearBracket :: String -> String
+clearBracket s = takeWhile (/= '}') $ tail $ dropWhile (/='{') s
+
 parseQQ :: String -> Q RustQuasiquoteParse
 parseQQ input = do
 
   let lexer = lexTokens lexNonSpace
   let stream = inputStreamFromString input
---  newStream <- parseSrcString Nothing emptyModFiles input
+  runIO $ do
+    putStrLn "=====newStream"
+    newStream <- parseSrcString Nothing emptyModFiles $ clearBracket input
+    putStrLn $ show newStream
+    putStrLn "====!newStream Failed"
   -- Lex the quasiquote tokens
   rest1 <-
-    case execParser lexer stream initPos' of
+    case execParser lexer stream initPos of
       Left (ParseFail _ msg) -> fail msg
       Right parsed -> pure parsed
 
