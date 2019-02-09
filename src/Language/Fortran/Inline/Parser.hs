@@ -94,9 +94,10 @@ parseBodyF toks vars rest1 =
     ( L.TSigil l            :
       _  :
       L.TId _ i       :
-      _ : rest2  ) -> do
---       let i' = name i
-       parseBodyF ( (L.TId l i) : toks) vars rest2
+      _ : rest2 ) -> do
+       let i' = i
+       let newT = L.TId l i
+       parseBodyF ( newT : toks) ((i',newT):vars) rest2
 
     (tok : rest2) -> parseBodyF (tok : toks) vars rest2
   where
