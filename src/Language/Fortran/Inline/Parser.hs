@@ -26,7 +26,7 @@ import qualified Language.Fortran.Util.Position as FP
 import Control.Monad.State (get)
 
 import Language.Rust.Parser
-import Language.Rust.Data.Position ( Spanned(..) )
+import Language.Rust.Data.Position ( Spanned(..), Position(..) )
 import Language.Rust.Data.Ident    ( Ident(..) )
 
 import Language.Haskell.TH         ( Q, runIO )
@@ -67,39 +67,70 @@ data RustQuasiquoteParse = QQParse
 -- @
 
 clearBracket :: String -> String
-clearBracket s = takeWhile (/= '}') $ tail $ dropWhile (/='{') s
+clearBracket s = init $ tail $ reverse $ dropWhile (/= '}') $ reverse $ dropWhile (/='{') s
+
+--execParserFotran :: String -> Either ParseFail [SpTok] 
+execParserFortran s = 
+  let a = L.collectFreeTokens FPM.Fortran95 $ B8.pack $ clearBracket s
+  in if | a == [] -> Left (ParseFail (Position 0 0 0) "error execParserFortran")
+        | otherwise -> Right a
+
+isLBrace :: L.Token -> Bool
+isLBrace (L.TLBrace _) = True
+isLBrace _ = False
+
+isRBrace :: L.Token -> Bool
+isRBrace (L.TRBrace _) = True
+isRBrace _ = False
+-- Parse the body of the quasiquote
+--parseBodyF :: [SpTok] -> [(String, Ty Span)] -> [SpTok]
+--          -> Q ([SpTok], [(String, Ty Span)])
+parseBodyF :: [L.Token] -> [(String,L.Token)] -> [L.Token]
+           -> Q ([L.Token],[(String, L.Token)])
+parseBodyF toks vars rest1 = 
+  case rest1 of
+    [] -> pure (reverse toks, vars)
+
+    ( L.TSigil l            :
+      _  :
+      L.TId _ i       :
+      _ : rest2  ) -> do
+--       let i' = name i
+       parseBodyF ( (L.TId l i) : toks) vars rest2
+
+    (tok : rest2) -> parseBodyF (tok : toks) vars rest2
+  where
+    -- Add it to 'vars' if it isn't a duplicate
+    dupMsg ia t1a t2a = concat $ "FVariable `": show ia : ": ": show t1a
+                               : "' has already been given type `"
+                               : show t2a: "'": []
+
+clearRBrace l = let (_:r) = dropWhile (not . isRBrace) $ reverse l
+                 in reverse r
 
 parseQQ :: String -> Q RustQuasiquoteParse
 parseQQ input = do
   let lexer = lexTokens lexNonSpace
   let stream = inputStreamFromString input
-  runIO $ do
-    putStrLn "=====newStream"
-    putStrLn $ clearBracket input
-    let lToken = L.collectFreeTokens FPM.Fortran95 $ B8.pack $ clearBracket input
-
-    putStrLn $ show lToken
-    putStrLn "====!newStream"
   -- Lex the quasiquote tokens
-  {--
-  let lexerFortranQQ = lexTokens
-  rest1Fortran <-
-    case execParserFortran lexerFortranQQ stream initPos of
+    
+  rest1 <-  case execParser lexer stream initPos of
       Left (ParseFail _ msg) -> fail msg
       Right parsed -> pure parsed
-  runIO $ do
-    putStrLn $ show rest1Fortran
-    -}
-  rest1 <-
-    case execParser lexer stream initPos of
-      Left (ParseFail _ msg) -> fail msg
-      Right parsed -> pure parsed
+
+  r1 <- case execParserFortran input of
+    Left (ParseFail _ msg) -> fail msg
+    Right parsed -> pure parsed
+  (leadTy , r2) <-
+    case break isLBrace r1 of
+      (_, []) -> fail "Ran out of input parsing leading type in quasiquote Fortran"
+      (tyToks, lBrace : rest2) -> pure (tyToks, clearRBrace rest2)
 
   -- Split off the leading type's tokens
   (tyToks, rest2) <-
     case break openBrace rest1 of
       (_, []) -> fail "Ran out of input parsing leading type in quasiquote"
-      (tyToks, brace : rest2) -> pure (tyToks, init $ tail rest2)
+      (tyToks, _ : rest2) -> pure (tyToks, init $ tail rest2)
 
   -- Parse leading type
   leadingTy <-
@@ -109,8 +140,13 @@ parseQQ input = do
 
   -- Parse body of quasiquote
   (bodyToks, vars) <- parseBody [] [] rest2
+  (bodyTF, varsF) <- parseBodyF [] [] r2
   runIO $ do
-    putStrLn $ show rest2
+    putStrLn "=====newStream"
+    putStrLn $ show leadTy
+    putStrLn $ show bodyTF
+    putStrLn $ show varsF
+    putStrLn "====!newStream"
 
   -- Done!
   pure (QQParse leadingTy bodyToks vars)

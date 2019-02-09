@@ -23,6 +23,6 @@ main = do
       $(ret) = eps*dabs(x)
       return
       }
-                    } |]
+      } |]
   putStrLn $ "Haskell: Rust says number plus 1 is " ++ show y
 
