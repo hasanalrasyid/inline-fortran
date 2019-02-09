@@ -70,7 +70,7 @@ library:
   source-dirs: src
 
 executables:
-  inline-fortran-exe:
+  x:
     main:                Main.hs
     source-dirs:         app
     #c-sources:           app/Main.c

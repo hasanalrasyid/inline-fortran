@@ -316,6 +316,8 @@ tokens :-
 
 <scN> @name                                       { addSpanAndMatch TId }
 <0,scN> "$"                                         { addSpan TSigil }
+<0,scN> "{"                                         { addSpan TLBrace }
+<0,scN> "}"                                         { addSpan TRBrace }
 {
 
 --------------------------------------------------------------------------------
@@ -1278,6 +1280,8 @@ data Token =
   | TIOMsg              SrcSpan
   | TErr                SrcSpan
   | TSigil              SrcSpan
+  | TRBrace             SrcSpan
+  | TLBrace             SrcSpan
   deriving (Eq, Show, Data, Typeable, Generic)
 
 instance FirstParameter Token SrcSpan

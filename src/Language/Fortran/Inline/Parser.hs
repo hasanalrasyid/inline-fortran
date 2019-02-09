@@ -76,26 +76,9 @@ parseQQ input = do
   runIO $ do
     putStrLn "=====newStream"
     putStrLn $ clearBracket input
-    --newStream <- parseSrcString Nothing emptyModFiles $ clearBracket input
-    --let newStream = clearBracket input
---    let newStream = FF.collectFreeTokens FPM.Fortran95 $ B8.pack $ input
-    let newStream = L.collectFreeTokens FPM.Fortran95 $ B8.pack $ clearBracket input
-      {-
-    let newStream = FPM.collectTokens L.lexerFortranQQ $ Free.initParseState (B8.pack $ clearBracket input) FPM.Fortran95 "<unknown>"
---    let newStream = Fixed.collectFixedTokens FPM.Fortran95 $ B8.pack $ input
-                    $ unlines
-                    [ "","     double precision a,b,c,d,eps"
-                    , "a = 4.0d0/3.0d0"
-                    , "! this is comment "
-                    , "   10 b = a - 1.0d0"
-                    , "      c = b + b + b"
-                    , "      eps = dabs(c-1.0d0)"
-                    , "      if (eps .eq. 0.0d0) go to 10 ret = eps*dabs(x)"
-                    , "      return"
-                    , ""
-                    ]
-                    -}
-    putStrLn $ show newStream
+    let lToken = L.collectFreeTokens FPM.Fortran95 $ B8.pack $ clearBracket input
+
+    putStrLn $ show lToken
     putStrLn "====!newStream"
   -- Lex the quasiquote tokens
   {--
