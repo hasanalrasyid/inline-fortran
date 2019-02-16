@@ -22,7 +22,9 @@ import qualified Language.Fortran.Lexer.FreeForm as Free
 import qualified Language.Fortran.Inline.Lexer as L
 import qualified Data.ByteString.Char8 as B8
 import qualified Language.Fortran.ParserMonad as FPM
+import qualified Language.Fortran.Parser.Any as FA
 import qualified Language.Fortran.Util.Position as FP
+import qualified Language.Fortran.AST as AST
 import Control.Monad.State (get)
 
 import Language.Rust.Parser
@@ -42,6 +44,20 @@ type SpTok = Spanned Token
 -- | Result of parsing a quasiquote. Quasiquotes are of the form
 -- @<ty> { <block> }@ where the @<block>@ possibly contains escaped arguments
 -- in the form of @$(<ident>: <ty>)@.
+data FortQuasiquoteParse = QQParseF
+
+  -- | leading type (corresponding to the return type of the quasiquote)
+  { tyF :: L.Token
+
+  -- | body tokens, with @$(<ident>: <ty>)@ escapes replaced by just @ident@
+  , bodyF :: [L.Token]
+
+  -- | escaped arguments
+  , variablesF :: [(String, L.Token)]
+
+  } deriving (Show)
+
+
 data RustQuasiquoteParse = QQParse
 
   -- | leading type (corresponding to the return type of the quasiquote)
@@ -69,6 +85,15 @@ data RustQuasiquoteParse = QQParse
 clearBracket :: String -> String
 clearBracket s = takeWhile (/= '}') $ tail $ dropWhile (/='{') s
 
+isSigil (L.TSigil _) = True
+isSigil _ = False
+
+processTokens :: [L.Token] -> [L.Token] -> [L.Token]
+processTokens res [] = res
+processTokens res (a:sb)
+  --((L.TSigil (FP.SrcSpan a _)):(L.TLeftPar _):(L.TId (FP.SrcSpan _ b) "ret"):_:sb) =
+  | otherwise = processTokens (res ++ [a]) sb
+
 parseQQ :: String -> Q RustQuasiquoteParse
 parseQQ input = do
   let lexer = lexTokens lexNonSpace
@@ -76,37 +101,18 @@ parseQQ input = do
   runIO $ do
     putStrLn "=====newStream"
     putStrLn $ clearBracket input
-    --newStream <- parseSrcString Nothing emptyModFiles $ clearBracket input
-    --let newStream = clearBracket input
---    let newStream = FF.collectFreeTokens FPM.Fortran95 $ B8.pack $ input
-    let newStream = L.collectFreeTokens FPM.Fortran95 $ B8.pack $ clearBracket input
-      {-
-    let newStream = FPM.collectTokens L.lexerFortranQQ $ Free.initParseState (B8.pack $ clearBracket input) FPM.Fortran95 "<unknown>"
---    let newStream = Fixed.collectFixedTokens FPM.Fortran95 $ B8.pack $ input
-                    $ unlines
-                    [ "","     double precision a,b,c,d,eps"
-                    , "a = 4.0d0/3.0d0"
-                    , "! this is comment "
-                    , "   10 b = a - 1.0d0"
-                    , "      c = b + b + b"
-                    , "      eps = dabs(c-1.0d0)"
-                    , "      if (eps .eq. 0.0d0) go to 10 ret = eps*dabs(x)"
-                    , "      return"
-                    , ""
-                    ]
-                    -}
-    putStrLn $ show newStream
+    let r0 = processTokens [] $ L.collectFreeTokens FPM.Fortran95 $ B8.pack $ clearBracket input
+    putStrLn $ show r0
     putStrLn "====!newStream"
+    (tyToks , r2) <-
+      case break isOpenBrace r0 of
+        (_, []) -> fail "Ran out of input parsing leading type in quasiquote"
+        (tyToks, brace : rest2) -> pure (tyToks, init $ tail rest2)
+    leadingTy <- pure $ head $ filter (not . isBlank) tyToks
+    putStrLn $ show tyToks
+    putStrLn $ show r2
+
   -- Lex the quasiquote tokens
-  {--
-  let lexerFortranQQ = lexTokens
-  rest1Fortran <-
-    case execParserFortran lexerFortranQQ stream initPos of
-      Left (ParseFail _ msg) -> fail msg
-      Right parsed -> pure parsed
-  runIO $ do
-    putStrLn $ show rest1Fortran
-    -}
   rest1 <-
     case execParser lexer stream initPos of
       Left (ParseFail _ msg) -> fail msg
@@ -185,12 +191,17 @@ parseQQ input = do
 
 -- | Utility function for parsing AST structures from listf of spanned tokens
 parseFromToks :: Parse a => [SpTok] -> Either ParseFail a
-parseFromToks toks = execParserTokens parser toks initPos
+parseFromToks toks = execParserTokens parser' toks initPos
 
 -- | Identifies an open brace token
 openBrace :: SpTok -> Bool
 openBrace (Spanned (OpenDelim Brace) _) = True
 openBrace _ = False
+
+isOpenBrace :: (L.Token) -> Bool
+isOpenBrace (L.TOpenBrace _) = True
+isOpenBrace _ = False
+
 
 -- | Identifies an open paren token
 openParen :: SpTok -> Bool
@@ -201,3 +212,6 @@ openParen _ = False
 closeParen :: SpTok -> Bool
 closeParen (Spanned (CloseDelim Paren) _) = True
 closeParen _ = False
+
+isBlank (L.TNewline{}) = True
+isBlank _ = False
