@@ -40,8 +40,10 @@ import GHC.Exts                    ( Char#, Int#, Word#, Float#, Double#,
                                      ByteArray# )
 import qualified Control.Monad.Fail as Fail
 
+import qualified Language.Fortran.AST as F
 -- Easier on the eyes
 type RType = Ty ()
+type FType = Ty ()
 type HType = Type
 
 -- | Represents a prioritized set of rules for mapping Haskell types into Rust
@@ -86,6 +88,17 @@ instance Fail.MonadFail First where
 --   1. The Haskell type have a 'Storable' instance
 --   2. The C-compatible Rust type have the same layout
 --
+lookupFTypeInContext :: FType -> Context -> First (Q HType, Maybe (Q FType))
+lookupFTypeInContext rustType context@(Context (rules, _, _)) =
+  foldMap (\fits -> fits rustType context) rules
+
+-- | Search in a 'Context' for the Haskell type corresponding to a Rust type.
+-- If the Rust type is not C-compatible, also return a C compatible type. It is
+-- expected that:
+--
+--   1. The Haskell type have a 'Storable' instance
+--   2. The C-compatible Rust type have the same layout
+--
 lookupRTypeInContext :: RType -> Context -> First (Q HType, Maybe (Q RType))
 lookupRTypeInContext rustType context@(Context (rules, _, _)) =
   foldMap (\fits -> fits rustType context) rules
@@ -96,6 +109,18 @@ lookupRTypeInContext rustType context@(Context (rules, _, _)) =
 lookupHTypeInContext :: HType -> Context -> First (Q RType)
 lookupHTypeInContext haskType context@(Context (_, rules, _)) =
   foldMap (\fits -> fits haskType context) rules
+
+-- | Partial version of 'lookupRTypeInContext' that fails with an error message
+-- if the type is not convertible.
+getFTypeInContext :: FType -> Context -> (Q HType, Maybe (Q FType))
+getFTypeInContext rustType context =
+  case getFirst (lookupFTypeInContext rustType context) of
+    Just found -> found
+    Nothing -> ( fail $ unwords [ "Could not find information about"
+                                , renderType rustType
+                                , "in the context"
+                                ]
+               , Nothing )
 
 -- | Partial version of 'lookupRTypeInContext' that fails with an error message
 -- if the type is not convertible.

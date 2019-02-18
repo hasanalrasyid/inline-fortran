@@ -42,6 +42,18 @@ type SpTok = Spanned Token
 -- | Result of parsing a quasiquote. Quasiquotes are of the form
 -- @<ty> { <block> }@ where the @<block>@ possibly contains escaped arguments
 -- in the form of @$(<ident>: <ty>)@.
+data FortQuasiquoteParse = FQParse
+
+  -- | leading type (corresponding to the return type of the quasiquote)
+  { tyF :: L.Token
+
+  -- | body tokens, with @$(<ident>: <ty>)@ escapes replaced by just @ident@
+  , bodyF :: [L.Token]
+
+  -- | escaped arguments
+  , variablesF :: [(String, L.Token)]
+
+  } deriving (Show)
 data RustQuasiquoteParse = QQParse
 
   -- | leading type (corresponding to the return type of the quasiquote)
@@ -69,8 +81,8 @@ data RustQuasiquoteParse = QQParse
 clearBracket :: String -> String
 clearBracket s = init $ tail $ reverse $ dropWhile (/= '}') $ reverse $ dropWhile (/='{') s
 
---execParserFotran :: String -> Either ParseFail [SpTok] 
-execParserFortran s = 
+--execParserFotran :: String -> Either ParseFail [SpTok]
+execParserFortran s =
   let a = L.collectFreeTokens FPM.Fortran95 $ B8.pack $ clearBracket s
   in if | a == [] -> Left (ParseFail (Position 0 0 0) "error execParserFortran")
         | otherwise -> Right a
@@ -85,9 +97,9 @@ isRBrace _ = False
 -- Parse the body of the quasiquote
 --parseBodyF :: [SpTok] -> [(String, Ty Span)] -> [SpTok]
 --          -> Q ([SpTok], [(String, Ty Span)])
-parseBodyF :: [L.Token] -> [(String,L.Token)] -> [L.Token]
+parseBodyF :: [L.Token] -> [(String, L.Token)] -> [L.Token]
            -> Q ([L.Token],[(String, L.Token)])
-parseBodyF toks vars rest1 = 
+parseBodyF toks vars rest1 =
   case rest1 of
     [] -> pure (reverse toks, vars)
 
@@ -109,12 +121,12 @@ parseBodyF toks vars rest1 =
 clearRBrace l = let (_:r) = dropWhile (not . isRBrace) $ reverse l
                  in reverse r
 
-parseQQ :: String -> Q RustQuasiquoteParse
-parseQQ input = do
+parseFQ :: String -> Q FortQuasiquoteParse
+parseFQ input = do
   let lexer = lexTokens lexNonSpace
   let stream = inputStreamFromString input
   -- Lex the quasiquote tokens
-    
+
   rest1 <-  case execParser lexer stream initPos of
       Left (ParseFail _ msg) -> fail msg
       Right parsed -> pure parsed
@@ -125,7 +137,36 @@ parseQQ input = do
   (leadTy , r2) <-
     case break isLBrace r1 of
       (_, []) -> fail "Ran out of input parsing leading type in quasiquote Fortran"
-      (tyToks, lBrace : rest2) -> pure (tyToks, clearRBrace rest2)
+      (tyToks, lBrace : rest2) -> pure (head tyToks, clearRBrace rest2)
+
+  -- Split off the leading type's tokens
+
+  -- Parse leading type
+
+  -- Parse body of quasiquote
+  (bodyTF, varsF) <- parseBodyF [] [] r2
+  let fq = (FQParse leadTy bodyTF varsF)
+
+  -- Done!
+  return fq
+
+parseQQ :: String -> Q RustQuasiquoteParse
+parseQQ input = do
+  let lexer = lexTokens lexNonSpace
+  let stream = inputStreamFromString input
+  -- Lex the quasiquote tokens
+
+  rest1 <-  case execParser lexer stream initPos of
+      Left (ParseFail _ msg) -> fail msg
+      Right parsed -> pure parsed
+
+  r1 <- case execParserFortran input of
+    Left (ParseFail _ msg) -> fail msg
+    Right parsed -> pure parsed
+  (leadTy , r2) <-
+    case break isLBrace r1 of
+      (_, []) -> fail "Ran out of input parsing leading type in quasiquote Fortran"
+      (tyToks, lBrace : rest2) -> pure (head tyToks, clearRBrace rest2)
 
   -- Split off the leading type's tokens
   (tyToks, rest2) <-
@@ -142,15 +183,11 @@ parseQQ input = do
   -- Parse body of quasiquote
   (bodyToks, vars) <- parseBody [] [] rest2
   (bodyTF, varsF) <- parseBodyF [] [] r2
-  runIO $ do
-    putStrLn "=====newStream"
-    putStrLn $ show leadTy
-    putStrLn $ show bodyTF
-    putStrLn $ show varsF
-    putStrLn "====!newStream"
+  let qq = (QQParse leadingTy bodyToks vars)
+  let fq = (FQParse leadTy bodyTF varsF)
 
   -- Done!
-  pure (QQParse leadingTy bodyToks vars)
+  return qq
 
   where
     -- Parse the body of the quasiquote

@@ -115,6 +115,12 @@ extendContext qExtension = do
   pure []
 
 -- | Search in a 'Context' for the Haskell type corresponding to a Rust type.
+getFType :: FType -> Q (HType, Maybe FType)
+getFType fType = do
+  (qht, qrtOpt) <- getFTypeInContext fType <$> getContext
+  (,) <$> qht <*> sequence qrtOpt
+
+-- | Search in a 'Context' for the Haskell type corresponding to a Rust type.
 getRType :: RType -> Q (HType, Maybe RType)
 getRType rustType = do
   (qht, qrtOpt) <- getRTypeInContext rustType <$> getContext

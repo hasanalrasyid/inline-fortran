@@ -86,6 +86,7 @@ import Language.Fortran.Inline.Internal
 import Language.Fortran.Inline.Marshal
 import Language.Fortran.Inline.Parser
 import Language.Fortran.Inline.Pretty
+import Language.Fortran.Inline.Utils
 import Language.Fortran.Inline.TH.Storable      ( mkStorable )
 import Language.Fortran.Inline.TH.ReprC         ( mkReprC )
 
@@ -248,7 +249,10 @@ rustQuasiQuoter safety isPure supportDecs = QuasiQuoter { quoteExp = expQuoter
 
     expQuoter qq = do
       parsed <- parseQQ qq
-      processQQ safety isPure parsed
+      parsed2 <- parseFQ qq
+      runIO $ do
+        putStrLn $ show parsed2
+      processFQ safety isPure parsed parsed2
 
     decQuoter | supportDecs = emitCodeBlock
               | otherwise = err
@@ -405,5 +409,147 @@ processQQ safety isPure (QQParse rustRet rustBody rustNamedArgs) = do
   -- Return the Haskell call to the FFI import
   haskCall
 
+processFQ :: Safety -> Bool -> RustQuasiquoteParse
+                            -> FortQuasiquoteParse -> Q Exp
+processFQ safety isPure (QQParse rustRet rustBody rustNamedArgs)
+                        (FQParse fortRet fortBody fortNamedArgs) = do
+
+  -- Make a name to thread through Haskell/Rust (see Trac #13054)
+  q <- runIO randomIO :: Q Word16
+  qqName <- newName $ "infort" ++ showHex q ""
+  let qqStrName = show qqName
+  -- Find out what the corresponding Haskell representations are for the
+  -- argument and return types
+  let (rustArgNames, rustArgs) = unzip rustNamedArgs
+
+  (haskRet, reprCRet) <- getRType (void rustRet)
+  debugIt "rustRet == " [rustRet]
+  debugIt "void rustRet == " [void rustRet]
+  debugIt "haskRet == " [haskRet]
+  debugIt "reprCRet == " [reprCRet]
+  debugIt "haskFRet == " [haskRet]
+  (haskArgs, reprCArgs) <- unzip <$> traverse (getRType . void) rustArgs
+
+  -- Convert the Haskell return type to a marshallable FFI type
+  (returnFfi, haskRet') <- do
+    marshalFrom <- ghcMarshallable haskRet
+    ret <- case marshalFrom of
+             BoxedDirect -> [t| IO $(pure haskRet) |]
+             BoxedIndirect -> [t| Ptr $(pure haskRet) -> IO () |]
+             UnboxedDirect
+               | isPure -> pure haskRet
+               | otherwise ->
+                   let retTy = showTy haskRet
+                   in fail ("Cannot put unlifted type ‘" ++ retTy ++ "’ in IO")
+    pure (marshalFrom, pure ret)
+
+  -- Convert the Haskell arguments to marshallable FFI types
+  (argsByVal, haskArgs') <- fmap unzip $
+    for haskArgs $ \haskArg -> do
+      marshalForm <- ghcMarshallable haskArg
+      case marshalForm of
+        BoxedIndirect
+          | returnFfi == UnboxedDirect ->
+              let argTy = showTy haskArg
+                  retTy = showTy haskRet
+              in fail ("Cannot pass an argument ‘" ++ argTy ++ "’" ++
+                       " indirectly when returning an unlifted type " ++
+                       "‘" ++ retTy ++ "’")
+
+          | otherwise -> do
+              ptr <- [t| Ptr $(pure haskArg) |]
+              pure (False, ptr)
+
+        _ -> pure (True, haskArg)
+
+  -- Generate the Haskell FFI import declaration and emit it
+  haskSig <- foldr (\l r -> [t| $(pure l) -> $r |]) haskRet' haskArgs'
+  let ffiImport = ForeignD (ImportF CCall safety qqStrName qqName haskSig)
+  addTopDecls [ffiImport]
+
+  -- Generate the Haskell FFI call
+  let goArgs :: [Q Exp]           -- ^ arguments accumulated so far (reversed)
+             -> [(String, Bool)]  -- ^ remaining arguments to process
+             -> Q Exp             -- ^ FFI call
+
+      -- Once we run out of arguments we call the quasiquote function with all the
+      -- accumulated arguments. If the return value is not marshallable, we have to
+      -- 'alloca' some space to put the return value.
+      goArgs acc []
+        | returnFfi /= BoxedIndirect = appsE (varE qqName : reverse acc)
+        | otherwise = do
+            ret <- newName "ret"
+            [e| alloca (\( $(varP ret) ) ->
+                  do { $(appsE (varE qqName : reverse (varE ret : acc)))
+                     ; peek $(varE ret)
+                     }) |]
+
+      -- If an argument is by value, we just stack it into the accumulated arguments.
+      -- Otherwise, we use 'with' to get a pointer to its stack position.
+      goArgs acc ((argStr, byVal) : args) = do
+        arg <- lookupValueName argStr
+        case arg of
+          Nothing -> fail ("Could not find Haskell variable ‘" ++ argStr ++ "’")
+          Just argName | byVal -> goArgs (varE argName : acc) args
+                       | otherwise -> do
+                          x <- newName "x"
+                          [e| with $(varE argName) (\( $(varP x) ) ->
+                                $(goArgs (varE x : acc) args)) |]
+
+  let haskCall' = goArgs [] (rustArgNames `zip` argsByVal)
+      haskCall = if isPure && returnFfi /= UnboxedDirect
+                   then [e| unsafeLocalState $haskCall' |]
+                   else haskCall'
+
+  -- Generate the Rust function arguments and the converted arguments
+  let (rustArgs', rustConvertedArgs) = unzip $ zipWith mergeArgs rustArgs reprCArgs
+      (rustRet', rustConvertedRet) = mergeArgs rustRet reprCRet
+
+     -- mergeArgs :: Ty Span -> Maybe RType -> (Ty Span, Ty Span)
+      mergeArgs t Nothing       = (t, t)
+      mergeArgs t (Just tInter) = (fmap (const mempty) tInter, t)
+
+  -- Generate the Rust function.
+  let retByVal = returnFfi /= BoxedIndirect
+      (retArg, retTy, ret)
+         | retByVal  = ( []
+                       , renderType rustRet'
+                       , "out.marshal()"
+                       )
+         | otherwise = ( ["ret_" ++ qqStrName ++ ": *mut " ++ renderType rustRet']
+                       , "()"
+                       , "unsafe { ::std::ptr::write(ret_" ++ qqStrName ++ ", out.marshal()) }"
+                       )
+  void . emitCodeBlock . unlines $
+    -- Function statement
+    [ retTy ++ " function " ++ qqStrName ++ "(" ++ intercalate ", " ([ s
+                                | (s,_,_) <- zip3 rustArgNames rustArgs' argsByVal
+                                ] ) ++ ")"
+    -- variables statement
+    , unlines [ unwords [renderType t, s]
+              | (s,t,_) <- zip3 rustArgNames rustConvertedArgs argsByVal
+              ]
+    , renderTokens rustBody
+    ]
+      {-
+  void . emitCodeBlock . unlines $
+    [ "#[no_mangle]"
+    , "pub extern \"C\" fn " ++ qqStrName ++ "("
+    , "  " ++ intercalate ", " ([ s ++ ": " ++ marshal (renderType t)
+                                | (s,t,v) <- zip3 rustArgNames rustArgs' argsByVal
+                                , let marshal x = if v then x else "*const " ++ x
+                                ] ++ retArg)
+    , ") -> " ++ retTy ++ " {"
+    , unlines [ "  let " ++ s ++ ": " ++ renderType t ++ " = " ++ marshal s ++ ".marshal();"
+              | (s,t,v) <- zip3 rustArgNames rustConvertedArgs argsByVal
+              , let marshal x = if v then x else "unsafe { ::std::ptr::read(" ++ x ++ ") }"
+              ]
+    , "  let out: " ++ renderType rustConvertedRet ++ " = (|| {" ++ renderTokens rustBody ++ "})();"
+    , "  " ++ ret
+    , "}"
+    ]
+-}
+  -- Return the Haskell call to the FFI import
+  haskCall
 
 
