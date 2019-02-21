@@ -12,8 +12,10 @@ Portability : GHC
 module Language.Fortran.Inline.Internal (
   emitCodeBlock,
   getRType,
+  getFType,
   getHType,
   getContext,
+  getFContext,
   extendContext,
   initCodeBlocks,
   setCrateRoot,
@@ -105,6 +107,8 @@ setCrateRoot dependencies = do
 -- | Get the existing context
 getContext :: Q Context
 getContext = fromMaybe mempty <$> getQ
+getFContext :: Q FContext
+getFContext = fromMaybe mempty <$> getQ
 
 -- | Append to the existing context
 extendContext :: Q Context -> Q [Dec]
@@ -117,7 +121,7 @@ extendContext qExtension = do
 -- | Search in a 'Context' for the Haskell type corresponding to a Rust type.
 getFType :: FType -> Q (HType, Maybe FType)
 getFType fType = do
-  (qht, qrtOpt) <- getFTypeInContext fType <$> getContext
+  (qht, qrtOpt) <- getFTypeInContext fType <$> getFContext
   (,) <$> qht <*> sequence qrtOpt
 
 -- | Search in a 'Context' for the Haskell type corresponding to a Rust type.

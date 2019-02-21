@@ -17,6 +17,7 @@ Portability : GHC
 module Language.Fortran.Inline.Context where
 
 import Language.Fortran.Inline.Pretty ( renderType )
+import Language.Fortran.Inline.Quote
 
 import Language.Rust.Quote         ( ty )
 import Language.Rust.Syntax        ( Ty(BareFn, Ptr), Abi(..), FnDecl(..),
@@ -41,9 +42,11 @@ import GHC.Exts                    ( Char#, Int#, Word#, Float#, Double#,
 import qualified Control.Monad.Fail as Fail
 
 import qualified Language.Fortran.AST as F
+import qualified Language.Fortran.Inline.Lexer as L
+
 -- Easier on the eyes
 type RType = Ty ()
-type FType = Ty ()
+type FType = L.Token
 type HType = Type
 
 -- | Represents a prioritized set of rules for mapping Haskell types into Rust
@@ -52,6 +55,22 @@ type HType = Type
 -- The 'Context' argument encodes the fact that we may need look
 -- recursively into the 'Context' again before possibly producing a Haskell
 -- type.
+newtype FContext =
+    FContext ( [ FType -> FContext -> First (Q HType, Maybe (Q FType)) ]
+            -- Given a Rust type in a quasiquote, we need to look up the
+            -- corresponding Haskell type (for the FFI import) as well as the
+            -- C-compatible Rust type (if the initial Rust type isn't already
+            -- @#[repr(C)]@.
+
+            , [ HType -> FContext -> First (Q FType) ]
+            -- Given a field in a Haskell ADT, we need to figure out which
+            -- (not-necessarily @#[repr(C)]@) Rust type normally maps into this
+            -- Haskell type.
+
+            , [ String ]
+            -- Source for the trait impls of @MarshalTo@
+            )
+  deriving (Semigroup, Monoid, Typeable)
 newtype Context =
     Context ( [ RType -> Context -> First (Q HType, Maybe (Q RType)) ]
             -- Given a Rust type in a quasiquote, we need to look up the
@@ -88,8 +107,8 @@ instance Fail.MonadFail First where
 --   1. The Haskell type have a 'Storable' instance
 --   2. The C-compatible Rust type have the same layout
 --
-lookupFTypeInContext :: FType -> Context -> First (Q HType, Maybe (Q FType))
-lookupFTypeInContext rustType context@(Context (rules, _, _)) =
+lookupFTypeInContext :: FType -> FContext -> First (Q HType, Maybe (Q FType))
+lookupFTypeInContext rustType context@(FContext (rules, _, _)) =
   foldMap (\fits -> fits rustType context) rules
 
 -- | Search in a 'Context' for the Haskell type corresponding to a Rust type.
@@ -112,13 +131,13 @@ lookupHTypeInContext haskType context@(Context (_, rules, _)) =
 
 -- | Partial version of 'lookupRTypeInContext' that fails with an error message
 -- if the type is not convertible.
-getFTypeInContext :: FType -> Context -> (Q HType, Maybe (Q FType))
+getFTypeInContext :: FType -> FContext -> (Q HType, Maybe (Q FType))
 getFTypeInContext rustType context =
   case getFirst (lookupFTypeInContext rustType context) of
     Just found -> found
     Nothing -> ( fail $ unwords [ "Could not find information about"
-                                , renderType rustType
-                                , "in the context"
+                                , show rustType
+                                , "in the FContext"
                                 ]
                , Nothing )
 
@@ -145,10 +164,27 @@ getHTypeInContext haskType context =
                               , "in the context"
                               ]
 
-
 -- | Make a 'Context' consisting of rules to map the Rust types on the left to
 -- the Haskell types on the right. The Rust types should all be @#[repr(C)]@
 -- and the Haskell types should all be 'Storable'.
+mkFContext :: [(FType, Q HType, Bool)] -> Q FContext
+mkFContext tys = do
+    tys' <- traverse (\(rt,qht,mkImpl) -> do { ht <- qht; pure (void rt,ht,mkImpl) }) tys
+    pure (Context ( map fits tys'
+                  , map rev tys'
+                  , map impl tys'
+                  ))
+  where
+    fits (rts, hts, _) rt _ | rt == rts = pure (pure hts, Nothing)
+                            | otherwise = mempty
+
+    rev (rts, hts, _) ht _  | ht == hts = pure (pure rts)
+                            | otherwise = mempty
+
+
+    impl (rts, _, mkImpl)   | mkImpl = implMarshalInto rts
+                            | otherwise = mempty
+
 mkContext :: [(Ty a, Q HType, Bool)] -> Q Context
 mkContext tys = do
     tys' <- traverse (\(rt,qht,mkImpl) -> do { ht <- qht; pure (void rt,ht,mkImpl) }) tys
@@ -232,6 +268,10 @@ libc = mkContext
 --
 -- There should be no conversion required here as these should have identical
 -- memory layouts.
+fbasic :: Q FContext
+fbasic = mkFContext
+  [ ([tyF|double precission|], [t| Double    |], True) -- 4 bytes
+  ]
 basic :: Q Context
 basic = mkContext
   [ ([ty| char  |], [t| Char    |], True) -- 4 bytes

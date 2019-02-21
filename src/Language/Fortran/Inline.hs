@@ -77,9 +77,11 @@ module Language.Fortran.Inline (
  -- externCrate,
 ) where
 
+import Data.Typeable
 import Numeric
 import Data.Word
 
+import Language.Fortran.Inline.Lexer
 import Language.Fortran.Inline.Context
 import Language.Fortran.Inline.Context.Prelude  ( prelude )
 import Language.Fortran.Inline.Internal
@@ -409,6 +411,7 @@ processQQ safety isPure (QQParse rustRet rustBody rustNamedArgs) = do
   -- Return the Haskell call to the FFI import
   haskCall
 
+
 processFQ :: Safety -> Bool -> RustQuasiquoteParse
                             -> FortQuasiquoteParse -> Q Exp
 processFQ safety isPure (QQParse rustRet rustBody rustNamedArgs)
@@ -428,6 +431,11 @@ processFQ safety isPure (QQParse rustRet rustBody rustNamedArgs)
   debugIt "haskRet == " [haskRet]
   debugIt "reprCRet == " [reprCRet]
   debugIt "haskFRet == " [haskRet]
+  debugIt "typeOf fortRet== " [show $ typeOf fortRet]
+  debugIt "isType fortRet== " [show $ isTypeSpec fortRet]
+  debugIt "isType == " [show $ map (isTypeSpec . snd ) fortNamedArgs]
+  ii@(haskRetF,reprCRetF) <- getFType fortRet
+  debugIt "isType == " [show ii]
   (haskArgs, reprCArgs) <- unzip <$> traverse (getRType . void) rustArgs
 
   -- Convert the Haskell return type to a marshallable FFI type
