@@ -23,6 +23,7 @@ import qualified Language.Fortran.Inline.Lexer as L
 import qualified Data.ByteString.Char8 as B8
 import qualified Language.Fortran.ParserMonad as FPM
 import qualified Language.Fortran.Util.Position as FP
+import qualified Language.Fortran.AST               as F
 import Control.Monad.State (get)
 
 import Language.Rust.Parser
@@ -45,7 +46,7 @@ type SpTok = Spanned Token
 data FortQuasiquoteParse = FQParse
 
   -- | leading type (corresponding to the return type of the quasiquote)
-  { tyF :: L.Token
+  { tyF :: F.BaseType
 
   -- | body tokens, with @$(<ident>: <ty>)@ escapes replaced by just @ident@
   , bodyF :: [L.Token]
@@ -134,10 +135,15 @@ parseFQ input = do
   r1 <- case execParserFortran input of
     Left (ParseFail _ msg) -> fail msg
     Right parsed -> pure parsed
-  (leadTy , r2) <-
+  (tyToks , r2) <-
     case break isLBrace r1 of
       (_, []) -> fail "Ran out of input parsing leading type in quasiquote Fortran"
-      (tyToks, lBrace : rest2) -> pure (head tyToks, clearRBrace rest2)
+      (tyToks, lBrace : rest2) -> pure (tyToks, clearRBrace rest2)
+  -- Parse leading type
+  leadingTy <-
+    case parseFromFToks tyToks of
+      Left (ParseFail _ msg) -> fail msg
+      Right parsed -> pure parsed
 
   -- Split off the leading type's tokens
 
@@ -243,6 +249,8 @@ parseQQ input = do
 -- | Utility function for parsing AST structures from listf of spanned tokens
 parseFromToks :: Parse a => [SpTok] -> Either ParseFail a
 parseFromToks toks = execParserTokens parser toks initPos
+parseFromFToks :: Parse a => [L.Token] -> Either ParseFail a
+parseFromFToks toks = execParserTokens parser toks initPos
 
 -- | Identifies an open brace token
 openBrace :: SpTok -> Bool

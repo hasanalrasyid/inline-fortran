@@ -10,9 +10,14 @@ Portability : GHC
 
 module Language.Fortran.Inline.Pretty (
   renderType,
+  renderFType,
   renderItem,
   renderTokens,
 ) where
+
+import qualified Language.Fortran.ParserMonad as FPM
+import qualified Language.Fortran.AST as F
+import qualified Language.Fortran.PrettyPrint as FPP
 
 import Language.Rust.Pretty                    ( Pretty(..) )
 import Language.Rust.Data.Position             ( Spanned(..) )
@@ -28,6 +33,8 @@ render = renderString . layoutPretty defaultLayoutOptions . prettyUnresolved
 -- | Render a Rust type into a 'String'.
 renderType :: Ty a -> String
 renderType = render
+renderFType :: F.BaseType -> String
+renderFType t = FPP.pprintAndRender FPM.Fortran95 t Nothing
 
 -- | Render a Rust item into a 'String'.
 renderItem :: Item a -> String

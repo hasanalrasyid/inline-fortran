@@ -16,8 +16,9 @@ Portability : GHC
 
 module Language.Fortran.Inline.Context where
 
-import Language.Fortran.Inline.Pretty ( renderType )
+import Language.Fortran.Inline.Pretty ( renderType, renderFType )
 import Language.Fortran.Inline.Quote
+import Language.Fortran.Inline.Utils
 
 import Language.Rust.Quote         ( ty )
 import Language.Rust.Syntax        ( Ty(BareFn, Ptr), Abi(..), FnDecl(..),
@@ -46,7 +47,7 @@ import qualified Language.Fortran.Inline.Lexer as L
 
 -- Easier on the eyes
 type RType = Ty ()
-type FType = L.Token
+type FType = F.BaseType
 type HType = Type
 
 -- | Represents a prioritized set of rules for mapping Haskell types into Rust
@@ -169,8 +170,9 @@ getHTypeInContext haskType context =
 -- and the Haskell types should all be 'Storable'.
 mkFContext :: [(FType, Q HType, Bool)] -> Q FContext
 mkFContext tys = do
-    tys' <- traverse (\(rt,qht,mkImpl) -> do { ht <- qht; pure (void rt,ht,mkImpl) }) tys
-    pure (Context ( map fits tys'
+    tys' <- traverse (\(rt,qht,mkImpl) -> do { ht <- qht; pure (rt,ht,mkImpl) }) tys
+    debugIt "mkFContext: tys'" [tys']
+    pure (FContext ( map fits tys'
                   , map rev tys'
                   , map impl tys'
                   ))
@@ -182,7 +184,7 @@ mkFContext tys = do
                             | otherwise = mempty
 
 
-    impl (rts, _, mkImpl)   | mkImpl = implMarshalInto rts
+    impl (rts, _, mkImpl)   | mkImpl = implMarshalFInto rts
                             | otherwise = mempty
 
 mkContext :: [(Ty a, Q HType, Bool)] -> Q Context
@@ -205,6 +207,13 @@ mkContext tys = do
 
 
 -- | Make a default @MarshalInto@ trait impl. (An identity impl)
+implMarshalFInto :: F.BaseType -> String
+implMarshalFInto t = unlines [ "impl MarshalInto<" ++ tyStr ++ "> for " ++ tyStr ++ " {"
+                             , "  fn marshal(self) -> " ++ tyStr ++ " { self }"
+                             , "}"
+                             ]
+  where tyStr = renderFType t
+
 implMarshalInto :: Ty () -> String
 implMarshalInto t = unlines [ "impl MarshalInto<" ++ tyStr ++ "> for " ++ tyStr ++ " {"
                              , "  fn marshal(self) -> " ++ tyStr ++ " { self }"
@@ -269,9 +278,13 @@ libc = mkContext
 -- There should be no conversion required here as these should have identical
 -- memory layouts.
 fbasic :: Q FContext
+fbasic = undefined
+{--
 fbasic = mkFContext
-  [ ([tyF|double precission|], [t| Double    |], True) -- 4 bytes
+  [ ([tyF| double precision |], [t| Double    |], True) -- 4 bytes
   ]
+  -}
+
 basic :: Q Context
 basic = mkContext
   [ ([ty| char  |], [t| Char    |], True) -- 4 bytes

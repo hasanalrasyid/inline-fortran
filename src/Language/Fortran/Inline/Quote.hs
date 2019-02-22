@@ -86,7 +86,7 @@ quoterF p = QuasiQuoter
     -- Run the parser
     --case execParser p (inputStreamFromString inp) (Position 0 r c) of
     case P.execParserFortran inp of
-      Left (ParseFail _ msg) -> fail msg
+      Left (ParseFail _ msg) -> fail $ "error@Quote:89 " ++ msg
       Right x -> pure x
 
   -- | Replace 'Span' and 'Position' with wild patterns

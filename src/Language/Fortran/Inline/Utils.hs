@@ -13,7 +13,6 @@ module Language.Fortran.Inline.Utils (
   debugIt
 ) where
 
-import Language.Fortran.Inline.Context
 
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
