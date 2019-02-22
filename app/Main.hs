@@ -6,7 +6,6 @@ import Language.Fortran.Inline
 import Data.Int
 
 extendContext basic
-extendContext fbasic
 
 setCrateRoot []
 

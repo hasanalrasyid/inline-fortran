@@ -252,8 +252,8 @@ rustQuasiQuoter safety isPure supportDecs = QuasiQuoter { quoteExp = expQuoter
     expQuoter qq = do
       parsed <- parseQQ qq
       parsed2 <- parseFQ qq
-      runIO $ do
-        putStrLn $ show parsed2
+      -- runIO $ do
+      --   putStrLn $ show parsed2
       processFQ safety isPure parsed parsed2
 
     decQuoter | supportDecs = emitCodeBlock
@@ -426,16 +426,16 @@ processFQ safety isPure (QQParse rustRet rustBody rustNamedArgs)
   let (rustArgNames, rustArgs) = unzip rustNamedArgs
 
   (haskRet, reprCRet) <- getRType (void rustRet)
-  debugIt "rustRet == " [rustRet]
-  debugIt "void rustRet == " [void rustRet]
-  debugIt "haskRet == " [haskRet]
-  debugIt "reprCRet == " [reprCRet]
-  debugIt "haskFRet == " [haskRet]
-  debugIt "typeOf fortRet== " [show $ typeOf fortRet]
-  debugIt "isType fortRet== " [show $ isTypeSpec fortRet]
-  debugIt "isType == " [show $ map (isTypeSpec . snd ) fortNamedArgs]
-  ii@(haskRetF,reprCRetF) <- getFType fortRet
-  debugIt "isType == " [show ii]
+ --  debugIt "rustRet == " [rustRet]
+ --  debugIt "void rustRet == " [void rustRet]
+ --  debugIt "haskRet == " [haskRet]
+ --  debugIt "reprCRet == " [reprCRet]
+ --  debugIt "haskFRet == " [haskRet]
+ --  debugIt "typeOf fortRet== " [show $ typeOf fortRet]
+ --  debugIt "isType fortRet== " [show $ isTypeSpec fortRet]
+ --  debugIt "isType == " [show $ map (isTypeSpec . snd ) fortNamedArgs]
+  -- ii@(haskRetF,reprCRetF) <- getFType fortRet
+--  debugIt "isType == " [show ii]
   (haskArgs, reprCArgs) <- unzip <$> traverse (getRType . void) rustArgs
 
   -- Convert the Haskell return type to a marshallable FFI type

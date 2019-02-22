@@ -10,10 +10,13 @@ Portability : GHC
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE BangPatterns #-}
 
 module Language.Fortran.Inline.Parser where
 
 import Language.Fortran.Inline.Pretty ( renderType )
+import Language.Fortran.Inline.Utils
 
 import Language.Rust.Syntax        ( Token(..), Delim(..), Ty(..))
 
@@ -27,7 +30,7 @@ import qualified Language.Fortran.AST               as F
 import Control.Monad.State (get)
 
 import Language.Rust.Parser
-import Language.Rust.Data.Position ( Spanned(..), Position(..) )
+import Language.Rust.Data.Position ( Span(..), Spanned(..), Position(..) )
 import Language.Rust.Data.Ident    ( Ident(..) )
 
 import Language.Haskell.TH         ( Q, runIO )
@@ -37,6 +40,8 @@ import Control.Monad               ( void )
 import Language.Fortran.Util.ModFile ( emptyModFiles )
 import Language.Fortran.Input ( parseSrcString )
 
+import Data.Foldable (traverse_)
+import qualified Language.Rust.Parser.ParseMonad as RPM
 -- All the tokens we deal with are 'Spanned'...
 type SpTok = Spanned Token
 
@@ -46,7 +51,7 @@ type SpTok = Spanned Token
 data FortQuasiquoteParse = FQParse
 
   -- | leading type (corresponding to the return type of the quasiquote)
-  { tyF :: F.BaseType
+  { tyF :: [L.Token]
 
   -- | body tokens, with @$(<ident>: <ty>)@ escapes replaced by just @ident@
   , bodyF :: [L.Token]
@@ -82,11 +87,18 @@ data RustQuasiquoteParse = QQParse
 clearBracket :: String -> String
 clearBracket s = init $ tail $ reverse $ dropWhile (/= '}') $ reverse $ dropWhile (/='{') s
 
+
 --execParserFotran :: String -> Either ParseFail [SpTok]
 execParserFortran s =
   let a = L.collectFreeTokens FPM.Fortran95 $ B8.pack $ clearBracket s
   in if | a == [] -> Left (ParseFail (Position 0 0 0) "error execParserFortran")
         | otherwise -> Right a
+
+isLBraceS :: Spanned L.Token -> Bool
+isLBraceS (Spanned s _) = isLBrace s
+
+modifyPState :: (PState -> PState) -> P ()
+modifyPState f = P $ \ !s pOk _ ->  pOk () (f $! s)
 
 isLBrace :: L.Token -> Bool
 isLBrace (L.TLBrace _) = True
@@ -119,7 +131,9 @@ parseBodyF toks vars rest1 =
                                : "' has already been given type `"
                                : show t2a: "'": []
 
-clearRBrace l = let (_:r) = dropWhile (not . isRBrace) $ reverse l
+clearRBrace l = let (_:r) = dropWhile (not . isLBrace) $ reverse l
+                 in reverse r
+clearRBraceS l = let (_:r) = dropWhile (not . isLBraceS) $ reverse l
                  in reverse r
 
 parseFQ :: String -> Q FortQuasiquoteParse
@@ -139,11 +153,13 @@ parseFQ input = do
     case break isLBrace r1 of
       (_, []) -> fail "Ran out of input parsing leading type in quasiquote Fortran"
       (tyToks, lBrace : rest2) -> pure (tyToks, clearRBrace rest2)
-  -- Parse leading type
-  leadingTy <-
+  {-
+    -- Parse leading type
+  leadTy <-
     case parseFromFToks tyToks of
       Left (ParseFail _ msg) -> fail msg
       Right parsed -> pure parsed
+-}
 
   -- Split off the leading type's tokens
 
@@ -151,10 +167,16 @@ parseFQ input = do
 
   -- Parse body of quasiquote
   (bodyTF, varsF) <- parseBodyF [] [] r2
-  let fq = (FQParse leadTy bodyTF varsF)
+  let fq = (FQParse tyToks bodyTF varsF)
 
   -- Done!
   return fq
+
+-- spanLToken :: L.Token -> Spanned L.Token
+spanLToken a = let (FP.SrcSpan i j) = FP.getSpan a
+                   convPos (FP.Position ab c r _) = Position ab r c
+                   x = Position 0 0 0
+                in Spanned a (Span (convPos i) (convPos j))
 
 parseQQ :: String -> Q RustQuasiquoteParse
 parseQQ input = do
@@ -165,14 +187,14 @@ parseQQ input = do
   rest1 <-  case execParser lexer stream initPos of
       Left (ParseFail _ msg) -> fail msg
       Right parsed -> pure parsed
-
-  r1 <- case execParserFortran input of
+  r1' <- case execParserFortran input of
     Left (ParseFail _ msg) -> fail msg
     Right parsed -> pure parsed
-  (leadTy , r2) <-
-    case break isLBrace r1 of
+  let r1 = map spanLToken r1'
+  (tyToksF, r2) <-
+    case break openBrace r1 of
       (_, []) -> fail "Ran out of input parsing leading type in quasiquote Fortran"
-      (tyToks, lBrace : rest2) -> pure (head tyToks, clearRBrace rest2)
+      (tyToks, lBrace : rest2) -> pure (tyToks, rest2)
 
   -- Split off the leading type's tokens
   (tyToks, rest2) <-
@@ -185,12 +207,17 @@ parseQQ input = do
     case parseFromToks tyToks of
       Left (ParseFail _ msg) -> fail msg
       Right parsed -> pure parsed
+  leadTy <-
+    case parseFromToksF tyToksF of
+      Left (ParseFail _ msg) -> fail msg
+      Right parsed -> pure parsed
+
+  debugIt "r2 ===" [r2]
 
   -- Parse body of quasiquote
   (bodyToks, vars) <- parseBody [] [] rest2
-  (bodyTF, varsF) <- parseBodyF [] [] r2
+--  (bodyTF, varsF) <- parseBodyF [] [] r2
   let qq = (QQParse leadingTy bodyToks vars)
-  let fq = (FQParse leadTy bodyTF varsF)
 
   -- Done!
   return qq
@@ -247,15 +274,45 @@ parseQQ input = do
 
 
 -- | Utility function for parsing AST structures from listf of spanned tokens
-parseFromToks :: Parse a => [SpTok] -> Either ParseFail a
-parseFromToks toks = execParserTokens parser toks initPos
-parseFromFToks :: Parse a => [L.Token] -> Either ParseFail a
-parseFromFToks toks = execParserTokens parser toks initPos
+-- parseFromToks :: Parse a => [SpTok] -> Either ParseFail a
+-- parseFromToks toks = execParserTokens parser toks initPos
 
 -- | Identifies an open brace token
-openBrace :: SpTok -> Bool
-openBrace (Spanned (OpenDelim Brace) _) = True
-openBrace _ = False
+--openBrace :: SpTok -> Bool
+
+class CommonToken a where
+  openBrace :: a -> Bool
+
+
+instance CommonToken (Spanned Token) where
+  openBrace (Spanned (OpenDelim Brace) _) = True
+  openBrace _ = False
+
+parseFromToks :: Parse b => [SpTok] -> Either ParseFail b
+parseFromToks toks = execParserTokens parser toks initPos
+
+instance CommonToken (Spanned L.Token) where
+  openBrace (Spanned (L.TLBrace _) _) = True
+  openBrace _ = False
+
+parseFromToksF :: Parse b => [Spanned L.Token] -> Either ParseFail b
+parseFromToksF toks = execParserTokensF parser toks initPos
+
+execParserTokensF :: P a -> [Spanned L.Token] -> Position -> Either ParseFail a
+execParserTokensF p toks = execParser (pushTokens toks *> p) (inputStreamFromString "")
+  where
+    pushTokens = traverse_ pushToken . reverse
+
+
+data PStateF = PState
+  { curPos
+
+pushToken :: Spanned L.Token -> P ()
+pushToken tok = RPM.modifyPState $
+               \s@RPM.PState{ pushedTokens = toks } ->s { pushedTokens = tok : toks }
+-- openBrace (Spanned (L.TLBrace _) _) = True
+-- openBrace (Spanned (OpenDelim Brace) _) = True
+-- openBrace _ = False
 
 -- | Identifies an open paren token
 openParen :: SpTok -> Bool
