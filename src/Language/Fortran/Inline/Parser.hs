@@ -19,6 +19,7 @@ import Language.Fortran.Inline.Pretty ( renderType )
 import Language.Fortran.Inline.Utils
 
 import Language.Rust.Syntax        ( Token(..), Delim(..), Ty(..))
+import Language.Rust.Data.InputStream
 
 --import qualified Language.Fortran.Lexer.FreeForm as Free ( collectFreeTokens, Token(..), lexer', initParseState, LexAction(..),AlexInput(..),AlexReturn(..),resetLexeme,scActual,normaliseStartCode,User(..),alexScanUser,StartCode(..),StartCodeStatus(..))
 import qualified Language.Fortran.Lexer.FreeForm as Free
@@ -38,10 +39,9 @@ import Language.Haskell.TH         ( Q, runIO )
 import Control.Monad               ( void )
 
 import Language.Fortran.Util.ModFile ( emptyModFiles )
-import Language.Fortran.Input ( parseSrcString )
 
 import Data.Foldable (traverse_)
-import qualified Language.Rust.Parser.ParseMonad as RPM
+import qualified Language.Fortran.Inline.Parser.ParseMonad as FIPM 
 -- All the tokens we deal with are 'Spanned'...
 type SpTok = Spanned Token
 
@@ -96,9 +96,6 @@ execParserFortran s =
 
 isLBraceS :: Spanned L.Token -> Bool
 isLBraceS (Spanned s _) = isLBrace s
-
-modifyPState :: (PState -> PState) -> P ()
-modifyPState f = P $ \ !s pOk _ ->  pOk () (f $! s)
 
 isLBrace :: L.Token -> Bool
 isLBrace (L.TLBrace _) = True
@@ -209,7 +206,7 @@ parseQQ input = do
       Right parsed -> pure parsed
   leadTy <-
     case parseFromToksF tyToksF of
-      Left (ParseFail _ msg) -> fail msg
+      Left (FIPM.ParseFail _ msg) -> fail msg
       Right parsed -> pure parsed
 
   debugIt "r2 ===" [r2]
@@ -295,21 +292,16 @@ instance CommonToken (Spanned L.Token) where
   openBrace (Spanned (L.TLBrace _) _) = True
   openBrace _ = False
 
-parseFromToksF :: Parse b => [Spanned L.Token] -> Either ParseFail b
-parseFromToksF toks = execParserTokensF parser toks initPos
+parseFromToksF :: Parse b => [Spanned L.Token] -> Either FIPM.ParseFail b
+parseFromToksF toks = execParserTokensF parser' toks initPos
 
-execParserTokensF :: P a -> [Spanned L.Token] -> Position -> Either ParseFail a
-execParserTokensF p toks = execParser (pushTokens toks *> p) (inputStreamFromString "")
+execParserTokensF :: FIPM.P a -> [Spanned L.Token] -> Position -> Either FIPM.ParseFail a
+execParserTokensF p toks = FIPM.execParser (pushTokens toks *> p) (inputStreamFromString "")
   where
-    pushTokens = traverse_ pushToken . reverse
+    pushTokens = traverse_ FIPM.pushToken . reverse
 
+instance Parse (L.Token Span) where parser = undefined
 
-data PStateF = PState
-  { curPos
-
-pushToken :: Spanned L.Token -> P ()
-pushToken tok = RPM.modifyPState $
-               \s@RPM.PState{ pushedTokens = toks } ->s { pushedTokens = tok : toks }
 -- openBrace (Spanned (L.TLBrace _) _) = True
 -- openBrace (Spanned (OpenDelim Brace) _) = True
 -- openBrace _ = False
