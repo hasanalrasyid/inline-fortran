@@ -2,7 +2,7 @@
 
 module Main where
 
-import Language.Fortran.Inline
+import Language.Inline
 import Data.Int
 
 extendContext basic

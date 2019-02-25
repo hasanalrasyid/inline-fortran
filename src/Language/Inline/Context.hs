@@ -43,7 +43,7 @@ import GHC.Exts                    ( Char#, Int#, Word#, Float#, Double#,
 import qualified Control.Monad.Fail as Fail
 
 import qualified Language.Fortran.AST as F
-import qualified Language.Fortran.Inline.Lexer.FreeForm as L
+import qualified Language.Inline.Lexer.FreeForm as L
 
 -- Easier on the eyes
 type RType = Ty ()

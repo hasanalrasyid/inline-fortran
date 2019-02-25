@@ -48,7 +48,7 @@ module Language.Inline.Parser.ParseMonad (
 import Language.Rust.Data.InputStream  ( InputStream )
 import Language.Rust.Data.Position     ( Spanned, Position, initPos, prettyPosition )
 --import Language.Rust.Syntax.Token      ( Token )
-import Language.Fortran.Inline.Lexer.FreeForm      ( Token )
+import Language.Inline.Lexer.FreeForm      ( Token )
 
 import Control.Exception               ( Exception )
 import Data.Maybe                      ( listToMaybe )

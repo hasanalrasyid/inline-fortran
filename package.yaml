@@ -51,7 +51,7 @@ dependencies:
 
     - prettyprinter
     - deepseq
-    - language-rust
+#    - language-rust
     - array
     - json
     - process

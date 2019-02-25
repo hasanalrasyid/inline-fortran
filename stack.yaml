@@ -40,7 +40,7 @@ packages:
 # (e.g., acme-missiles-0.3)
 # extra-deps: []
 extra-deps:
-  - language-rust-0.2.0.27@sha256:d96ec43076689ca8932a78b523b668de30a6b1f3b4fb6386017732028e591da7
+#  - language-rust-0.2.0.27@sha256:d96ec43076689ca8932a78b523b668de30a6b1f3b4fb6386017732028e591da7
 
 
 # Override default flag values for local packages and extra-deps
