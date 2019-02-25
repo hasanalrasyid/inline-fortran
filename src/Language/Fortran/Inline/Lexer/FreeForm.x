@@ -8,7 +8,7 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE DeriveGeneric #-}
 
-module Language.Fortran.Inline.Lexer where
+module Language.Fortran.Inline.Lexer.FreeForm where
 
 import Prelude hiding (span)
 import Data.Data

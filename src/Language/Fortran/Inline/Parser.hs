@@ -23,7 +23,7 @@ import Language.Rust.Data.InputStream
 
 --import qualified Language.Fortran.Lexer.FreeForm as Free ( collectFreeTokens, Token(..), lexer', initParseState, LexAction(..),AlexInput(..),AlexReturn(..),resetLexeme,scActual,normaliseStartCode,User(..),alexScanUser,StartCode(..),StartCodeStatus(..))
 import qualified Language.Fortran.Lexer.FreeForm as Free
-import qualified Language.Fortran.Inline.Lexer as L
+import qualified Language.Fortran.Inline.Lexer.FreeForm as L
 import qualified Data.ByteString.Char8 as B8
 import qualified Language.Fortran.ParserMonad as FPM
 import qualified Language.Fortran.Util.Position as FP
@@ -44,6 +44,7 @@ import Data.Foldable (traverse_)
 import qualified Language.Fortran.Inline.Parser.ParseMonad as FIPM 
 -- All the tokens we deal with are 'Spanned'...
 type SpTok = Spanned Token
+type SpLTok = Spanned L.Token
 
 -- | Result of parsing a quasiquote. Quasiquotes are of the form
 -- @<ty> { <block> }@ where the @<block>@ possibly contains escaped arguments
@@ -204,10 +205,12 @@ parseQQ input = do
     case parseFromToks tyToks of
       Left (ParseFail _ msg) -> fail msg
       Right parsed -> pure parsed
+{-
   leadTy <-
     case parseFromToksF tyToksF of
       Left (FIPM.ParseFail _ msg) -> fail msg
       Right parsed -> pure parsed
+-}
 
   debugIt "r2 ===" [r2]
 
@@ -287,20 +290,21 @@ instance CommonToken (Spanned Token) where
 
 parseFromToks :: Parse b => [SpTok] -> Either ParseFail b
 parseFromToks toks = execParserTokens parser toks initPos
+parseFromToksF :: Parse b => [SpLTok] -> Either ParseFail b
+parseFromToksF toks = execParserTokens' parser toks initPos
 
 instance CommonToken (Spanned L.Token) where
   openBrace (Spanned (L.TLBrace _) _) = True
   openBrace _ = False
 
-parseFromToksF :: Parse b => [Spanned L.Token] -> Either FIPM.ParseFail b
-parseFromToksF toks = execParserTokensF parser' toks initPos
-
+{-
 execParserTokensF :: FIPM.P a -> [Spanned L.Token] -> Position -> Either FIPM.ParseFail a
 execParserTokensF p toks = FIPM.execParser (pushTokens toks *> p) (inputStreamFromString "")
   where
     pushTokens = traverse_ FIPM.pushToken . reverse
 
-instance Parse (L.Token Span) where parser = undefined
+instance Parse (F.TypeSpec Span) where parser = undefined
+-}
 
 -- openBrace (Spanned (L.TLBrace _) _) = True
 -- openBrace (Spanned (OpenDelim Brace) _) = True

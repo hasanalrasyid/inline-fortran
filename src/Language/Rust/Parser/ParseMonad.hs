@@ -21,7 +21,7 @@ In our case, this shared information is held in 'PState'.
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 
-module Language.Fortran.Inline.Parser.ParseMonad (
+module Language.Rust.Parser.ParseMonad (
   -- * Parsing monad
   P,
   execParser,
@@ -47,8 +47,7 @@ module Language.Fortran.Inline.Parser.ParseMonad (
 
 import Language.Rust.Data.InputStream  ( InputStream )
 import Language.Rust.Data.Position     ( Spanned, Position, initPos, prettyPosition )
---import Language.Rust.Syntax.Token      ( Token )
-import Language.Fortran.Inline.Lexer.FreeForm      ( Token )
+import Language.Rust.Syntax.Token      ( Token )
 
 import Control.Exception               ( Exception )
 import Data.Maybe                      ( listToMaybe )

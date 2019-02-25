@@ -22,7 +22,7 @@ import Data.Data (toConstr)
 import Language.Fortran.Util.Position
 import Language.Fortran.Util.ModFile
 import Language.Fortran.ParserMonad
-import Language.Fortran.Inline.Lexer
+import Language.Fortran.Inline.Lexer.FreeForm
 import Language.Fortran.AST
 import Language.Fortran.Transformer
 
