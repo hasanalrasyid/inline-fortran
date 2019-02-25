@@ -57,11 +57,15 @@ dependencies:
     - process
     - random
 
-    - fortran-src
+#    - fortran-src
 
     - uniplate
     - text
     - lens
+
+    - pretty
+    - GenericPretty
+    - fgl
 
 library:
   build-tools:
