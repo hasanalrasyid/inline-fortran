@@ -105,7 +105,7 @@ data Severity
 data Issue = Issue
   { description :: String
   -- ^ Description of the issue
-  
+
   , severity :: !Severity
   -- ^ Severity of the issue
 
@@ -226,13 +226,13 @@ resolveSourceFile s@(SourceFile sh as is) = scope s $ do
 instance (Typeable a, Monoid a) => Resolve (SourceFile a) where resolveM = resolveSourceFile
 
 -- | An identifier can be invalid if
--- 
+--
 --   * it does not lex into an identifier
 --   * it is a keyword
 --
 resolveIdent :: Ident -> ResolveM Ident
 resolveIdent i@(Ident s r _) =
-  scope i $ case toks of
+    scope i $ case toks of
                 Right [Spanned (IdentTok i') _]
                    | i /= i' -> err i ("identifier `" ++ s ++ "' does not lex properly")
                    | i `elem` keywords && not r -> do
@@ -242,10 +242,15 @@ resolveIdent i@(Ident s r _) =
                 _ -> err i ("identifier `" ++ s ++ "' does not lex properly")
 
   where
-    keywords = map mkIdent $ words "as box break const continue crate else enum extern false fn for                                    if impl in let loop match mod move mut pub ref return Self self                                   static struct super trait true type unsafe use where while                                   abstract alignof become do final macro offsetof override priv                                   proc pure sizeof typeof unsized virtual yield" 
-    
-    s' = (if r then "r#" else "") ++ s
-    toks = execParser (lexTokens lexToken) (inputStreamFromString s') initPos
+
+  keywords = map mkIdent $ words $ unwords $ "as box break const continue crate else enum extern false fn for":
+                                "if impl in let loop match mod move mut pub ref return Self self":
+                                "static struct super trait true type unsafe use where while":
+                                "abstract alignof become do final macro offsetof override priv":
+                                "proc pure sizeof typeof unsized virtual yield":[]
+
+  s' = (if r then "r#" else "") ++ s
+  toks = execParser (lexTokens lexToken) (inputStreamFromString s') initPos
 
 instance Resolve Ident where resolveM = resolveIdent
 
@@ -273,7 +278,7 @@ data AttrType
 --   * the tokenstream starts with a '::'
 --
 resolveAttr :: (Typeable a, Monoid a) => AttrType -> Attribute a -> ResolveM (Attribute a)
-resolveAttr typ s@(SugaredDoc sty inl con x) = scope s $ do 
+resolveAttr typ s@(SugaredDoc sty inl con x) = scope s $ do
   sty' <- case (typ, sty) of
             (OuterAttr, Inner) -> correct "inner attribute was turned into outer attribute" *> pure Outer
             (InnerAttr, Outer) -> correct "outer attribute was turned into inner attribute" *> pure Inner
@@ -348,7 +353,7 @@ resolvePath :: (Typeable a, Monoid a) => PathType -> Path a -> ResolveM (Path a)
 resolvePath t p@(Path _ [] _) | t /= UsePath = scope p $ err p "path must have at least one segment"
 resolvePath t p@(Path g segs x) = scope p $
     if null [ () | PathSegment _ (Just a) _ <- segs, not (isParamsForPath t a) ]
-      then Path g <$> traverse resolveSeg segs <*> pure x 
+      then Path g <$> traverse resolveSeg segs <*> pure x
       else err p "path parameter is not valid for this type of path"
   where
   resolveSeg :: (Typeable a, Monoid a) => PathSegment a -> ResolveM (PathSegment a)
@@ -400,8 +405,8 @@ instance (Typeable a, Monoid a) => Resolve (QSelf a) where resolveM = resolveQSe
 -- keywords.
 resolveLifetime :: Typeable a => Lifetime a -> ResolveM (Lifetime a)
 resolveLifetime l@(Lifetime n _)
-  | n == "static" = pure l 
-  | n == "_" = pure l 
+  | n == "static" = pure l
+  | n == "_" = pure l
   | otherwise = scope l (resolveIdent (mkIdent n) *> pure l)
 
 instance Typeable a => Resolve (Lifetime a) where resolveM = resolveLifetime
@@ -420,7 +425,7 @@ data TyType
   | NoForType      -- ^ Non-sum types not starting with a 'for'
 
 -- | Resolve a given type, and a constraint on it (see the parser 'Internal.y' for more details on
--- these cases). 
+-- these cases).
 resolveTy :: (Typeable a, Monoid a) => TyType -> Ty a -> ResolveM (Ty a)
 -- TraitObject
 resolveTy NoSumType     o@(TraitObject b _) | length b > 1 = scope o (correct "added parens around trait object type" *> resolveTy NoSumType (ParenTy o mempty))
@@ -443,7 +448,7 @@ resolveTy _             p@(PathTy q p'@(Path _ s _) x) = scope p $
       Just (QSelf _ i)
         | 0 <= i && i < length s -> PathTy <$> traverse resolveQSelf q <*> resolvePath TypePath p' <*> pure x
         | otherwise              -> err p "index given by QSelf is outside the possible range"
-      Nothing                    -> PathTy Nothing <$> resolvePath TypePath p' <*> pure x 
+      Nothing                    -> PathTy Nothing <$> resolvePath TypePath p' <*> pure x
 -- BareFn
 resolveTy NoForType     f@(BareFn _ _ (_:_) _ _) = scope f (correct "added parens around `for' function type" *> resolveTy NoForType (ParenTy f mempty))
 resolveTy _             f@(BareFn u a lts fd x) = scope f (BareFn u a <$> traverse resolveLifetimeDef lts <*> resolveFnDecl declTy GeneralArg fd <*> pure x)
@@ -524,7 +529,7 @@ resolveArg NamedArg  a@(Arg p t x) = scope a $ do
 resolveArg GeneralArg a@(Arg p t x) = scope a $ do
   when (isSelfAlike a) $
     warn "argument looks like a self argument - did you mean to use 'SelfValue', 'SelfRegion', or 'SelfExplicit'?"
-  
+
   p' <- case p of
           Nothing -> pure Nothing
           Just WildP{} -> traverse resolvePat p
@@ -554,7 +559,7 @@ resolvePolyTraitRef p@(PolyTraitRef lts t x) = scope p $ do
 
 instance (Typeable a, Monoid a) => Resolve (PolyTraitRef a) where resolveM = resolvePolyTraitRef
 
--- | A lifetime def is invalid if it has non-outer attributes 
+-- | A lifetime def is invalid if it has non-outer attributes
 resolveLifetimeDef :: (Typeable a, Monoid a) => LifetimeDef a -> ResolveM (LifetimeDef a)
 resolveLifetimeDef lts@(LifetimeDef as l bds x) = scope lts $ do
   as' <- traverse (resolveAttr OuterAttr) as
@@ -649,9 +654,9 @@ data ExprType
 --
 -- ie: `if i[0] == j[0] { i } else { j } [1]`
 lhsSemiExpr :: (Typeable a, Monoid a) => Int -> Expr a -> ResolveM (Expr a)
-lhsSemiExpr p t@(Try _ e _) = resolveExprP p AnyExpr  
-                          
-lhsSemiExpr p (FieldAccess _ e _ _) | isBlockLike e = 
+lhsSemiExpr p t@(Try _ e _) = resolveExprP p AnyExpr
+
+lhsSemiExpr p (FieldAccess _ e _ _) | isBlockLike e =
 lhsSemiExpr p (Try _ e _)
 lhsSemiExpr p (Try _ e _)
 
@@ -659,7 +664,7 @@ lhsSemiExpr p (Try _ e _)
 
 resolveLhsExprP :: (Typeable a, Monoid a) => Int -> ExprType -> Expr a -> ResolveM (Expr a)
 resolveLhsExprP p SemiExpr l@Try{}         = resolveExprP p AnyExpr l
-resolveLhsExprP p SemiExpr l@FieldAccess{} = resolveExprP p AnyExpr l 
+resolveLhsExprP p SemiExpr l@FieldAccess{} = resolveExprP p AnyExpr l
 resolveLhsExprP p SemiExpr l@MethodCall{}  = resolveExprP p AnyExpr l
 resolveLhsExprP p SemiExpr l@TupField{}    = resolveExprP p AnyExpr l
 resolveLhsExprP _ SemiExpr l | isBlockLike l = parenthesize l
@@ -758,8 +763,8 @@ resolveExprP p c b@(Break as ml me x) = scope b $ parenE (p > 0) $ do
   as' <- traverse (resolveAttr OuterAttr) as
   ml' <- traverse resolveLbl ml
   me' <- traverse (resolveExprP 0 (rhs c)) me
-  pure (Break as' ml' me' x) 
-resolveExprP p _ c@(Continue as ml x) = scope c $ parenE (p > 0) $ do 
+  pure (Break as' ml' me' x)
+resolveExprP p _ c@(Continue as ml x) = scope c $ parenE (p > 0) $ do
   as' <- traverse (resolveAttr OuterAttr) as
   ml' <- traverse resolveLbl ml
   pure (Continue as' ml' x)
@@ -769,7 +774,7 @@ resolveExprP p c e@(Closure as m cb fn@(FnDecl _ ret _ _) b x) = scope c $
     case (c, ret, b) of
       (NoStructExpr,      Just _, BlockExpr{}) -> parenthesize e
       (NoStructBlockExpr, Just _, BlockExpr{}) -> parenthesize e
-      (NoStructExpr,      Just _, _          ) -> parenthesize (Closure as m cb fn (asBlock b) x) 
+      (NoStructExpr,      Just _, _          ) -> parenthesize (Closure as m cb fn (asBlock b) x)
       (NoStructBlockExpr, Just _, _          ) -> parenthesize (Closure as m cb fn (asBlock b) x)
       (_,                 Just _, BlockExpr{}) -> resolved AnyExpr
       (_,                 Just _, _          ) -> parenthesize (Closure as m cb fn (asBlock b) x)
@@ -797,9 +802,9 @@ resolveExprP p c a@(AssignOp as o l r x) = scope a $ parenE (p > 1) $ do
   pure (AssignOp as' o l' r' x)
 resolveExprP p c i@(InPlace as l r x) = scope i $ parenE (p > 2) $ do
   as' <- traverse (resolveAttr OuterAttr) as
-  --l' <- resolveExprP 3 (lhs c) l 
+  --l' <- resolveExprP 3 (lhs c) l
   l' <- resolveLhsExprP 3 c l
-  r' <- resolveExprP 2 (rhs c) r 
+  r' <- resolveExprP 2 (rhs c) r
   pure (InPlace as' l' r' x)
 -- Range expressions
 resolveExprP _ _ r@(Range _ _ Nothing Closed _) = scope r (err r "inclusive ranges must be bounded at the end")
@@ -824,9 +829,9 @@ resolveExprP p c a@(Range as Nothing (Just r) rl x) = scope a $ parenE (p > 5) $
 -- Binary expressions
 resolveExprP p c b@(Binary as o l r x) = scope b $ parenE (p > p') $ do
   as' <- traverse (resolveAttr OuterAttr) as
-  -- l' <- resolveExprP p' (lhs c) l 
+  -- l' <- resolveExprP p' (lhs c) l
   l' <- resolveLhsExprP p' c l
-  r' <- resolveExprP (p' + 1) (rhs c) r 
+  r' <- resolveExprP (p' + 1) (rhs c) r
   pure (Binary as' o l' r' x)
   where
   p' = opPrec o
@@ -884,7 +889,7 @@ resolveExprP p c t@(Try as e x) = scope t $ parenE (p > 17) $ do
   as' <- traverse (resolveAttr OuterAttr) as
   --e' <- resolveExprP 17 (lhs c) e
   e' <- resolveLhsExprP 17 c e
-  pure (Try as' e' x) 
+  pure (Try as' e' x)
 resolveExprP p c a@(Call as f xs x) = scope a $ parenE (p > 17) $ do
   as' <- traverse (resolveAttr OuterAttr) as
   --f' <- resolveExprP 17 (lhs c) f
@@ -919,7 +924,7 @@ resolveExprP p c f@(FieldAccess as e i x) = scope f $ parenE (p > 17) $ do
 resolveExprP _ _ v@(Vec as es x) = scope v $ do
   as' <- traverse (resolveAttr EitherAttr) as
   es' <- traverse (resolveExprP 0 AnyExpr) es
-  pure (Vec as' es' x) 
+  pure (Vec as' es' x)
 resolveExprP _ _ p@(PathExpr as Nothing p' x) = scope p $ do
   as' <- traverse (resolveAttr OuterAttr) as
   p'' <- resolvePath ExprPath p'
@@ -936,7 +941,7 @@ resolveExprP _ _ p@(PathExpr as q@(Just (QSelf _ i)) p'@(Path g s x) x')
       Path _ tyPSegs   _ <- resolvePath TypePath $ Path g (take i s) mempty
       Path _ exprPSegs _ <- resolvePath ExprPath $ Path False (drop i s) x
       q' <- traverse resolveQSelf q
-      pure (PathExpr as' q' (Path g (tyPSegs <> exprPSegs) x) x') 
+      pure (PathExpr as' q' (Path g (tyPSegs <> exprPSegs) x) x')
 resolveExprP _ _ i@(Lit as l x) = scope i $ do
   as' <- traverse (resolveAttr OuterAttr) as
   l' <- resolveLit l
@@ -965,7 +970,7 @@ resolveExprP _ NoStructBlockExpr e@BlockExpr{} = parenthesize e
 resolveExprP _ _ l@(BlockExpr as b x) = scope l $ do
   as' <- traverse (resolveAttr EitherAttr) as
   b' <- resolveBlock b
-  pure (BlockExpr as' b' x) 
+  pure (BlockExpr as' b' x)
 -- Struct expressions
 resolveExprP _ NoStructExpr e@Struct{} = parenthesize e
 resolveExprP _ NoStructBlockExpr e@Struct{} = parenthesize e
@@ -1032,7 +1037,7 @@ resolveExprP _ _ m@(Match as e ar x) = scope m $ do
 resolveExprP _ _ c@(Catch as b x) = scope c $ do
   as' <- traverse (resolveAttr EitherAttr) as
   b' <- resolveBlock b
-  pure (Catch as' b' x) 
+  pure (Catch as' b' x)
 
 isBlockLike :: Expr a -> Bool
 isBlockLike If{} = True
@@ -1209,7 +1214,7 @@ resolveItem t e@(Enum as v i vs g x) = scope e $ do
   vs' <- traverse resolveVariant vs
   g' <- resolveGenerics g
   pure (Enum as' v' i' vs' g' x)
-  
+
 resolveItem t s@(StructItem as v i vd g x) = scope s $ do
   as' <- traverse (resolveAttr OuterAttr) as
   v' <- resolveVisibility' t v
@@ -1269,7 +1274,7 @@ resolveItem _ m@(MacroDef as i ts x) = scope m $ do
 
 instance (Typeable a, Monoid a) => Resolve (Item a) where resolveM = resolveItem ModItem
 
--- | A foreign item is invalid only if any of its underlying constituents are 
+-- | A foreign item is invalid only if any of its underlying constituents are
 resolveForeignItem :: (Typeable a, Monoid a) => Abi -> ForeignItem a -> ResolveM (ForeignItem a)
 resolveForeignItem a f@(ForeignFn as v i fn g x) = scope f $ do
   as' <- traverse (resolveAttr OuterAttr) as
@@ -1393,7 +1398,7 @@ resolveTraitItem n@(MethodT as i g m b x) = scope n $ do
   as' <- traverse (resolveAttr OuterAttr) as
   i' <- resolveIdent i
   g' <- resolveGenerics g
-  m' <- resolveMethodSig GeneralArg m 
+  m' <- resolveMethodSig GeneralArg m
   b' <- traverse resolveBlock b
   pure (MethodT as' i' g' m' b' x)
 resolveTraitItem n@(TypeT as i bd t x) = scope n $ do
@@ -1423,7 +1428,7 @@ resolveImplItem n@(MethodI as v d i g m b x) = scope n $ do
   v' <- resolveVisibility v
   i' <- resolveIdent i
   g' <- resolveGenerics g
-  m' <- resolveMethodSig NamedArg m 
+  m' <- resolveMethodSig NamedArg m
   b' <- resolveBlock b
   pure (MethodI as' v' d i' g' m' b' x)
 resolveImplItem n@(TypeI as v d i t x) = scope n $ do
@@ -1458,12 +1463,12 @@ instance (Typeable a, Monoid a) => Resolve (MethodSig a) where resolveM = resolv
 -- | A view path is valid if the underlying components are
 resolveUseTree :: (Typeable a, Monoid a) => UseTree a -> ResolveM (UseTree a)
 resolveUseTree v@(UseTreeSimple p i x) = scope v $ do
-  p' <- resolvePath ModPath p 
+  p' <- resolvePath ModPath p
   i' <- traverse resolveIdent i
   pure (UseTreeSimple p' i' x)
 resolveUseTree v@(UseTreeGlob p x) = scope v $ do
-  p' <- resolvePath UsePath p 
-  pure (UseTreeGlob p' x) 
+  p' <- resolvePath UsePath p
+  pure (UseTreeGlob p' x)
 resolveUseTree v@(UseTreeNested p ns x) = scope v $ do
   p' <- resolvePath UsePath p
   ns' <- traverse resolveUseTree ns
@@ -1481,7 +1486,7 @@ resolveMac :: (Typeable a, Monoid a) => PathType -> Mac a -> ResolveM (Mac a)
 resolveMac t m@(Mac p ts x) = scope m (Mac <$> resolvePath t p <*> resolveTokenStream ts <*> pure x)
 
 instance (Typeable a, Monoid a) => Resolve (Mac a) where
-  resolveM m@(Mac p ts x) = scope m (Mac <$> resolveM p <*> resolveTokenStream ts <*> pure x) 
+  resolveM m@(Mac p ts x) = scope m (Mac <$> resolveM p <*> resolveTokenStream ts <*> pure x)
 
 -- | A token tree is invalid when
 --

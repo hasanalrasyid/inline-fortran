@@ -22,8 +22,8 @@ The examples below assume the following GHCi flag and import:
 -}
 
 
-module Language.Fortran.Inline.Quote (
-  lit, attr, tyF, pat, stmt, expr, item, sourceFile, implItem, traitItem, tokenTree, block
+module Language.Rust.Quote (
+  lit, attr, ty, pat, stmt, expr, item, sourceFile, implItem, traitItem, tokenTree, block
 ) where
 
 {-
@@ -49,10 +49,6 @@ i32
 For now, however, you cannot use @$x@ or @$x:ty@ meta variables.
 -}
 
-import qualified Language.Fortran.Inline.Parser.Fortran95 as PF
-import qualified Language.Fortran.Inline.Lexer.FreeForm as L
-import qualified Language.Fortran.Inline.Parser as P
-
 import Language.Rust.Parser.ParseMonad
 import Language.Rust.Parser.Internal
 import Language.Rust.Data.InputStream   ( inputStreamFromString )
@@ -70,30 +66,6 @@ import Data.Data                        ( Data )
 -- | Given a parser, convert it into a quasiquoter. The quasiquoter produced does not support
 -- declarations and types. For patterns, it replaces any 'Span' and 'Position' field with a
 -- wild pattern.
-quoterF :: Data a => L.LexAction a -> QuasiQuoter
-quoterF p = QuasiQuoter
-             { quoteExp = parse >=> dataToExpQ (const Nothing)
-             , quotePat = error "this quasiquoter does not support Pattern"
-             -- , quotePat = parse >=> dataToPatQ wildSpanPos
-             , quoteDec = error "this quasiquoter does not support declarations"
-             , quoteType = error "this quasiquoter does not support types"
-             }
-  where
-  -- | Given a parser and an input string, turn it into the corresponding Haskell expression/pattern.
-  parse inp = do
---    Loc{ loc_start = (r,c) } <- location
-
-    -- Run the parser
-    --case execParser p (inputStreamFromString inp) (Position 0 r c) of
-    case P.execParserFortran inp of
-      Left (ParseFail _ msg) -> fail $ "error@Quote:89 " ++ msg
-      Right x -> pure x
-
-  -- | Replace 'Span' and 'Position' with wild patterns
-  wildSpanPos :: Typeable b => b -> Maybe (Q Pat)
-  wildSpanPos x = ((cast x :: Maybe Span) $> wildP) <|> ((cast x :: Maybe Position) $> wildP)
-
-
 quoter :: Data a => P a -> QuasiQuoter
 quoter p = QuasiQuoter
              { quoteExp = parse >=> dataToExpQ (const Nothing)
@@ -105,7 +77,7 @@ quoter p = QuasiQuoter
   -- | Given a parser and an input string, turn it into the corresponding Haskell expression/pattern.
   parse inp = do
     Loc{ loc_start = (r,c) } <- location
-
+  
     -- Run the parser
     case execParser p (inputStreamFromString inp) (Position 0 r c) of
       Left (ParseFail _ msg) -> fail msg
@@ -137,8 +109,8 @@ attr = quoter parseAttr
 -- >>> void [ty| &(_,_) |]
 -- Rptr Nothing Immutable (TupTy [Infer (),Infer ()] ()) ()
 --
-tyF :: QuasiQuoter
-tyF = quoterF PF.typeParser
+ty :: QuasiQuoter
+ty = quoter parseTy
 
 -- | Quasiquoter for patterns (see 'Language.Rust.Syntax.Pat')
 --

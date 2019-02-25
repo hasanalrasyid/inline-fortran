@@ -81,7 +81,7 @@ import Data.Typeable
 import Numeric
 import Data.Word
 
-import Language.Fortran.Inline.Lexer
+import Language.Fortran.Inline.Lexer.FreeForm
 import Language.Fortran.Inline.Context
 import Language.Fortran.Inline.Context.Prelude  ( prelude )
 import Language.Fortran.Inline.Internal

@@ -41,7 +41,7 @@ import Control.Monad               ( void )
 import Language.Fortran.Util.ModFile ( emptyModFiles )
 
 import Data.Foldable (traverse_)
-import qualified Language.Fortran.Inline.Parser.ParseMonad as FIPM 
+import qualified Language.Fortran.Inline.Parser.ParseMonad as FIPM
 -- All the tokens we deal with are 'Spanned'...
 type SpTok = Spanned Token
 type SpLTok = Spanned L.Token
@@ -290,8 +290,6 @@ instance CommonToken (Spanned Token) where
 
 parseFromToks :: Parse b => [SpTok] -> Either ParseFail b
 parseFromToks toks = execParserTokens parser toks initPos
-parseFromToksF :: Parse b => [SpLTok] -> Either ParseFail b
-parseFromToksF toks = execParserTokens' parser toks initPos
 
 instance CommonToken (Spanned L.Token) where
   openBrace (Spanned (L.TLBrace _) _) = True
