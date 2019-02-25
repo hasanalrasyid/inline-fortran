@@ -9,7 +9,7 @@ Portability : GHC
 -}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Language.Fortran.Inline.Utils (
+module Language.Inline.Utils (
   debugIt
 ) where
 

@@ -14,11 +14,11 @@ Portability : GHC
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MagicHash #-}
 
-module Language.Fortran.Inline.Context where
+module Language.Inline.Context where
 
-import Language.Fortran.Inline.Pretty ( renderType, renderFType )
-import Language.Fortran.Inline.Quote
-import Language.Fortran.Inline.Utils
+import Language.Inline.Pretty ( renderType, renderFType )
+import Language.Inline.Quote
+import Language.Inline.Utils
 
 import Language.Rust.Quote         ( ty )
 import Language.Rust.Syntax        ( Ty(BareFn, Ptr), Abi(..), FnDecl(..),

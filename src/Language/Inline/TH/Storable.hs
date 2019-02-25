@@ -13,12 +13,12 @@ Portability : GHC
 {-# LANGUAGE FlexibleInstances #-}
 {-# OPTIONS_GHC -Wwarn #-}         -- TODO: GHC bug around "unused pattern binds" in splices
                                    -- TODO: GHC feature around setting extensions from within TH
-module Language.Fortran.Inline.TH.Storable (
+module Language.Inline.TH.Storable (
   mkStorable,
   mkTupleStorable,
 ) where
 
-import Language.Fortran.Inline.TH.Utilities
+import Language.Inline.TH.Utilities
 
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax hiding (lift)

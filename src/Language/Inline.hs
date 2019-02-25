@@ -10,7 +10,7 @@ Portability : GHC
 {-# LANGUAGE ForeignFunctionInterface #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Language.Fortran.Inline (
+module Language.Inline (
   -- * Overview
   --
   -- $overview
@@ -81,16 +81,16 @@ import Data.Typeable
 import Numeric
 import Data.Word
 
-import Language.Fortran.Inline.Lexer.FreeForm
-import Language.Fortran.Inline.Context
-import Language.Fortran.Inline.Context.Prelude  ( prelude )
-import Language.Fortran.Inline.Internal
-import Language.Fortran.Inline.Marshal
-import Language.Fortran.Inline.Parser
-import Language.Fortran.Inline.Pretty
-import Language.Fortran.Inline.Utils
-import Language.Fortran.Inline.TH.Storable      ( mkStorable )
-import Language.Fortran.Inline.TH.ReprC         ( mkReprC )
+import Language.Inline.Lexer.FreeForm
+import Language.Inline.Context
+import Language.Inline.Context.Prelude  ( prelude )
+import Language.Inline.Internal
+import Language.Inline.Marshal
+import Language.Inline.Parser
+import Language.Inline.Pretty
+import Language.Inline.Utils
+import Language.Inline.TH.Storable      ( mkStorable )
+import Language.Inline.TH.ReprC         ( mkReprC )
 
 import Language.Haskell.TH.Syntax
 import Language.Haskell.TH.Lib

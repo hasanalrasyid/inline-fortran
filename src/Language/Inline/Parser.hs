@@ -13,17 +13,17 @@ Portability : GHC
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE BangPatterns #-}
 
-module Language.Fortran.Inline.Parser where
+module Language.Inline.Parser where
 
-import Language.Fortran.Inline.Pretty ( renderType )
-import Language.Fortran.Inline.Utils
+import Language.Inline.Pretty ( renderType )
+import Language.Inline.Utils
 
 import Language.Rust.Syntax        ( Token(..), Delim(..), Ty(..))
 import Language.Rust.Data.InputStream
 
---import qualified Language.Fortran.Lexer.FreeForm as Free ( collectFreeTokens, Token(..), lexer', initParseState, LexAction(..),AlexInput(..),AlexReturn(..),resetLexeme,scActual,normaliseStartCode,User(..),alexScanUser,StartCode(..),StartCodeStatus(..))
+--import qualified Language.Lexer.FreeForm as Free ( collectFreeTokens, Token(..), lexer', initParseState, LexAction(..),AlexInput(..),AlexReturn(..),resetLexeme,scActual,normaliseStartCode,User(..),alexScanUser,StartCode(..),StartCodeStatus(..))
 import qualified Language.Fortran.Lexer.FreeForm as Free
-import qualified Language.Fortran.Inline.Lexer.FreeForm as L
+import qualified Language.Inline.Lexer.FreeForm as L
 import qualified Data.ByteString.Char8 as B8
 import qualified Language.Fortran.ParserMonad as FPM
 import qualified Language.Fortran.Util.Position as FP
@@ -41,7 +41,7 @@ import Control.Monad               ( void )
 import Language.Fortran.Util.ModFile ( emptyModFiles )
 
 import Data.Foldable (traverse_)
-import qualified Language.Fortran.Inline.Parser.ParseMonad as FIPM
+import qualified Language.Inline.Parser.ParseMonad as FIPM
 -- All the tokens we deal with are 'Spanned'...
 type SpTok = Spanned Token
 type SpLTok = Spanned L.Token

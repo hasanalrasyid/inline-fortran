@@ -13,10 +13,10 @@ Portability : GHC
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_GHC -w #-}
 
-module Language.Fortran.Inline.Context.Prelude where
+module Language.Inline.Context.Prelude where
 
-import Language.Fortran.Inline.Context
-import Language.Fortran.Inline.TH
+import Language.Inline.Context
+import Language.Inline.TH
 
 import Language.Rust.Data.Ident            ( Ident(..), mkIdent )
 import Language.Rust.Syntax

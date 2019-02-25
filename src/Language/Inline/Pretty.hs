@@ -8,7 +8,7 @@ Stability   : experimental
 Portability : GHC
 -}
 
-module Language.Fortran.Inline.Pretty (
+module Language.Inline.Pretty (
   renderType,
   renderFType,
   renderItem,

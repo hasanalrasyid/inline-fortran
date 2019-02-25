@@ -10,7 +10,7 @@ Portability : GHC
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Language.Fortran.Inline.TH.ReprC (
+module Language.Inline.TH.ReprC (
   mkReprC,
   mkGenPathTy,
 ) where
@@ -18,8 +18,8 @@ module Language.Fortran.Inline.TH.ReprC (
 -- TODO: Map haskell records to Rust records
 -- TODO: Way for users to specify the attributes they want on generated data types
 
-import Language.Fortran.Inline.TH.Utilities
-import Language.Fortran.Inline.Context
+import Language.Inline.TH.Utilities
+import Language.Inline.Context
 
 import Language.Haskell.TH hiding (Stmt, Match, WildP, Unsafe, LitP, Pat)
 import Language.Rust.Syntax

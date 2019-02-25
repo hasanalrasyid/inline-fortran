@@ -9,7 +9,7 @@ Portability : GHC
 -}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Language.Fortran.Inline.Internal (
+module Language.Inline.Internal (
   emitCodeBlock,
   getRType,
   getFType,
@@ -22,7 +22,7 @@ module Language.Fortran.Inline.Internal (
   setCrateModule,
 ) where
 
-import Language.Fortran.Inline.Context
+import Language.Inline.Context
 
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax

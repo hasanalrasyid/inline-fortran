@@ -22,8 +22,8 @@ The examples below assume the following GHCi flag and import:
 -}
 
 
-module Language.Fortran.Inline.Quote (
-  lit, attr, tyF, pat, stmt, expr, item, sourceFile, implItem, traitItem, tokenTree, block
+module Language.Inline.Quote (
+  lit, attr,  pat, stmt, expr, item, sourceFile, implItem, traitItem, tokenTree, block
 ) where
 
 {-
@@ -49,9 +49,9 @@ i32
 For now, however, you cannot use @$x@ or @$x:ty@ meta variables.
 -}
 
-import qualified Language.Fortran.Inline.Parser.Fortran95 as PF
-import qualified Language.Fortran.Inline.Lexer.FreeForm as L
-import qualified Language.Fortran.Inline.Parser as P
+import qualified Language.Inline.Parser.Fortran95 as PF
+import qualified Language.Inline.Lexer.FreeForm as L
+import qualified Language.Inline.Parser as P
 
 import Language.Rust.Parser.ParseMonad
 import Language.Rust.Parser.Internal
@@ -137,8 +137,8 @@ attr = quoter parseAttr
 -- >>> void [ty| &(_,_) |]
 -- Rptr Nothing Immutable (TupTy [Infer (),Infer ()] ()) ()
 --
-tyF :: QuasiQuoter
-tyF = quoterF PF.typeParser
+--tyF :: QuasiQuoter
+--tyF = quoterF PF.typeParser
 
 -- | Quasiquoter for patterns (see 'Language.Rust.Syntax.Pat')
 --

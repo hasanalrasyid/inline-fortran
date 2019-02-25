@@ -7,7 +7,7 @@ Maintainer  : alec.theriault@gmail.com
 Stability   : experimental
 Portability : GHC
 
-Both the lexer and the parser run inside of the 'P' monad. As detailed in the section on 
+Both the lexer and the parser run inside of the 'P' monad. As detailed in the section on
 on [threaded-lexers](https://www.haskell.org/happy/doc/html/sec-monads.html#sec-lexers) in Happy's
 instruction manual, the benefits of this are that:
 
@@ -21,7 +21,7 @@ In our case, this shared information is held in 'PState'.
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 
-module Language.Fortran.Inline.Parser.ParseMonad (
+module Language.Inline.Parser.ParseMonad (
   -- * Parsing monad
   P,
   execParser,
@@ -126,15 +126,15 @@ swapToken t = P $ \ !s@PState{ swapFunction = f } pOk _ -> pOk (f $! t) s
 
 -- | Extract the state stored in the parser.
 getPState :: P PState
-getPState = P $ \ !s pOk _ -> pOk s s 
+getPState = P $ \ !s pOk _ -> pOk s s
 
 -- | Update the state stored in the parser.
 setPState :: PState -> P ()
-setPState s = P $ \ _ pOk _ -> pOk () s 
+setPState s = P $ \ _ pOk _ -> pOk () s
 
 -- | Modify the state stored in the parser.
 modifyPState :: (PState -> PState) -> P ()
-modifyPState f = P $ \ !s pOk _ -> pOk () (f $! s) 
+modifyPState f = P $ \ !s pOk _ -> pOk () (f $! s)
 
 -- | Retrieve the current position of the parser.
 getPosition :: P Position
@@ -146,7 +146,7 @@ setPosition pos = modifyPState $ \ s -> s{ curPos = pos }
 
 -- | Retrieve the current 'InputStream' of the parser.
 getInput :: P InputStream
-getInput = curInput <$> getPState 
+getInput = curInput <$> getPState
 
 -- | Update the current 'InputStream' of the parser.
 setInput :: InputStream -> P ()
