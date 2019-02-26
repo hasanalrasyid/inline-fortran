@@ -61,6 +61,7 @@ data FortQuasiquoteParse = FQParse
   , variablesF :: [(String, L.Token)]
 
   } deriving (Show)
+
 data RustQuasiquoteParse = QQParse
 
   -- | leading type (corresponding to the return type of the quasiquote)
@@ -291,15 +292,6 @@ parseFromToks toks = execParserTokens parser toks initPos
 instance CommonToken (Spanned L.Token) where
   openBrace (Spanned (L.TLBrace _) _) = True
   openBrace _ = False
-
-{-
-execParserTokensF :: FIPM.P a -> [Spanned L.Token] -> Position -> Either FIPM.ParseFail a
-execParserTokensF p toks = FIPM.execParser (pushTokens toks *> p) (inputStreamFromString "")
-  where
-    pushTokens = traverse_ FIPM.pushToken . reverse
-
-instance Parse (F.TypeSpec Span) where parser = undefined
--}
 
 -- openBrace (Spanned (L.TLBrace _) _) = True
 -- openBrace (Spanned (OpenDelim Brace) _) = True
