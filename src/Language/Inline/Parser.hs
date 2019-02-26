@@ -62,7 +62,7 @@ data FortQuasiquoteParse = FQParse
 
   } deriving (Show)
 
-data RustQuasiquoteParse = QQParse
+data RustQuasiquoteParse = QQParseR
 
   -- | leading type (corresponding to the return type of the quasiquote)
   { ty :: Ty Span
@@ -72,6 +72,15 @@ data RustQuasiquoteParse = QQParse
 
   -- | escaped arguments
   , variables :: [(String, Ty Span)]
+
+  } | QQParseF
+  { tyQF :: [L.Token]
+
+  -- | body tokens, with @$(<ident>: <ty>)@ escapes replaced by just @ident@
+  , bodyQF :: [L.Token]
+
+  -- | escaped arguments
+  , variablesQF :: [(String, L.Token)]
 
   } deriving (Show)
 
@@ -216,7 +225,7 @@ parseQQ input = do
   -- Parse body of quasiquote
   (bodyToks, vars) <- parseBody [] [] rest2
 --  (bodyTF, varsF) <- parseBodyF [] [] r2
-  let qq = (QQParse leadingTy bodyToks vars)
+  let qq = (QQParseR leadingTy bodyToks vars)
 
   -- Done!
   return qq

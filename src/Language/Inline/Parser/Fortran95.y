@@ -32,7 +32,7 @@ import Debug.Trace
 
 %name programParser PROGRAM
 %name statementParser STATEMENT
-%name typeParser TYPE_SPEC
+%name typeParser MAYBE_TYPE_SPEC
 %name functionParser SUBPROGRAM_UNIT
 %monad { LexAction }
 %lexer { lexer } { TEOF _ }
@@ -877,6 +877,10 @@ DIMENSION_DECLARATOR :: { DimensionDeclarator A0 }
 | ':'
   { let span = getSpan $1
     in DimensionDeclarator () span Nothing Nothing }
+
+MAYBE_TYPE_SPEC :: { Maybe (TypeSpec A0) }
+: TYPE_SPEC '::' { Just $1 }
+| {- empty -}    { Nothing }
 
 TYPE_SPEC :: { TypeSpec A0 }
 : integer KIND_SELECTOR   { TypeSpec () (getSpan ($1, $2)) TypeInteger $2 }
