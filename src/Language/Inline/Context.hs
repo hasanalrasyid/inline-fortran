@@ -13,6 +13,10 @@ Portability : GHC
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MagicHash #-}
+  {-
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric #-}
+-}
 
 module Language.Inline.Context where
 
@@ -27,9 +31,9 @@ import Language.Rust.Syntax        ( Ty(BareFn, Ptr), Abi(..), FnDecl(..),
 import Language.Haskell.TH
 
 import Data.Semigroup              ( Semigroup, (<>) )
-import Data.Monoid                 ( First(..) )
+import Data.Monoid                 ( First(..),mempty )
 import Data.Typeable               ( Typeable )
-import Control.Monad               ( void, liftM2 )
+import Control.Monad               ( void, liftM2, liftM )
 import Data.Traversable            ( for )
 import Data.List                   ( intercalate )
 
@@ -56,6 +60,7 @@ type HType = Type
 -- The 'Context' argument encodes the fact that we may need look
 -- recursively into the 'Context' again before possibly producing a Haskell
 -- type.
+  {-
 newtype FContext =
     FContext ( [ FType -> FContext -> First (Q HType, Maybe (Q FType)) ]
             -- Given a Rust type in a quasiquote, we need to look up the
@@ -72,6 +77,7 @@ newtype FContext =
             -- Source for the trait impls of @MarshalTo@
             )
   deriving (Semigroup, Monoid, Typeable)
+  -}
 newtype Context =
     Context ( [ RType -> Context -> First (Q HType, Maybe (Q RType)) ]
             -- Given a Rust type in a quasiquote, we need to look up the
@@ -88,6 +94,7 @@ newtype Context =
             -- Source for the trait impls of @MarshalTo@
             )
   deriving (Semigroup, Monoid, Typeable)
+
 
 -- | Applicative lifting of the 'Context' instance
 instance Semigroup (Q Context) where
@@ -108,10 +115,11 @@ instance Fail.MonadFail First where
 --   1. The Haskell type have a 'Storable' instance
 --   2. The C-compatible Rust type have the same layout
 --
+  {-
 lookupFTypeInContext :: FType -> FContext -> First (Q HType, Maybe (Q FType))
 lookupFTypeInContext rustType context@(FContext (rules, _, _)) =
   foldMap (\fits -> fits rustType context) rules
-
+-}
 -- | Search in a 'Context' for the Haskell type corresponding to a Rust type.
 -- If the Rust type is not C-compatible, also return a C compatible type. It is
 -- expected that:
@@ -132,6 +140,7 @@ lookupHTypeInContext haskType context@(Context (_, rules, _)) =
 
 -- | Partial version of 'lookupRTypeInContext' that fails with an error message
 -- if the type is not convertible.
+  {-
 getFTypeInContext :: FType -> FContext -> (Q HType, Maybe (Q FType))
 getFTypeInContext rustType context =
   case getFirst (lookupFTypeInContext rustType context) of
@@ -141,6 +150,7 @@ getFTypeInContext rustType context =
                                 , "in the FContext"
                                 ]
                , Nothing )
+-}
 
 -- | Partial version of 'lookupRTypeInContext' that fails with an error message
 -- if the type is not convertible.
@@ -168,6 +178,7 @@ getHTypeInContext haskType context =
 -- | Make a 'Context' consisting of rules to map the Rust types on the left to
 -- the Haskell types on the right. The Rust types should all be @#[repr(C)]@
 -- and the Haskell types should all be 'Storable'.
+  {-
 mkFContext :: [(FType, Q HType, Bool)] -> Q FContext
 mkFContext tys = do
     tys' <- traverse (\(rt,qht,mkImpl) -> do { ht <- qht; pure (rt,ht,mkImpl) }) tys
@@ -186,6 +197,7 @@ mkFContext tys = do
 
     impl (rts, _, mkImpl)   | mkImpl = implMarshalFInto rts
                             | otherwise = mempty
+-}
 
 mkContext :: [(Ty a, Q HType, Bool)] -> Q Context
 mkContext tys = do
@@ -277,9 +289,8 @@ libc = mkContext
 --
 -- There should be no conversion required here as these should have identical
 -- memory layouts.
-fbasic :: Q FContext
-fbasic = undefined
 {--
+fbasic :: Q FContext
 fbasic = mkFContext
   [ ([tyF| double precision |], [t| Double    |], True) -- 4 bytes
   ]
