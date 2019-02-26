@@ -187,11 +187,12 @@ parseQQ input = do
     Left (ParseFail _ msg) -> fail msg
     Right parsed -> pure parsed
   let r1 = map spanLToken r1'
+    {-
   (tyToksF, r2) <-
     case break openBrace r1 of
       (_, []) -> fail "Ran out of input parsing leading type in quasiquote Fortran"
       (tyToks, lBrace : rest2) -> pure (tyToks, rest2)
-
+-}
   -- Split off the leading type's tokens
   (tyToks, rest2) <-
     case break openBrace rest1 of
@@ -208,10 +209,10 @@ parseQQ input = do
     case parseFromToksF tyToksF of
       Left (FIPM.ParseFail _ msg) -> fail msg
       Right parsed -> pure parsed
--}
 
   debugIt "r2 ===" [r2]
 
+-}
   -- Parse body of quasiquote
   (bodyToks, vars) <- parseBody [] [] rest2
 --  (bodyTF, varsF) <- parseBodyF [] [] r2

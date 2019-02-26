@@ -251,10 +251,11 @@ rustQuasiQuoter safety isPure supportDecs = QuasiQuoter { quoteExp = expQuoter
 
     expQuoter qq = do
       parsed <- parseQQ qq
-      parsed2 <- parseFQ qq
+--      parsed2 <- parseFQ qq
       -- runIO $ do
       --   putStrLn $ show parsed2
-      processFQ safety isPure parsed parsed2
+      processQQ safety isPure parsed
+      -- processFQ safety isPure parsed parsed2
 
     decQuoter | supportDecs = emitCodeBlock
               | otherwise = err
