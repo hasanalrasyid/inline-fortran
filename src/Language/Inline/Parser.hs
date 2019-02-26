@@ -129,10 +129,7 @@ parseBodyF toks vars rest1 =
                                : "' has already been given type `"
                                : show t2a: "'": []
 
-clearRBrace l = let (_:r) = dropWhile (not . isLBrace) $ reverse l
-                 in reverse r
-clearRBraceS l = let (_:r) = dropWhile (not . isLBraceS) $ reverse l
-                 in reverse r
+clearFrom isWhat l = reverse $ tail $ dropWhile (not . isWhat) $ reverse l
 
 parseFQ :: String -> Q FortQuasiquoteParse
 parseFQ input = do
@@ -150,7 +147,7 @@ parseFQ input = do
   (tyToks , r2) <-
     case break isLBrace r1 of
       (_, []) -> fail "Ran out of input parsing leading type in quasiquote Fortran"
-      (tyToks, lBrace : rest2) -> pure (tyToks, clearRBrace rest2)
+      (tyToks, lBrace : rest2) -> pure (tyToks, clearFrom isRBrace rest2)
   {-
     -- Parse leading type
   leadTy <-
