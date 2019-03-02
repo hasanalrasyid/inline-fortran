@@ -42,6 +42,7 @@ import Language.Fortran.Util.ModFile ( emptyModFiles )
 
 import Data.Foldable (traverse_)
 import qualified Language.Inline.Parser.ParseMonad as FIPM
+import qualified Language.Inline.Parser.Fortran95 as PF95
 -- All the tokens we deal with are 'Spanned'...
 type SpTok = Spanned Token
 type SpLTok = Spanned L.Token
@@ -101,7 +102,7 @@ clearBracket s = init $ tail $ reverse $ dropWhile (/= '}') $ reverse $ dropWhil
 
 --execParserFotran :: String -> Either ParseFail [SpTok]
 execParserFortran s =
-  let a = L.collectFreeTokens FPM.Fortran95 $ B8.pack $ clearBracket s
+  let a = L.collectFreeTokens FPM.Fortran95 $ B8.pack s
   in if | a == [] -> Left (ParseFail (Position 0 0 0) "error execParserFortran")
         | otherwise -> Right a
 
@@ -156,7 +157,7 @@ parseFQ input = do
     Right parsed -> pure parsed
   (tyToks , r2) <-
     case break isLBrace r1 of
-      (_, []) -> fail "Ran out of input parsing leading type in quasiquote Fortran"
+      (_, []) -> fail "====Ran out of input parsing leading type in quasiquote Fortran"
       (tyToks, lBrace : rest2) -> pure (tyToks, clearFrom isRBrace rest2)
   {-
     -- Parse leading type
@@ -182,32 +183,45 @@ spanLToken a = let (FP.SrcSpan i j) = FP.getSpan a
                    convPos (FP.Position ab c r _) = Position ab r c
                    x = Position 0 0 0
                 in Spanned a (Span (convPos i) (convPos j))
+getLToken (Spanned a _) = a
 
 parseQQ :: String -> Q RustQuasiquoteParse
 parseQQ input = do
   let lexer = lexTokens lexNonSpace
   let stream = inputStreamFromString input
   -- Lex the quasiquote tokens
+  let input1 = unlines $
+                  "    double precision {":
+                  "      double precision a,b,c,eps":
+                  "      a = 4.0d0/3.0d0":
+                  "   10 b = a - 1.0d0":
+                  "      c = b + b + b":
+                  "      eps = dabs(c-1.0d0)":
+                  "      if (eps .eq. 0.0d0) go to 10":
+                  "      $(ret) = eps*dabs(x)":
+                  "      return":
+                  "      }":[]
 
   rest1 <-  case execParser lexer stream initPos of
       Left (ParseFail _ msg) -> fail msg
       Right parsed -> pure parsed
-  r1' <- case execParserFortran input of
+  r1' <- case execParserFortran input1 of
     Left (ParseFail _ msg) -> fail msg
     Right parsed -> pure parsed
   let r1 = map spanLToken r1'
-    {-
+  debugIt "===test ===" [r1]
   (tyToksF, r2) <-
     case break openBrace r1 of
-      (_, []) -> fail "Ran out of input parsing leading type in quasiquote Fortran"
+      (_, []) -> fail "ParseQQ: Ran out of input parsing leading type in quasiquote Fortran"
       (tyToks, lBrace : rest2) -> pure (tyToks, rest2)
--}
+  runIO $ do
+    let ast = PF95.typeParser $ map getLToken tyToksF
+    putStrLn $ show ast
   -- Split off the leading type's tokens
   (tyToks, rest2) <-
     case break openBrace rest1 of
       (_, []) -> fail "Ran out of input parsing leading type in quasiquote"
       (tyToks, _ : rest2) -> pure (tyToks, init $ tail rest2)
-
   -- Parse leading type
   leadingTy <-
     case parseFromToks tyToks of
