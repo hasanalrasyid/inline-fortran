@@ -293,3 +293,4 @@ collectTokensSafe lexer initState =
               Just _tokens -> return $ Just $ _token:_tokens
               _ -> return Nothing
         _ -> return Nothing
+

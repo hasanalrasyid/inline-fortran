@@ -76,7 +76,7 @@ data RustQuasiquoteParse = QQParseR
   , variables :: [(String, Ty Span)]
 
   } | QQParseF
-  { tyQF :: [L.Token]
+  { tyQF :: (Maybe (F.TypeSpec F.A0))
 
   -- | body tokens, with @$(<ident>: <ty>)@ escapes replaced by just @ident@
   , bodyQF :: [L.Token]
@@ -118,10 +118,10 @@ isRBrace :: L.Token -> Bool
 isRBrace (L.TRBrace _) = True
 isRBrace _ = False
 -- Parse the body of the quasiquote
---parseBodyF :: [SpTok] -> [(String, Ty Span)] -> [SpTok]
---          -> Q ([SpTok], [(String, Ty Span)])
-parseBodyF :: [L.Token] -> [(String, L.Token)] -> [L.Token]
-           -> Q ([L.Token],[(String, L.Token)])
+parseBodyF :: [SpLTok] -> [(String, Ty Span)] -> [SpLTok]
+          -> Q ([SpLTok], [(String, Ty Span)])
+--parseBodyF :: [L.Token] -> [(String, L.Token)] -> [L.Token]
+--           -> Q ([L.Token],[(String, L.Token)])
 parseBodyF toks vars rest1 =
   case rest1 of
     [] -> pure (reverse toks, vars)
@@ -226,54 +226,19 @@ parseQQ input = do
     case parseFromToks tyToks of
       Left (ParseFail _ msg) -> fail msg
       Right (parsed :: Ty Span) -> pure parsed
+
+  leadTy <- pure $ tyParser $ B8.pack $ head $ lines input1
   runIO $ do
     putStrLn $ show leadingTy
-    putStrLn $ show tyToksF
---    let xx = sParser $ B8.pack "double precision x,y"
-    let x1 = tyParser $ B8.pack "double precision :: "
---    let xy@(FPM.ParseState ai _ _ _ _) = L.initParseState (B8.pack "::") FPM.Fortran95 "<unknown>"
---    let x2 = xy {FPM.psAlexInput = ai {L.aiPreviousTokensInLine = map getLToken tyToksF }}
---    let xx = parseFromTyToks x2
-    --let x3 = parseFromTyToks x1
-    let dc = L.TDoubleColon FP.initSrcSpan
-      {-
-    let x3 = parseFromTyToks $ FPM.ParseState
-              { FPM.psAlexInput = L.AlexInput { L.aiSourceBytes = B8.pack "double precision     :: "
-                                        , L.aiPosition = FP.Position 0 20 1 ""
-                                        , L.aiEndOffset = 20
-                                        , L.aiPreviousChar = ' '
-                                        , L.aiLexeme = L.Lexeme { L.lexemeMatch = ""
-                                                              , L.lexemeStart = FP.initPosition
-                                                              , L.lexemeEnd = FP.initPosition
-                                                              , L.lexemeIsCmt = False
-                                                              }
-                                        , L.aiStartCode = L.StartCode
-                                                            { L.scActual = 3
-                                                            , L.scStatus = L.Stable
-                                                            }
-                                        , L.aiPreviousToken =
-                                              Just (dc)
-                                        , L.aiPreviousTokensInLine =
-                                            dc:(map getLToken tyToksF)
-                                        }
-              , FPM.psParanthesesCount = FPM.ParanthesesCount {FPM.pcActual = 0, FPM.pcHasReached0 = False}, FPM.psVersion = FPM.Fortran95, FPM.psFilename = "<unknown>", FPM.psContext = [FPM.ConStart]}
-              -}
-
-    putStrLn $ show x1
-
-{-
-  leadTy <-
-    case parseFromToksF tyToksF of
-      Left (FIPM.ParseFail _ msg) -> fail msg
-      Right parsed -> pure parsed
+    putStrLn $ show leadTy
 
   debugIt "r2 ===" [r2]
 
--}
   -- Parse body of quasiquote
   (bodyToks, vars) <- parseBody [] [] rest2
---  (bodyTF, varsF) <- parseBodyF [] [] r2
+  (bodyTF, varsF) <- parseBodyF [] [] r2
   let qq = (QQParseR leadingTy bodyToks vars)
+  let qf = (QQParseF leadTy bodyTF varsF)
 
   -- Done!
   return qq
@@ -353,9 +318,18 @@ sParser sourceCode =
 
 --tyParser :: B8.ByteString -> Maybe (F.TypeSpec F.A0)
 tyParser sourceCode =
-  FPM.execParse PF95.typeParser $ L.initParseState sourceCode FPM.Fortran95 "<unknown>"
+  FPM.evalParse PF95.typeParser $ L.initParseState sourceCode FPM.Fortran95 "<unknown>"
 
-parseFromTyToks x =
+  {-
+kadal = go =<< PF95.typeParser
+  where go :: Maybe (F.TypeSpec F.A0) -> L.LexAction (Maybe (F.TypeSpec F.A0))
+        go Nothing = pure Nothing
+        go a = pure a
+-}
+
+parseFromTyToksExec x =
+  FPM.execParse PF95.typeParser x
+parseFromTyToksEval x =
   FPM.evalParse PF95.typeParser x
 
 
@@ -376,3 +350,17 @@ openParen _ = False
 closeParen :: SpTok -> Bool
 closeParen (Spanned (CloseDelim Paren) _) = True
 closeParen _ = False
+
+collectTokens2 :: forall a b . (FP.Loc b, FPM.Tok a, FPM.LastToken b a, Show a) => FPM.Parse b a a -> FPM.ParseState b -> [a]
+collectTokens2 lexer initState =
+    FPM.evalParse (_collectTokens initState) undefined
+  where
+    _collectTokens :: (FP.Loc b, FPM.Tok a, FPM.LastToken b a, Show a) => FPM.ParseState b -> FPM.Parse b a [a]
+    _collectTokens state = do
+      let (_token, _state) = FPM.runParseUnsafe lexer state
+--      let _mTy = FPM.runParseUnsafe PF95.typeParser state
+      if FPM.eofToken _token then return [_token]
+                             else do
+                               _tokens <- _collectTokens _state
+                               return $ _token:_tokens
+

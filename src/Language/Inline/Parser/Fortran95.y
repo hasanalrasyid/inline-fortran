@@ -5,6 +5,7 @@ module Language.Inline.Parser.Fortran95 ( functionParser
                                          , fortran95Parser
                                          , fortran95ParserWithModFiles
                                          , typeParser
+                                         , parseError
                                          ) where
 
 import Prelude hiding (EQ,LT,GT) -- Same constructors exist in the AST
@@ -32,7 +33,7 @@ import Debug.Trace
 
 %name programParser PROGRAM
 %name statementParser STATEMENT
-%name typeParser MAYBE_TYPE_SPEC
+%name typeParser TAKE_TYPE_SPEC
 %name functionParser SUBPROGRAM_UNIT
 %monad { LexAction }
 %lexer { lexer } { TEOF _ }
@@ -53,6 +54,9 @@ import Debug.Trace
   '::'                        { TDoubleColon _ }
   '='                         { TOpAssign _ }
   '=>'                        { TArrow _ }
+  '{'                         { TLBrace _ }
+  '}'                         { TRBrace _ }
+  sigil                       { TPercent _ }
   '%'                         { TPercent _ }
   '('                         { TLeftPar _ }
   '(2'                        { TLeftPar2 _ }
@@ -878,6 +882,11 @@ DIMENSION_DECLARATOR :: { DimensionDeclarator A0 }
   { let span = getSpan $1
     in DimensionDeclarator () span Nothing Nothing }
 
+TAKE_TYPE_SPEC :: { Maybe (TypeSpec A0) }
+: TYPE_SPEC '{' { Just $1 }
+| TYPE_SPEC { Just $1 }
+| MAYBE_TYPE_SPEC  { $1 }
+
 MAYBE_TYPE_SPEC :: { Maybe (TypeSpec A0) }
 : TYPE_SPEC '::' { Just $1 }
 | {- empty -}    { Nothing }
@@ -1179,16 +1188,12 @@ fortran95ParserWithModFiles mods sourceCode filename =
 parseError :: Token -> LexAction a
 parseError token = do
     parseState <- get
-#ifdef DEBUG
     tokens <- reverse <$> aiPreviousTokensInLine <$> getAlex
-#endif
     fail $ psFilename parseState ++ ": parsing failed. "
       ++ specifics token
-#ifdef DEBUG
       ++ '\n' : show tokens
-#endif
   where specifics (TPause _) = "\nPAUSE statements are not supported in Fortran 95 or later. "
         specifics (TAssign _) = "\nASSIGN statements are not supported in Fortran 95 or later. "
-        specifics _ = ""
+        specifics _ = "no specifics"
 
 }
