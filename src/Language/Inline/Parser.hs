@@ -229,7 +229,8 @@ parseQQ input = do
   runIO $ do
     putStrLn $ show leadingTy
     putStrLn $ show tyToksF
-    let xx = sParser $ B8.pack "double precision x,y"
+--    let xx = sParser $ B8.pack "double precision x,y"
+    let xx = tyParser $ B8.pack "double precision :: "
     putStrLn $ show xx
 {-
   leadTy <-
@@ -317,8 +318,13 @@ instance CommonToken (Spanned Token) where
 parseFromToks :: Parse b => [SpTok] -> Either ParseFail b
 parseFromToks toks = execParserTokens parser toks initPos
 
+sParser :: B8.ByteString -> F.Statement F.A0
 sParser sourceCode =
   FPM.evalParse PF95.statementParser $ L.initParseState sourceCode FPM.Fortran95 "<unknown>"
+
+tyParser :: B8.ByteString -> Maybe (F.TypeSpec F.A0)
+tyParser sourceCode =
+  FPM.evalParse PF95.typeParser $ L.initParseState sourceCode FPM.Fortran95 "<unknown>"
 
 instance CommonToken (Spanned L.Token) where
   openBrace (Spanned (L.TLBrace _) _) = True
