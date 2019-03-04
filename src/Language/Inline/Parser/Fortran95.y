@@ -55,9 +55,6 @@ import Debug.Trace
   '=>'                        { TArrow _ }
   '%'                         { TPercent _ }
   '('                         { TLeftPar _ }
-  sigil                       { TSigil _ }
-  '{'                         { TLBrace _ }
-  '}'                         { TRBrace _ }
   '(2'                        { TLeftPar2 _ }
   ')'                         { TRightPar _ }
   '(/'                        { TLeftInitPar _ }
@@ -247,20 +244,6 @@ SUBPROGRAM_UNITS :: { [ ProgramUnit A0 ] }
 : SUBPROGRAM_UNITS SUBPROGRAM_UNIT NEWLINE { $2 : $1 }
 | {- EMPTY -} { [ ] }
 
-QQ_UNIT :: { ProgramUnit A0 }
-: PREFIXES '{' MAYBE_COMMENT NEWLINE BLOCKS MAYBE_SUBPROGRAM_UNITS '}'
-  {% do {
-          let (pfxs, typeSpec) = case partitionEithers $1 of
-                                   { (ps, t:_) -> fail "Subroutines cannot have return types."
-#                                   { (ps, t:_) -> (fromReverseList' ps, Just t)
-                                   ; (ps, [])  -> (fromReverseList' ps, Nothing) } in
-          let sfx = emptySuffixes in
-          let ss = if null $1 then getTransSpan $2 $9 else getTransSpan (reverse $1) $9 in
-          if validPrefixSuffix (pfxs, sfx) then
-            return $ PUSubroutine () ss          (pfxs, sfx) $3 $4    (reverse $7) $8
-            return $ PUFunction   () ss typeSpec (pfxs, sfx) $3 $4 $5 (reverse $7) $8
-          else fail "Cannot specify elemental along with recursive." } }
-
 SUBPROGRAM_UNIT :: { ProgramUnit A0 }
 : PREFIXES function NAME MAYBE_ARGUMENTS MAYBE_RESULT NEWLINE BLOCKS MAYBE_SUBPROGRAM_UNITS FUNCTION_END
   {% do { unitNameCheck $9 $3;
@@ -283,16 +266,6 @@ SUBPROGRAM_UNIT :: { ProgramUnit A0 }
             return $ PUSubroutine () ss (pfxs, sfx) $3 $4 (reverse $7) $8
           else fail "Cannot specify elemental along with recursive." } }
 | comment { let (TComment s c) = $1 in PUComment () s (Comment c) }
-| PREFIXES '{' MAYBE_COMMENT NEWLINE BLOCKS MAYBE_SUBPROGRAM_UNITS '}'
-  {% do {
-          let (pfxs, typeSpec) = case partitionEithers $1 of
-                                   { (ps, t:_) -> (fromReverseList' ps, Just t)
-                                   ; (ps, [])  -> (fromReverseList' ps, Nothing) } in
-          let sfx = emptySuffixes in
-          let ss = if null $1 then getTransSpan $2 $9 else getTransSpan (reverse $1) $9 in
-          if validPrefixSuffix (pfxs, sfx) then
-            return $ PUSubroutine () ss (pfxs, sfx) $3 $4 (reverse $7) $8
-          else fail "Cannot specify elemental along with recursive." } }
 
 -- (Fortran2003) R1227, Fortran95 (...)
 PREFIXES :: { [Either (Prefix A0) (TypeSpec A0)] }
