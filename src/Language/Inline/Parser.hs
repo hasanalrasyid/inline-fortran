@@ -12,6 +12,7 @@ Portability : GHC
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE TypeApplications #-}
 
 module Language.Inline.Parser where
 
@@ -150,11 +151,11 @@ parseFQ input = do
 
   rest1 <-  case execParser lexer stream initPos of
       Left (ParseFail _ msg) -> fail msg
-      Right parsed -> pure parsed
+      Right (parsed :: [Spanned Token]) -> pure parsed
 
   r1 <- case execParserFortran input of
     Left (ParseFail _ msg) -> fail msg
-    Right parsed -> pure parsed
+    Right (parsed :: [L.Token]) -> pure parsed
   (tyToks , r2) <-
     case break isLBrace r1 of
       (_, []) -> fail "====Ran out of input parsing leading type in quasiquote Fortran"
@@ -208,15 +209,13 @@ parseQQ input = do
   r1' <- case execParserFortran input1 of
     Left (ParseFail _ msg) -> fail msg
     Right parsed -> pure parsed
-  let r1 = map spanLToken r1'
+  let (r1 :: [Spanned L.Token]) = map spanLToken r1'
   debugIt "===test ===" [r1]
   (tyToksF, r2) <-
     case break openBrace r1 of
       (_, []) -> fail "ParseQQ: Ran out of input parsing leading type in quasiquote Fortran"
       (tyToks, lBrace : rest2) -> pure (tyToks, rest2)
-  runIO $ do
-    let ast = PF95.typeParser $ map getLToken tyToksF
-    putStrLn $ show ast
+
   -- Split off the leading type's tokens
   (tyToks, rest2) <-
     case break openBrace rest1 of
@@ -226,7 +225,12 @@ parseQQ input = do
   leadingTy <-
     case parseFromToks tyToks of
       Left (ParseFail _ msg) -> fail msg
-      Right parsed -> pure parsed
+      Right (parsed :: Ty Span) -> pure parsed
+  runIO $ do
+    putStrLn $ show leadingTy
+    putStrLn $ show tyToksF
+    let xx = sParser $ B8.pack "double precision x,y"
+    putStrLn $ show xx
 {-
   leadTy <-
     case parseFromToksF tyToksF of
@@ -312,6 +316,9 @@ instance CommonToken (Spanned Token) where
 
 parseFromToks :: Parse b => [SpTok] -> Either ParseFail b
 parseFromToks toks = execParserTokens parser toks initPos
+
+sParser sourceCode =
+  FPM.evalParse PF95.statementParser $ L.initParseState sourceCode FPM.Fortran95 "<unknown>"
 
 instance CommonToken (Spanned L.Token) where
   openBrace (Spanned (L.TLBrace _) _) = True
