@@ -230,8 +230,37 @@ parseQQ input = do
     putStrLn $ show leadingTy
     putStrLn $ show tyToksF
 --    let xx = sParser $ B8.pack "double precision x,y"
-    let xx = tyParser $ B8.pack "double precision :: "
-    putStrLn $ show xx
+    let x1 = tyParser $ B8.pack "double precision :: "
+--    let xy@(FPM.ParseState ai _ _ _ _) = L.initParseState (B8.pack "::") FPM.Fortran95 "<unknown>"
+--    let x2 = xy {FPM.psAlexInput = ai {L.aiPreviousTokensInLine = map getLToken tyToksF }}
+--    let xx = parseFromTyToks x2
+    --let x3 = parseFromTyToks x1
+    let dc = L.TDoubleColon FP.initSrcSpan
+      {-
+    let x3 = parseFromTyToks $ FPM.ParseState
+              { FPM.psAlexInput = L.AlexInput { L.aiSourceBytes = B8.pack "double precision     :: "
+                                        , L.aiPosition = FP.Position 0 20 1 ""
+                                        , L.aiEndOffset = 20
+                                        , L.aiPreviousChar = ' '
+                                        , L.aiLexeme = L.Lexeme { L.lexemeMatch = ""
+                                                              , L.lexemeStart = FP.initPosition
+                                                              , L.lexemeEnd = FP.initPosition
+                                                              , L.lexemeIsCmt = False
+                                                              }
+                                        , L.aiStartCode = L.StartCode
+                                                            { L.scActual = 3
+                                                            , L.scStatus = L.Stable
+                                                            }
+                                        , L.aiPreviousToken =
+                                              Just (dc)
+                                        , L.aiPreviousTokensInLine =
+                                            dc:(map getLToken tyToksF)
+                                        }
+              , FPM.psParanthesesCount = FPM.ParanthesesCount {FPM.pcActual = 0, FPM.pcHasReached0 = False}, FPM.psVersion = FPM.Fortran95, FPM.psFilename = "<unknown>", FPM.psContext = [FPM.ConStart]}
+              -}
+
+    putStrLn $ show x1
+
 {-
   leadTy <-
     case parseFromToksF tyToksF of
@@ -322,9 +351,13 @@ sParser :: B8.ByteString -> F.Statement F.A0
 sParser sourceCode =
   FPM.evalParse PF95.statementParser $ L.initParseState sourceCode FPM.Fortran95 "<unknown>"
 
-tyParser :: B8.ByteString -> Maybe (F.TypeSpec F.A0)
+--tyParser :: B8.ByteString -> Maybe (F.TypeSpec F.A0)
 tyParser sourceCode =
-  FPM.evalParse PF95.typeParser $ L.initParseState sourceCode FPM.Fortran95 "<unknown>"
+  FPM.execParse PF95.typeParser $ L.initParseState sourceCode FPM.Fortran95 "<unknown>"
+
+parseFromTyToks x =
+  FPM.evalParse PF95.typeParser x
+
 
 instance CommonToken (Spanned L.Token) where
   openBrace (Spanned (L.TLBrace _) _) = True
