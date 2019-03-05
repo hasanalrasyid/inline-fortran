@@ -119,12 +119,6 @@ extendContext qExtension = do
   putQ (ctx <> extension)
   pure []
 
-instance AType FType where
-  getAType rustType = do
-    (qht, qrtOpt) <- getRTypeInContext rustType <$> getContext
-    (,) <$> qht <*> sequence qrtOpt
-
-
 -- | Search in a 'Context' for the Haskell type corresponding to a Rust type.
 getRType :: RType -> Q (HType, Maybe RType)
 getRType rustType = do

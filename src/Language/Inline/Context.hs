@@ -72,6 +72,23 @@ class AType a where
 getContext :: Q Context
 getContext = fromMaybe mempty <$> getQ
 
+instance AType (FType) where
+  lookupRTypeInContext rustType context@(ContextF (rules, _, _)) =
+    foldMap (\fits -> fits rustType context) rules
+
+  getAType rustType = do
+    (qht, qrtOpt) <- getRTypeInContext rustType <$> getContext
+    (,) <$> qht <*> sequence qrtOpt
+
+  getRTypeInContext rustType context@(ContextR _) =
+    case getFirst (lookupRTypeInContext rustType context) of
+      Just found -> found
+      Nothing -> ( fail $ unwords [ "Could not find information about"
+                                  , show rustType
+                                  , "in the context"
+                                  ]
+                 , Nothing )
+
 instance AType (RType) where
   getAType rustType = do
     (qht, qrtOpt) <-  getRTypeInContext rustType <$> getContext

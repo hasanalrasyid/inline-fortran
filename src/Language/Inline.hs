@@ -422,11 +422,11 @@ processQF safety isPure (QQParseF rustRet rustBody rustNamedArgs) = do
   -- argument and return types
   let ii@(rustArgNames, rustArgs) = unzip rustNamedArgs
   debugIt "====argnames, args : " [ii]
-  debugIt "====rustRet : " [void rustRet]
+  aa <- case rustRet of
+                Nothing -> undefined
+                Just r ->  getAType r
+  debugIt "====rustRet : " [aa]
 {-
-  aa@(haskRet, reprCRet) <- case rustRet of
-                              Nothing -> undefined
-                              Just r -> getAType (void r)
   (haskArgs, reprCArgs) <- unzip <$> traverse (getRType . void) rustArgs
 
   -- Convert the Haskell return type to a marshallable FFI type
