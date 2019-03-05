@@ -118,10 +118,10 @@ isRBrace :: L.Token -> Bool
 isRBrace (L.TRBrace _) = True
 isRBrace _ = False
 -- Parse the body of the quasiquote
-parseBodyF :: [SpLTok] -> [(String, Ty Span)] -> [SpLTok]
-          -> Q ([SpLTok], [(String, Ty Span)])
---parseBodyF :: [L.Token] -> [(String, L.Token)] -> [L.Token]
---           -> Q ([L.Token],[(String, L.Token)])
+--parseBodyF :: [SpLTok] -> [(String, Ty Span)] -> [SpLTok]
+--          -> Q ([SpLTok], [(String, Ty Span)])
+parseBodyF :: [L.Token] -> [(String, L.Token)] -> [L.Token]
+           -> Q ([L.Token],[(String, L.Token)])
 parseBodyF toks vars rest1 =
   case rest1 of
     [] -> pure (reverse toks, vars)
@@ -232,13 +232,13 @@ parseQQ input = do
     putStrLn $ show leadingTy
     putStrLn $ show leadTy
 
-  debugIt "r2 ===" [r2]
 
   -- Parse body of quasiquote
   (bodyToks, vars) <- parseBody [] [] rest2
-  (bodyTF, varsF) <- parseBodyF [] [] r2
+  (bodyTF, varsF) <- parseBodyF [] [] $ map getLToken r2
   let qq = (QQParseR leadingTy bodyToks vars)
   let qf = (QQParseF leadTy bodyTF varsF)
+  debugIt "qf ===" [qf]
 
   -- Done!
   return qq
