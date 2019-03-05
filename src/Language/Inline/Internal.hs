@@ -106,8 +106,10 @@ setCrateRoot dependencies = do
 -- ** Contexts
 
 -- | Get the existing context
+  {-
 getContext :: Q Context
 getContext = fromMaybe mempty <$> getQ
+-}
 
 -- | Append to the existing context
 extendContext :: Q Context -> Q [Dec]
@@ -117,13 +119,11 @@ extendContext qExtension = do
   putQ (ctx <> extension)
   pure []
 
-class AType a where
-  getAType :: a ->  Q (HType, Maybe a)
-
-instance AType RType where
+instance AType FType where
   getAType rustType = do
     (qht, qrtOpt) <- getRTypeInContext rustType <$> getContext
     (,) <$> qht <*> sequence qrtOpt
+
 
 -- | Search in a 'Context' for the Haskell type corresponding to a Rust type.
 getRType :: RType -> Q (HType, Maybe RType)

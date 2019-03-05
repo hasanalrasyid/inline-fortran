@@ -13,6 +13,7 @@ Portability : GHC
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MagicHash #-}
+{-# LANGUAGE FlexibleContexts #-}
   {-
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
@@ -49,10 +50,64 @@ import qualified Control.Monad.Fail as Fail
 import qualified Language.Fortran.AST as F
 import qualified Language.Inline.Lexer.FreeForm as L
 
+import Language.Haskell.TH
+import Language.Haskell.TH.Syntax
+import Data.Maybe                  ( fromMaybe )
+
 -- Easier on the eyes
 type RType = Ty ()
 type FType = F.TypeSpec F.A0
 type HType = Type
+
+class AType a where
+  getAType :: a ->  Q (HType, Maybe a)
+  getRTypeInContext :: a -> Context -> (Q HType, Maybe (Q a))
+  lookupRTypeInContext :: a -> Context -> First (Q HType, Maybe (Q a))
+  lookupHTypeInContext :: HType -> Context -> First (Q a)
+  getHTypeInContext :: HType -> Context -> Q a
+
+-- | Partial version of 'lookupRTypeInContext' that fails with an error message
+-- if the type is not convertible.
+-- | Get the existing context
+getContext :: Q Context
+getContext = fromMaybe mempty <$> getQ
+
+instance AType (RType) where
+  getAType rustType = do
+    (qht, qrtOpt) <-  getRTypeInContext rustType <$> getContext
+    (,) <$> qht <*> sequence qrtOpt
+-- | Partial version of 'lookupHTypeInContext' that fails with an error message
+-- if the type is not convertible.
+  getHTypeInContext haskType context =
+    case getFirst (lookupHTypeInContext haskType context) of
+      Just found -> found
+      Nothing -> fail $ unwords [ "Could not find information about"
+                                , pprint haskType
+                                , "in the context"
+                                ]
+  getRTypeInContext rustType context@(ContextR _) =
+    case getFirst (lookupRTypeInContext rustType context) of
+      Just found -> found
+      Nothing -> ( fail $ unwords [ "Could not find information about"
+                                  , renderType rustType
+                                  , "in the context"
+                                  ]
+                 , Nothing )
+
+-- | Search in a 'Context' for the Rust type corresponding to a Haskell type.
+-- Looking up the Rust type using 'lookupRTypeInContext' should yield the
+-- initial Haskell type again.
+  lookupHTypeInContext haskType context@(ContextR (_, rules, _)) =
+    foldMap (\fits -> fits haskType context) rules
+-- | Search in a 'Context' for the Haskell type corresponding to a Rust type.
+-- If the Rust type is not C-compatible, also return a C compatible type. It is
+-- expected that:
+--
+--   1. The Haskell type have a 'Storable' instance
+--   2. The C-compatible Rust type have the same layout
+--
+  lookupRTypeInContext rustType context@(ContextR (rules, _, _)) =
+    foldMap (\fits -> fits rustType context) rules
 
 -- | Represents a prioritized set of rules for mapping Haskell types into Rust
 -- ones and vice versa.
@@ -60,24 +115,7 @@ type HType = Type
 -- The 'Context' argument encodes the fact that we may need look
 -- recursively into the 'Context' again before possibly producing a Haskell
 -- type.
-  {-
-newtype FContext =
-    FContext ( [ FType -> FContext -> First (Q HType, Maybe (Q FType)) ]
-            -- Given a Rust type in a quasiquote, we need to look up the
-            -- corresponding Haskell type (for the FFI import) as well as the
-            -- C-compatible Rust type (if the initial Rust type isn't already
-            -- @#[repr(C)]@.
 
-            , [ HType -> FContext -> First (Q FType) ]
-            -- Given a field in a Haskell ADT, we need to figure out which
-            -- (not-necessarily @#[repr(C)]@) Rust type normally maps into this
-            -- Haskell type.
-
-            , [ String ]
-            -- Source for the trait impls of @MarshalTo@
-            )
-  deriving (Semigroup, Monoid, Typeable)
-  -}
 data Context =
     ContextR ( [ RType -> Context -> First (Q HType, Maybe (Q RType)) ]
             -- Given a Rust type in a quasiquote, we need to look up the
@@ -137,28 +175,6 @@ instance Fail.MonadFail First where
 --   1. The Haskell type have a 'Storable' instance
 --   2. The C-compatible Rust type have the same layout
 --
-  {-
-lookupFTypeInContext :: FType -> FContext -> First (Q HType, Maybe (Q FType))
-lookupFTypeInContext rustType context@(FContext (rules, _, _)) =
-  foldMap (\fits -> fits rustType context) rules
--}
--- | Search in a 'Context' for the Haskell type corresponding to a Rust type.
--- If the Rust type is not C-compatible, also return a C compatible type. It is
--- expected that:
---
---   1. The Haskell type have a 'Storable' instance
---   2. The C-compatible Rust type have the same layout
---
-lookupRTypeInContext :: RType -> Context -> First (Q HType, Maybe (Q RType))
-lookupRTypeInContext rustType context@(ContextR (rules, _, _)) =
-  foldMap (\fits -> fits rustType context) rules
-
--- | Search in a 'Context' for the Rust type corresponding to a Haskell type.
--- Looking up the Rust type using 'lookupRTypeInContext' should yield the
--- initial Haskell type again.
-lookupHTypeInContext :: HType -> Context -> First (Q RType)
-lookupHTypeInContext haskType context@(ContextR (_, rules, _)) =
-  foldMap (\fits -> fits haskType context) rules
 
 -- | Partial version of 'lookupRTypeInContext' that fails with an error message
 -- if the type is not convertible.
@@ -174,52 +190,10 @@ getFTypeInContext rustType context =
                , Nothing )
 -}
 
--- | Partial version of 'lookupRTypeInContext' that fails with an error message
--- if the type is not convertible.
-getRTypeInContext :: RType -> Context -> (Q HType, Maybe (Q RType))
-getRTypeInContext rustType context =
-  case getFirst (lookupRTypeInContext rustType context) of
-    Just found -> found
-    Nothing -> ( fail $ unwords [ "Could not find information about"
-                                , renderType rustType
-                                , "in the context"
-                                ]
-               , Nothing )
-
--- | Partial version of 'lookupHTypeInContext' that fails with an error message
--- if the type is not convertible.
-getHTypeInContext :: HType -> Context -> Q RType
-getHTypeInContext haskType context =
-  case getFirst (lookupHTypeInContext haskType context) of
-    Just found -> found
-    Nothing -> fail $ unwords [ "Could not find information about"
-                              , pprint haskType
-                              , "in the context"
-                              ]
-
 -- | Make a 'Context' consisting of rules to map the Rust types on the left to
 -- the Haskell types on the right. The Rust types should all be @#[repr(C)]@
 -- and the Haskell types should all be 'Storable'.
-  {-
-mkFContext :: [(FType, Q HType, Bool)] -> Q FContext
-mkFContext tys = do
-    tys' <- traverse (\(rt,qht,mkImpl) -> do { ht <- qht; pure (rt,ht,mkImpl) }) tys
-    debugIt "mkFContext: tys'" [tys']
-    pure (FContext ( map fits tys'
-                  , map rev tys'
-                  , map impl tys'
-                  ))
-  where
-    fits (rts, hts, _) rt _ | rt == rts = pure (pure hts, Nothing)
-                            | otherwise = mempty
 
-    rev (rts, hts, _) ht _  | ht == hts = pure (pure rts)
-                            | otherwise = mempty
-
-
-    impl (rts, _, mkImpl)   | mkImpl = implMarshalFInto rts
-                            | otherwise = mempty
--}
 
 mkContext :: [(Ty a, Q HType, Bool)] -> Q Context
 mkContext tys = do
