@@ -60,7 +60,7 @@ data FortQuasiquoteParse = FQParse
   , bodyF :: [L.Token]
 
   -- | escaped arguments
-  , variablesF :: [(String, L.Token)]
+  , variablesF :: [(String, Maybe (F.TypeSpec F.A0))]
 
   } deriving (Show)
 
@@ -82,7 +82,7 @@ data RustQuasiquoteParse = QQParseR
   , bodyQF :: [L.Token]
 
   -- | escaped arguments
-  , variablesQF :: [(String, L.Token)]
+  , variablesQF :: [(String, Maybe (F.TypeSpec F.A0))]
 
   } deriving (Show)
 
@@ -120,19 +120,19 @@ isRBrace _ = False
 -- Parse the body of the quasiquote
 --parseBodyF :: [SpLTok] -> [(String, Ty Span)] -> [SpLTok]
 --          -> Q ([SpLTok], [(String, Ty Span)])
-parseBodyF :: [L.Token] -> [(String, L.Token)] -> [L.Token]
-           -> Q ([L.Token],[(String, L.Token)])
+parseBodyF :: [L.Token] -> [(String, Maybe (F.TypeSpec F.A0))] -> [L.Token]
+           -> Q ([L.Token],[(String, Maybe (F.TypeSpec F.A0))])
 parseBodyF toks vars rest1 =
   case rest1 of
     [] -> pure (reverse toks, vars)
 
     ( L.TSigil l            :
       _  :
-      L.TId _ i       :
+      n@(L.TId _ i)       :
       _ : rest2 ) -> do
        let i' = i
-       let newT = L.TId l i
-       parseBodyF ( newT : toks) ((i',newT):vars) rest2
+       let newT = Nothing
+       parseBodyF ( n : toks) ((i',newT):vars) rest2
 
     (tok : rest2) -> parseBodyF (tok : toks) vars rest2
   where
@@ -174,7 +174,7 @@ parseFQ input = do
 
   -- Parse body of quasiquote
   (bodyTF, varsF) <- parseBodyF [] [] r2
-  let fq = (FQParse tyToks bodyTF varsF)
+  let fq = FQParse tyToks bodyTF varsF
 
   -- Done!
   return fq
@@ -186,7 +186,7 @@ spanLToken a = let (FP.SrcSpan i j) = FP.getSpan a
                 in Spanned a (Span (convPos i) (convPos j))
 getLToken (Spanned a _) = a
 
-parseQQ :: String -> Q RustQuasiquoteParse
+parseQQ :: String -> Q [RustQuasiquoteParse]
 parseQQ input = do
   let lexer = lexTokens lexNonSpace
   let stream = inputStreamFromString input
@@ -236,14 +236,16 @@ parseQQ input = do
   -- Parse body of quasiquote
   (bodyToks, vars) <- parseBody [] [] rest2
   (bodyTF, varsF) <- parseBodyF [] [] $ map getLToken r2
-  let qq = (QQParseR leadingTy bodyToks vars)
-  let qf = (QQParseF leadTy bodyTF varsF)
+  let qq = QQParseR leadingTy bodyToks vars
+  let qf = QQParseF leadTy bodyTF $ map (updateVar leadTy) varsF
   debugIt "qf ===" [qf]
 
   -- Done!
-  return qq
+  return [qq,qf]
 
   where
+    updateVar lt ("ret", _) = ("ret",lt)
+    updateVar _  a = a
     -- Parse the body of the quasiquote
     parseBody :: [SpTok] -> [(String, Ty Span)] -> [SpTok]
               -> Q ([SpTok], [(String, Ty Span)])

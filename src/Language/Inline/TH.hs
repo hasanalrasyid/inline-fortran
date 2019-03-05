@@ -22,7 +22,7 @@ adtCtx :: Name         -- ^ name of the 'Storable' Haskell type
        -> Int          -- ^ how many generic parameters
        -> [String]     -- ^ impl's of @MarshalInto@
        -> Q Context
-adtCtx hADT rEnum rReprCOpt n impls = pure (Context ([ goRType ], [ goHType ], impls))
+adtCtx hADT rEnum rReprCOpt n impls = pure (ContextR ([ goRType ], [ goHType ], impls))
   where
   goRType :: RType -> Context -> First (Q HType, Maybe (Q RType))
   goRType rTy ctx = do

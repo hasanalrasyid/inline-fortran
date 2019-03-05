@@ -58,7 +58,7 @@ prelude = maybeContext <> eitherContext <> mconcat [ tupleContext i | i <- [2..1
 maybeContext :: Q Context
 maybeContext = do
     maybeConT <- [t| Maybe |]
-    pure (Context ([rule],[rev maybeConT],maybeItems))
+    pure (ContextR ([rule],[rev maybeConT],maybeItems))
   where
   rule pt context = do
     PathTy Nothing (Path False [PathSegment "Option" (Just (AngleBracketed [] [t] [] _)) _] _) _ <- pure pt
@@ -79,7 +79,7 @@ maybeContext = do
 eitherContext :: Q Context
 eitherContext = do
     eitherConT <- [t| Either |]
-    pure (Context ([rule],[rev eitherConT],eitherItems))
+    pure (ContextR ([rule],[rev eitherConT],eitherItems))
   where
   rule pt context = do
     PathTy Nothing (Path False [PathSegment "Result" (Just (AngleBracketed [] [l,r] [] _)) _] _) _ <- pure pt
@@ -100,7 +100,7 @@ eitherContext = do
 
 -- | Context for tuple types
 tupleContext :: Int -> Q Context
-tupleContext n = pure (Context ([rule],[rev],tupleItems n))
+tupleContext n = pure (ContextR ([rule],[rev],tupleItems n))
   where
   rule pt ctx = do
     TupTy tys _ <- pure pt

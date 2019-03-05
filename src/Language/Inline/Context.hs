@@ -30,7 +30,7 @@ import Language.Rust.Syntax        ( Ty(BareFn, Ptr), Abi(..), FnDecl(..),
 
 import Language.Haskell.TH
 
-import Data.Semigroup              ( Semigroup, (<>) )
+import qualified Data.Semigroup as SG --            ( Semigroup, (<>) )
 import Data.Monoid                 ( First(..),mempty )
 import Data.Typeable               ( Typeable )
 import Control.Monad               ( void, liftM2, liftM )
@@ -51,7 +51,7 @@ import qualified Language.Inline.Lexer.FreeForm as L
 
 -- Easier on the eyes
 type RType = Ty ()
-type FType = F.BaseType
+type FType = F.TypeSpec F.A0
 type HType = Type
 
 -- | Represents a prioritized set of rules for mapping Haskell types into Rust
@@ -78,8 +78,8 @@ newtype FContext =
             )
   deriving (Semigroup, Monoid, Typeable)
   -}
-newtype Context =
-    Context ( [ RType -> Context -> First (Q HType, Maybe (Q RType)) ]
+data Context =
+    ContextR ( [ RType -> Context -> First (Q HType, Maybe (Q RType)) ]
             -- Given a Rust type in a quasiquote, we need to look up the
             -- corresponding Haskell type (for the FFI import) as well as the
             -- C-compatible Rust type (if the initial Rust type isn't already
@@ -92,18 +92,40 @@ newtype Context =
 
             , [ String ]
             -- Source for the trait impls of @MarshalTo@
-            )
-  deriving (Semigroup, Monoid, Typeable)
+            ) |
+    ContextF ( [ FType -> Context -> First (Q HType, Maybe (Q FType)) ]
+            -- Given a Rust type in a quasiquote, we need to look up the
+            -- corresponding Haskell type (for the FFI import) as well as the
+            -- C-compatible Rust type (if the initial Rust type isn't already
+            -- @#[repr(C)]@.
 
+            , [ HType -> Context -> First (Q FType) ]
+            -- Given a field in a Haskell ADT, we need to figure out which
+            -- (not-necessarily @#[repr(C)]@) Rust type normally maps into this
+            -- Haskell type.
+
+            , [ String ]
+            -- Source for the trait impls of @MarshalTo@
+            )
+  deriving ( Typeable)
 
 -- | Applicative lifting of the 'Context' instance
-instance Semigroup (Q Context) where
-  (<>) = liftM2 (<>)
+instance SG.Semigroup (Q Context) where
+  (<>) = liftM2 (SG.<>)
+instance SG.Semigroup (Context) where
+  (ContextR a) <> (ContextR b) = ContextR $ a <> b
+  (ContextF a) <> (ContextF b) = ContextF $ a <> b
+  (ContextR _) <> (ContextF _) = ContextR mempty
+  (ContextF _) <> (ContextR _) = ContextR mempty
 
 -- | Applicative lifting of the 'Context' instance
 instance Monoid (Q Context) where
-  mappend = (<>)
+  mappend = (SG.<>)
   mempty = pure mempty
+
+instance Monoid (Context) where
+  mappend = (SG.<>)
+  mempty = ContextR ([],[],[])
 
 instance Fail.MonadFail First where
   fail = error
@@ -128,14 +150,14 @@ lookupFTypeInContext rustType context@(FContext (rules, _, _)) =
 --   2. The C-compatible Rust type have the same layout
 --
 lookupRTypeInContext :: RType -> Context -> First (Q HType, Maybe (Q RType))
-lookupRTypeInContext rustType context@(Context (rules, _, _)) =
+lookupRTypeInContext rustType context@(ContextR (rules, _, _)) =
   foldMap (\fits -> fits rustType context) rules
 
 -- | Search in a 'Context' for the Rust type corresponding to a Haskell type.
 -- Looking up the Rust type using 'lookupRTypeInContext' should yield the
 -- initial Haskell type again.
 lookupHTypeInContext :: HType -> Context -> First (Q RType)
-lookupHTypeInContext haskType context@(Context (_, rules, _)) =
+lookupHTypeInContext haskType context@(ContextR (_, rules, _)) =
   foldMap (\fits -> fits haskType context) rules
 
 -- | Partial version of 'lookupRTypeInContext' that fails with an error message
@@ -202,7 +224,7 @@ mkFContext tys = do
 mkContext :: [(Ty a, Q HType, Bool)] -> Q Context
 mkContext tys = do
     tys' <- traverse (\(rt,qht,mkImpl) -> do { ht <- qht; pure (void rt,ht,mkImpl) }) tys
-    pure (Context ( map fits tys'
+    pure (ContextR ( map fits tys'
                   , map rev tys'
                   , map impl tys'
                   ))
@@ -337,7 +359,7 @@ ghcUnboxed = mkContext
 pointers :: Q Context
 pointers = do
     ptrConT <- [t| Ptr |]
-    pure (Context ([rule],[rev ptrConT],[constPtr,mutPtr]))
+    pure (ContextR ([rule],[rev ptrConT],[constPtr,mutPtr]))
   where
   rule pt context = do
     Ptr _ t _ <- pure pt
@@ -376,7 +398,7 @@ functions :: Q Context
 functions = do
   funPtrT <- [t| FunPtr |]
   ioT <- [t| IO |]
-  pure (Context ([rule], [rev funPtrT ioT], [impl]))
+  pure (ContextR ([rule], [rev funPtrT ioT], [impl]))
   where
   rule ft context = do
     BareFn _ C _ (FnDecl args retTy False _) _ <- pure ft

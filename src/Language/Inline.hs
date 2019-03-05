@@ -250,12 +250,12 @@ rustQuasiQuoter safety isPure supportDecs = QuasiQuoter { quoteExp = expQuoter
     err = fail ("(inline-rust): Only " ++ who ++ " can be quasiquoted")
 
     expQuoter qq = do
-      parsed <- parseQQ qq
+      (parsed:parsedF:_) <- parseQQ qq
 --      parsed2 <- parseFQ qq
       -- runIO $ do
       --   putStrLn $ show parsed2
+      _ <- processQF safety isPure parsedF
       processQQ safety isPure parsed
-      -- processFQ safety isPure parsed parsed2
 
     decQuoter | supportDecs = emitCodeBlock
               | otherwise = err
@@ -287,7 +287,7 @@ processQQ safety isPure (QQParseR rustRet rustBody rustNamedArgs) = do
   -- Find out what the corresponding Haskell representations are for the
   -- argument and return types
   let (rustArgNames, rustArgs) = unzip rustNamedArgs
-  (haskRet, reprCRet) <- getRType (void rustRet)
+  (haskRet, reprCRet) <- getAType (void rustRet)
   (haskArgs, reprCArgs) <- unzip <$> traverse (getRType . void) rustArgs
 
   -- Convert the Haskell return type to a marshallable FFI type
@@ -411,8 +411,8 @@ processQQ safety isPure (QQParseR rustRet rustBody rustNamedArgs) = do
 -}
   -- Return the Haskell call to the FFI import
   haskCall
-    {-
-processQQ safety isPure (QQParseF rustRet rustBody rustNamedArgs) = do
+
+processQF safety isPure (QQParseF rustRet rustBody rustNamedArgs) = do
 
   -- Make a name to thread through Haskell/Rust (see Trac #13054)
   q <- runIO randomIO :: Q Word16
@@ -420,8 +420,11 @@ processQQ safety isPure (QQParseF rustRet rustBody rustNamedArgs) = do
   let qqStrName = show qqName
   -- Find out what the corresponding Haskell representations are for the
   -- argument and return types
-  let (rustArgNames, rustArgs) = unzip rustNamedArgs
-  (haskRet, reprCRet) <- getRType (void rustRet)
+  let ii@(rustArgNames, rustArgs) = unzip rustNamedArgs
+  debugIt "====argnames, args : " [ii]
+{-
+  aa@(haskRet, reprCRet) <- getFType (void rustRet)
+  debugIt "====rustRet : " [aa]
   (haskArgs, reprCArgs) <- unzip <$> traverse (getRType . void) rustArgs
 
   -- Convert the Haskell return type to a marshallable FFI type

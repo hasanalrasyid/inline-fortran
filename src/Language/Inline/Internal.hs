@@ -8,6 +8,9 @@ Stability   : experimental
 Portability : GHC
 -}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 module Language.Inline.Internal (
   emitCodeBlock,
@@ -18,6 +21,7 @@ module Language.Inline.Internal (
   initCodeBlocks,
   setCrateRoot,
   setCrateModule,
+  getAType
 ) where
 
 import Language.Inline.Context
@@ -40,7 +44,6 @@ import System.Process              ( readProcess)
 import System.Environment          ( setEnv )
 
 import Text.JSON
-
 
 -- * Module State
 
@@ -114,11 +117,25 @@ extendContext qExtension = do
   putQ (ctx <> extension)
   pure []
 
+class AType a where
+  getAType :: a ->  Q (HType, Maybe a)
+
+instance AType RType where
+  getAType rustType = do
+    (qht, qrtOpt) <- getRTypeInContext rustType <$> getContext
+    (,) <$> qht <*> sequence qrtOpt
+
 -- | Search in a 'Context' for the Haskell type corresponding to a Rust type.
 getRType :: RType -> Q (HType, Maybe RType)
 getRType rustType = do
   (qht, qrtOpt) <- getRTypeInContext rustType <$> getContext
   (,) <$> qht <*> sequence qrtOpt
+    {-
+getFType :: FType -> Q (HType, Maybe FType)
+getFType rustType = do
+  (qht, qrtOpt) <- getRTypeInContext rustType <$> getContext
+  (,) <$> qht <*> sequence qrtOpt
+-}
 
 -- | Search in a 'Context' for the Rust type corresponding to a Haskell type.
 getHType :: HType -> Q RType
@@ -230,7 +247,7 @@ fileFinalizer = do
 
   -- Figure out what we are putting into this file
   Just cb <- getQ
-  Just (Context (_,_,impls)) <- getQ
+  Just (ContextR (_,_,impls)) <- getQ
   let code = showsCodeBlocks cb
     {-
            . showString "pub mod marshal {\n"
