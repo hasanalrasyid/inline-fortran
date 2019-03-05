@@ -75,6 +75,7 @@ getContext = fromMaybe mempty <$> getQ
 instance AType (FType) where
   lookupRTypeInContext rustType context@(ContextF (rules, _, _)) =
     foldMap (\fits -> fits rustType context) rules
+  lookupRTypeInContext rustType context@(ContextR (rules, _, _)) = First Nothing
 
   getAType rustType = do
     (qht, qrtOpt) <- getRTypeInContext rustType <$> getContext
