@@ -66,7 +66,7 @@ import Control.Monad                    ( (>=>) )
 import Data.Functor                     ( ($>) )
 import Data.Typeable                    ( cast, Typeable )
 import Data.Data                        ( Data )
-
+import qualified Language.Fortran.AST as F
 -- | Given a parser, convert it into a quasiquoter. The quasiquoter produced does not support
 -- declarations and types. For patterns, it replaces any 'Span' and 'Position' field with a
 -- wild pattern.
@@ -217,6 +217,8 @@ traitItem = quoter parseTraitItem
 tokenTree :: QuasiQuoter
 tokenTree = quoter parseTt
 
+ftyParser :: P (L.LexAction (Maybe (F.TypeSpec F.A0)))
+ftyParser = pure $ PF.typeParser
 
 tyF :: QuasiQuoter
-tyF = quoter P.tyParser
+tyF = quoter ftyParser

@@ -866,7 +866,7 @@ instance Loc AlexInput where
 instance LastToken AlexInput Token where
   getLastToken = aiPreviousToken
 
-type LexAction a = Parse AlexInput Token a
+type LexAction a = Parse AlexInput Token a 
 
 vanillaAlexInput :: AlexInput
 vanillaAlexInput = AlexInput

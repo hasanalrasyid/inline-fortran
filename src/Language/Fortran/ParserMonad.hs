@@ -61,7 +61,7 @@ selectFortranVersion alias = snd <$> find (\ entry -> fst entry `isInfixOf` map 
 data ParanthesesCount = ParanthesesCount
   { pcActual :: Integer
   , pcHasReached0 :: Bool }
-  deriving (Show, Eq)
+  deriving (Show, Eq,Data)
 
 data Context =
     ConStart
@@ -69,7 +69,7 @@ data Context =
   | ConImplicit
   | ConNamelist
   | ConCommon
-  deriving (Show, Eq)
+  deriving (Show, Eq,Data)
 
 data ParseState a = ParseState
   { psAlexInput :: a
@@ -78,7 +78,7 @@ data ParseState a = ParseState
   , psFilename :: String -- To save correct source location in AST
   , psContext :: [ Context ]
   }
-  deriving (Show)
+  deriving (Show,Data)
 
 data ParseError a b = ParseError
   { errPos        :: Position
