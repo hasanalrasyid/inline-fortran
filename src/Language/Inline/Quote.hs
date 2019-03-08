@@ -23,7 +23,7 @@ The examples below assume the following GHCi flag and import:
 
 
 module Language.Inline.Quote (
-  lit, attr,  pat, stmt, expr, item, sourceFile, implItem, traitItem, tokenTree, block
+  lit, attr,  pat, stmt, expr, item, sourceFile, implItem, traitItem, tokenTree, block, tyF
 ) where
 
 {-
@@ -217,3 +217,6 @@ traitItem = quoter parseTraitItem
 tokenTree :: QuasiQuoter
 tokenTree = quoter parseTt
 
+
+tyF :: QuasiQuoter
+tyF = quoter P.tyParser

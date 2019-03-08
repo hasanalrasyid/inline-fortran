@@ -14,6 +14,7 @@ Portability : GHC
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE TypeApplications #-}
   {-
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
@@ -60,6 +61,7 @@ type FType = F.TypeSpec F.A0
 type HType = Type
 
 class AType a where
+  idType :: a -> a
   getAType :: a ->  Q (HType, Maybe a)
   getRTypeInContext :: a -> Context -> (Q HType, Maybe (Q a))
   lookupRTypeInContext :: a -> Context -> First (Q HType, Maybe (Q a))
@@ -213,7 +215,28 @@ getFTypeInContext rustType context =
 -- and the Haskell types should all be 'Storable'.
 
 
-mkContext :: [(Ty a, Q HType, Bool)] -> Q Context
+type ContextPrototype a = (a, Q HType, Bool)
+
+
+
+--mkContext :: [(Ty r, Q HType, Bool)] -> Q Context
+mkContextF tys = do
+    tys' <- traverse (\(rt,qht,mkImpl) -> do { ht <- qht; pure (rt,ht,mkImpl) }) tys
+    pure (ContextF ( map fits tys'
+                  , map rev tys'
+                  , map impl tys'
+                  ))
+  where
+    fits (rts, hts, _) rt _ | rt == rts = pure (pure hts, Nothing)
+                            | otherwise = mempty
+
+    rev (rts, hts, _) ht _  | ht == hts = pure (pure rts)
+                            | otherwise = mempty
+
+
+    impl (rts, _, mkImpl)   | mkImpl = "unimplemented"
+                            | otherwise = mempty
+
 mkContext tys = do
     tys' <- traverse (\(rt,qht,mkImpl) -> do { ht <- qht; pure (void rt,ht,mkImpl) }) tys
     pure (ContextR ( map fits tys'
@@ -233,14 +256,16 @@ mkContext tys = do
 
 
 -- | Make a default @MarshalInto@ trait impl. (An identity impl)
+  {-
 implMarshalFInto :: F.BaseType -> String
 implMarshalFInto t = unlines [ "impl MarshalInto<" ++ tyStr ++ "> for " ++ tyStr ++ " {"
                              , "  fn marshal(self) -> " ++ tyStr ++ " { self }"
                              , "}"
                              ]
   where tyStr = renderFType t
+-}
 
-implMarshalInto :: Ty () -> String
+--implMarshalInto :: Ty () -> String
 implMarshalInto t = unlines [ "impl MarshalInto<" ++ tyStr ++ "> for " ++ tyStr ++ " {"
                              , "  fn marshal(self) -> " ++ tyStr ++ " { self }"
                              , "}"
@@ -309,6 +334,10 @@ fbasic = mkFContext
   [ ([tyF| double precision |], [t| Double    |], True) -- 4 bytes
   ]
   -}
+basicF :: Q Context
+basicF = mkContextF $
+   ([tyF| f64   |], [t| Double  |], True):
+   []
 
 basic :: Q Context
 basic = mkContext
