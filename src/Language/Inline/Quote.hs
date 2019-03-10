@@ -72,6 +72,7 @@ import Data.Data                        ( Data )
 import qualified Language.Fortran.AST as F
 import qualified Language.Fortran.ParserMonad  as FPM
 import Control.Monad.Trans              (lift)
+import  Language.Inline.Utils
 
 -- | Given a parser, convert it into a quasiquoter. The quasiquoter produced does not support
 -- declarations and types. For patterns, it replaces any 'Span' and 'Position' field with a
@@ -100,7 +101,7 @@ quoterF p = QuasiQuoter
   wildSpanPos x = ((cast x :: Maybe Span) $> wildP) <|> ((cast x :: Maybe Position) $> wildP)
 
 
-quoter :: Data a => P a -> QuasiQuoter
+quoter :: String -> QuasiQuoter
 quoter p = QuasiQuoter
              { quoteExp = parse >=> dataToExpQ (const Nothing)
              , quotePat = parse >=> dataToPatQ wildSpanPos
@@ -109,6 +110,7 @@ quoter p = QuasiQuoter
              }
   where
   -- | Given a parser and an input string, turn it into the corresponding Haskell expression/pattern.
+  -- di sini harus bisa dibedakan antara parser fortran dan parser Rust
   parse inp = do
     Loc{ loc_start = (r,c) } <- location
 

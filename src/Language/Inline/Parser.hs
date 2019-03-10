@@ -191,6 +191,7 @@ parseQQ input = do
   let lexer = lexTokens lexNonSpace
   let stream = inputStreamFromString input
   -- Lex the quasiquote tokens
+  let input2 = "    double precision "
   let input1 = unlines $
                   "    double precision {":
                   "      double precision a,b,c,eps":
