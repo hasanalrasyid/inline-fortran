@@ -833,7 +833,7 @@ data Lexeme = Lexeme
   , lexemeStart :: {-# UNPACK #-} !Position
   , lexemeEnd   :: {-# UNPACK #-} !Position
   , lexemeIsCmt :: !Bool
-  } deriving (Show)
+  } deriving (Show, Data)
 
 initLexeme :: Lexeme
 initLexeme = Lexeme
@@ -842,12 +842,12 @@ initLexeme = Lexeme
   , lexemeEnd   = invalidPosition
   , lexemeIsCmt = False }
 
-data StartCodeStatus = Return | Stable deriving (Show)
+data StartCodeStatus = Return | Stable deriving (Show,Data)
 
 data StartCode = StartCode
   { scActual :: {-# UNPACK #-} !Int
   , scStatus :: !StartCodeStatus }
-  deriving (Show)
+  deriving (Show,Data)
 
 data AlexInput = AlexInput
   { aiSourceBytes               :: !B.ByteString
@@ -858,7 +858,7 @@ data AlexInput = AlexInput
   , aiStartCode                 :: {-# UNPACK #-} !StartCode
   , aiPreviousToken             :: !(Maybe Token)
   , aiPreviousTokensInLine      :: !([ Token ])
-  } deriving (Show)
+  } deriving (Show, Data)
 
 instance Loc AlexInput where
   getPos = aiPosition
@@ -866,7 +866,7 @@ instance Loc AlexInput where
 instance LastToken AlexInput Token where
   getLastToken = aiPreviousToken
 
-type LexAction a = Parse AlexInput Token a 
+type LexAction a = Parse AlexInput Token a
 
 vanillaAlexInput :: AlexInput
 vanillaAlexInput = AlexInput

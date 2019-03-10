@@ -227,7 +227,7 @@ parseQQ input = do
       Left (ParseFail _ msg) -> fail msg
       Right (parsed :: Ty Span) -> pure parsed
 
-  leadTy <- pure $ tyParser $ B8.pack $ head $ lines input1
+  leadTy <- pure $ Just $ tyParser $ B8.pack $ head $ lines input1
   runIO $ do
     putStrLn $ show leadingTy
     putStrLn $ show leadTy

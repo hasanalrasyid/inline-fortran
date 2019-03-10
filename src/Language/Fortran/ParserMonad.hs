@@ -84,7 +84,7 @@ data ParseError a b = ParseError
   { errPos        :: Position
   , errLastToken  :: Maybe b
   , errFilename   :: String
-  , errMsg        :: String }
+  , errMsg        :: String } deriving (Data)
 
 
 instance Show b => Show (ParseError a b) where
@@ -102,14 +102,14 @@ instance Functor (ParseResult b c) where
 
 instance (Typeable a, Typeable b, Show a, Show b) => Exception (ParseError a b)
 
-data ParseResult b c a = ParseOk a (ParseState b) | ParseFailed (ParseError b c)
+data ParseResult b c a = ParseOk a (ParseState b) | ParseFailed (ParseError b c) deriving (Data)
 
 -- Provides a way to aggregate errors that come
 -- from parses with different token types
 data ParseErrorSimple = ParseErrorSimple
   { errorPos      :: Position
   , errorFilename :: String
-  , errorMsg      :: String }
+  , errorMsg      :: String } deriving (Data)
 
 fromParseResultUnsafe :: (Show c) => ParseResult b c a -> a
 fromParseResultUnsafe (ParseOk a _) = a

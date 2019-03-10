@@ -882,10 +882,9 @@ DIMENSION_DECLARATOR :: { DimensionDeclarator A0 }
   { let span = getSpan $1
     in DimensionDeclarator () span Nothing Nothing }
 
-TAKE_TYPE_SPEC :: { Maybe (TypeSpec A0) }
-: TYPE_SPEC '{' { Just $1 }
-| TYPE_SPEC { Just $1 }
-| MAYBE_TYPE_SPEC  { $1 }
+TAKE_TYPE_SPEC :: { (TypeSpec A0) }
+: TYPE_SPEC '{' { $1 }
+| TYPE_SPEC { $1 }
 
 MAYBE_TYPE_SPEC :: { Maybe (TypeSpec A0) }
 : TYPE_SPEC '::' { Just $1 }

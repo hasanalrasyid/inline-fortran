@@ -333,11 +333,11 @@ fbasic :: Q FContext
 fbasic = mkFContext
   [ ([tyF| double precision |], [t| Double    |], True) -- 4 bytes
   ]
-  -}
 basicF :: Q Context
 basicF = mkContextF $
-   ([tyF| f64   |], [t| Double  |], True):
+   ([tyF| double precision   |], [t| Double  |], True):
    []
+  -}
 
 basic :: Q Context
 basic = mkContext
@@ -356,6 +356,7 @@ basic = mkContext
   , ([ty| usize |], [t| Word    |], True)
   , ([ty| bool  |], [t| Word8   |], True)
   , ([ty| ()    |], [t| ()      |], True)
+  , ([tyF| double precision   |], [t| Double  |], True)
   ]
 
 -- | Basic unboxed Haskell types

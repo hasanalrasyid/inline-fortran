@@ -21,6 +21,9 @@ The examples below assume the following GHCi flag and import:
 >>> import Control.Monad ( void )
 -}
 
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 module Language.Inline.Quote (
   lit, attr,  pat, stmt, expr, item, sourceFile, implItem, traitItem, tokenTree, block, tyF
@@ -62,11 +65,14 @@ import Language.Haskell.TH
 import Language.Haskell.TH.Quote        ( QuasiQuoter(..), dataToExpQ, dataToPatQ )
 
 import Control.Applicative              ( (<|>) )
-import Control.Monad                    ( (>=>) )
+import Control.Monad                    ( (>=>),liftM )
 import Data.Functor                     ( ($>) )
 import Data.Typeable                    ( cast, Typeable )
 import Data.Data                        ( Data )
 import qualified Language.Fortran.AST as F
+import qualified Language.Fortran.ParserMonad  as FPM
+import Control.Monad.Trans              (lift)
+
 -- | Given a parser, convert it into a quasiquoter. The quasiquoter produced does not support
 -- declarations and types. For patterns, it replaces any 'Span' and 'Position' field with a
 -- wild pattern.
@@ -137,8 +143,6 @@ attr = quoter parseAttr
 -- >>> void [ty| &(_,_) |]
 -- Rptr Nothing Immutable (TupTy [Infer (),Infer ()] ()) ()
 --
---tyF :: QuasiQuoter
---tyF = quoterF PF.typeParser
 
 -- | Quasiquoter for patterns (see 'Language.Rust.Syntax.Pat')
 --
@@ -217,8 +221,12 @@ traitItem = quoter parseTraitItem
 tokenTree :: QuasiQuoter
 tokenTree = quoter parseTt
 
-ftyParser :: P (L.LexAction (Maybe (F.TypeSpec F.A0)))
-ftyParser = pure $ PF.typeParser
+ftyParser :: P (LA (F.TypeSpec F.A0))
+ftyParser = pure $ PF.typeParser --  go PF.typeParser
+
+type LA a = FPM.Parse L.AlexInput L.Token a
+
+deriving instance Data (LA (F.TypeSpec F.A0))
 
 tyF :: QuasiQuoter
 tyF = quoter ftyParser
