@@ -24,6 +24,8 @@ The examples below assume the following GHCi flag and import:
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE BangPatterns #-}
 
 module Language.Inline.Quote (
   lit, attr,  pat, stmt, expr, item, sourceFile, implItem, traitItem, tokenTree, block, tyF
@@ -52,7 +54,7 @@ i32
 For now, however, you cannot use @$x@ or @$x:ty@ meta variables.
 -}
 
-import qualified Language.Inline.Parser.Fortran95 as PF
+import qualified Language.Inline.Parser.Fortran95 as PF95
 import qualified Language.Inline.Lexer.FreeForm as L
 import qualified Language.Inline.Parser as P
 
@@ -67,41 +69,34 @@ import Language.Haskell.TH.Quote        ( QuasiQuoter(..), dataToExpQ, dataToPat
 import Control.Applicative              ( (<|>) )
 import Control.Monad                    ( (>=>),liftM )
 import Data.Functor                     ( ($>) )
-import Data.Typeable                    ( cast, Typeable )
-import Data.Data                        ( Data )
+import Data.Typeable                    ( cast, Typeable)
+import Data.Data                        ( Data, typeOf )
 import qualified Language.Fortran.AST as F
 import qualified Language.Fortran.ParserMonad  as FPM
 import Control.Monad.Trans              (lift)
 import  Language.Inline.Utils
+import qualified Language.Rust.Pretty as RP
+import qualified Data.ByteString.Char8 as B8
 
 -- | Given a parser, convert it into a quasiquoter. The quasiquoter produced does not support
 -- declarations and types. For patterns, it replaces any 'Span' and 'Position' field with a
 -- wild pattern.
-quoterF :: Data a => L.LexAction a -> QuasiQuoter
+quoterF :: Data a => P (LA a) -> QuasiQuoter
 quoterF p = QuasiQuoter
              { quoteExp = parse >=> dataToExpQ (const Nothing)
-             , quotePat = error "this quasiquoter does not support Pattern"
-             -- , quotePat = parse >=> dataToPatQ wildSpanPos
+             --, quotePat = (parse (choose p)) >=> dataToPatQ wildSpanPos
+             , quotePat =  error "this quasiquoter does not support Pattern"
              , quoteDec = error "this quasiquoter does not support declarations"
              , quoteType = error "this quasiquoter does not support types"
              }
   where
-  -- | Given a parser and an input string, turn it into the corresponding Haskell expression/pattern.
-  parse inp = do
---    Loc{ loc_start = (r,c) } <- location
-
-    -- Run the parser
-    --case execParser p (inputStreamFromString inp) (Position 0 r c) of
-    case P.execParserFortran inp of
-      Left (ParseFail _ msg) -> fail $ "error@Quote:89 " ++ msg
-      Right x -> pure x
+  parse inp = pure $ FPM.evalParse PF95.typeParser $ L.initParseState (B8.pack inp) FPM.Fortran95 "<unknown>"
 
   -- | Replace 'Span' and 'Position' with wild patterns
   wildSpanPos :: Typeable b => b -> Maybe (Q Pat)
   wildSpanPos x = ((cast x :: Maybe Span) $> wildP) <|> ((cast x :: Maybe Position) $> wildP)
 
-
-quoter :: String -> QuasiQuoter
+quoter :: Data a => P a -> QuasiQuoter
 quoter p = QuasiQuoter
              { quoteExp = parse >=> dataToExpQ (const Nothing)
              , quotePat = parse >=> dataToPatQ wildSpanPos
@@ -112,12 +107,12 @@ quoter p = QuasiQuoter
   -- | Given a parser and an input string, turn it into the corresponding Haskell expression/pattern.
   -- di sini harus bisa dibedakan antara parser fortran dan parser Rust
   parse inp = do
-    Loc{ loc_start = (r,c) } <- location
+          Loc{ loc_start = (r,c) } <- location
 
-    -- Run the parser
-    case execParser p (inputStreamFromString inp) (Position 0 r c) of
-      Left (ParseFail _ msg) -> fail msg
-      Right x -> pure x
+          -- Run the parser
+          case execParser p (inputStreamFromString inp) (Position 0 r c) of
+            Left (ParseFail _ msg) -> fail $ msg ++ "Language.Inline.Quote:120"
+            Right x -> pure x
 
   -- | Replace 'Span' and 'Position' with wild patterns
   wildSpanPos :: Typeable b => b -> Maybe (Q Pat)
@@ -224,11 +219,11 @@ tokenTree :: QuasiQuoter
 tokenTree = quoter parseTt
 
 ftyParser :: P (LA (F.TypeSpec F.A0))
-ftyParser = pure $ PF.typeParser --  go PF.typeParser
+ftyParser = pure $ PF95.typeParser --  go PF.typeParser
 
 type LA a = FPM.Parse L.AlexInput L.Token a
 
 deriving instance Data (LA (F.TypeSpec F.A0))
 
 tyF :: QuasiQuoter
-tyF = quoter ftyParser
+tyF = quoterF ftyParser
