@@ -6,6 +6,8 @@ import Language.Inline
 import Data.Int
 
 extendContext basic
+extendContext ghcUnboxed
+--extendContext basicF
 
 setCrateRoot []
 
