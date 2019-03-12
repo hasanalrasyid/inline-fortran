@@ -84,8 +84,8 @@ import qualified Data.ByteString.Char8 as B8
 quoterF :: Data a => P (LA a) -> QuasiQuoter
 quoterF p = QuasiQuoter
              { quoteExp = parse >=> dataToExpQ (const Nothing)
-             --, quotePat = (parse (choose p)) >=> dataToPatQ wildSpanPos
-             , quotePat =  error "this quasiquoter does not support Pattern"
+             , quotePat = parse >=> dataToPatQ wildSpanPos
+--             , quotePat =  error "this quasiquoter does not support Pattern"
              , quoteDec = error "this quasiquoter does not support declarations"
              , quoteType = error "this quasiquoter does not support types"
              }

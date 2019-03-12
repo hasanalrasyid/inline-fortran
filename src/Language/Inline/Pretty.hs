@@ -33,7 +33,7 @@ render = renderString . layoutPretty defaultLayoutOptions . prettyUnresolved
 -- | Render a Rust type into a 'String'.
 renderType :: Ty a -> String
 renderType = render
-renderFType :: F.BaseType -> String
+renderFType :: F.TypeSpec F.A0 -> String
 renderFType t = FPP.pprintAndRender FPM.Fortran95 t Nothing
 
 -- | Render a Rust item into a 'String'.

@@ -423,6 +423,11 @@ processQF safety isPure (QQParseF rustRet rustBody rustNamedArgs) = do
   -- argument and return types
   let ii@(rustArgNames, rustArgs) = unzip rustNamedArgs
   debugIt "====argnames, args : " [ii]
+  rr <- case rustRet of
+          Nothing -> undefined
+          Just r -> pure r
+  (ContextR (cfa,cfb,cfc)) <- getContext
+  debugIt "====argnames, args : " [length cfc]
   aa <- case rustRet of
                 Nothing -> undefined
                 Just r ->  getAType r
