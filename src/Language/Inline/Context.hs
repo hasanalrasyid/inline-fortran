@@ -140,14 +140,17 @@ instance AType (RType) where
 newtype Type2H t = Type2H (t -> Context -> First (Q HType, Maybe (Q t)))
 newtype H2Type t = H2Type (HType -> Context -> First (Q t))
 
+data T2H = Rust2H (Type2H RType) | Fort2H (Type2H FType)
+data H2T = H2Rust (H2Type RType) | H2Fort (Type2H FType)
+
 data Context =
-    ContextA ( [ Type2H RType ]
+    ContextA ( [ T2H ]
             -- Given a Rust type in a quasiquote, we need to look up the
             -- corresponding Haskell type (for the FFI import) as well as the
             -- C-compatible Rust type (if the initial Rust type isn't already
             -- @#[repr(C)]@.
 
-            , [ H2Type RType ]
+            , [ H2T ]
             -- Given a field in a Haskell ADT, we need to figure out which
             -- (not-necessarily @#[repr(C)]@) Rust type normally maps into this
             -- Haskell type.
@@ -252,7 +255,7 @@ mkContextF tys = do
                             | otherwise = mempty
 
 
-    impl (rts, _, mkImpl)   | mkImpl = "unimplemented1"
+    impl (rts, _, mkImpl)   |mkImpl = "unimplemented1"
                             | otherwise = mempty
 
 mkContext tys = do
