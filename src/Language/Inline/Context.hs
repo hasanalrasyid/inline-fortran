@@ -14,7 +14,7 @@ Portability : GHC
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE RankNTypes #-}
   {-
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
@@ -137,7 +137,7 @@ instance AType (RType) where
 -- type.
 
 
-newtype Type2H t = Type2H (t -> Context -> First (Q HType, Maybe (Q t)))
+type Type2H t = forall t. Show t => (t -> Context -> First (Q HType, Maybe (Q t)))
 newtype H2Type t = H2Type (HType -> Context -> First (Q t))
 
 data T2H = Rust2H (Type2H RType) | Fort2H (Type2H FType)
@@ -239,11 +239,13 @@ getFTypeInContext rustType context =
 type ContextPrototype a = (a, Q HType, Bool)
 
 
+--mkT2H :: (t -> Context -> First (Q HType, Maybe (Q t))) -> T2H
+--mkT2H (at :: Type2H FType) = Fort2H at
 
 --mkContext :: [(Ty r, Q HType, Bool)] -> Q Context
 mkContextF tys = do
     tys' <- traverse (\(rt,qht,mkImpl) -> do { ht <- qht; pure (rt,ht,mkImpl) }) tys
-    pure (ContextF ( map fits tys'
+    pure (ContextA ( map (mkT2H . fits) tys'
                   , map rev tys'
                   , map impl tys'
                   ))
