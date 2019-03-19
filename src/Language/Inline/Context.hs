@@ -136,7 +136,25 @@ instance AType (RType) where
 -- recursively into the 'Context' again before possibly producing a Haskell
 -- type.
 
+
+newtype Type2H t = Type2H (t -> Context -> First (Q HType, Maybe (Q t)))
+newtype H2Type t = H2Type (HType -> Context -> First (Q t))
+
 data Context =
+    ContextA ( [ Type2H RType ]
+            -- Given a Rust type in a quasiquote, we need to look up the
+            -- corresponding Haskell type (for the FFI import) as well as the
+            -- C-compatible Rust type (if the initial Rust type isn't already
+            -- @#[repr(C)]@.
+
+            , [ H2Type RType ]
+            -- Given a field in a Haskell ADT, we need to figure out which
+            -- (not-necessarily @#[repr(C)]@) Rust type normally maps into this
+            -- Haskell type.
+
+            , [ String ]
+            -- Source for the trait impls of @MarshalTo@
+            ) |
     ContextR ( [ RType -> Context -> First (Q HType, Maybe (Q RType)) ]
             -- Given a Rust type in a quasiquote, we need to look up the
             -- corresponding Haskell type (for the FFI import) as well as the
@@ -333,11 +351,11 @@ fbasic :: Q FContext
 fbasic = mkFContext
   [ ([tyF| double precision |], [t| Double    |], True) -- 4 bytes
   ]
-  -}
 basicF :: Q Context
 basicF = mkContextF $
    ([tyF|     double precision   |], [t| Double  |], True):
    []
+  -}
 
 basic :: Q Context
 basic = mkContext

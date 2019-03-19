@@ -51,7 +51,7 @@ module Language.Inline (
   getHTypeInContext,
   -- ** Built-in contexts
   basic,
-  basicF,
+  --basicF,
   libc,
   ghcUnboxed,
   functions,
