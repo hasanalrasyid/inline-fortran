@@ -190,7 +190,7 @@ data Context =
             , [ String ]
             -- Source for the trait impls of @MarshalTo@
             )
-  deriving ( Typeable)
+  deriving (Typeable)
 
 -- | Applicative lifting of the 'Context' instance
 instance SG.Semigroup (Q Context) where
