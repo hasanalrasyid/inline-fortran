@@ -15,7 +15,9 @@ Portability : GHC
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RankNTypes #-}
-  {-
+{-# LANGUAGE GADTs #-}
+
+{-
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 -}
@@ -34,7 +36,7 @@ import Language.Haskell.TH
 
 import qualified Data.Semigroup as SG --            ( Semigroup, (<>) )
 import Data.Monoid                 ( First(..),mempty )
-import Data.Typeable               ( Typeable )
+import Data.Typeable               ( Typeable,typeOf )
 import Control.Monad               ( void, liftM2, liftM )
 import Data.Traversable            ( for )
 import Data.List                   ( intercalate )
@@ -54,6 +56,8 @@ import qualified Language.Inline.Lexer.FreeForm as L
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
 import Data.Maybe                  ( fromMaybe )
+import Data.Dynamic
+import Unsafe.Coerce
 
 -- Easier on the eyes
 type RType = Ty ()
@@ -144,13 +148,13 @@ data T2H = Rust2H (Type2H RType) | Fort2H (Type2H FType)
 data H2T = H2Rust (H2Type RType) | H2Fort (Type2H FType)
 
 data Context =
-    ContextA ( [ T2H ]
+    ContextA ( [ (Dynamic -> Context -> First (Q HType, Maybe (Q Dynamic))) ]
             -- Given a Rust type in a quasiquote, we need to look up the
             -- corresponding Haskell type (for the FFI import) as well as the
             -- C-compatible Rust type (if the initial Rust type isn't already
             -- @#[repr(C)]@.
 
-            , [ H2T ]
+            , [ (HType -> Context -> First (Q Dynamic))]
             -- Given a field in a Haskell ADT, we need to figure out which
             -- (not-necessarily @#[repr(C)]@) Rust type normally maps into this
             -- Haskell type.
@@ -242,10 +246,26 @@ type ContextPrototype a = (a, Q HType, Bool)
 --mkT2H :: (t -> Context -> First (Q HType, Maybe (Q t))) -> T2H
 --mkT2H (at :: Type2H FType) = Fort2H at
 
+data EqDyn = forall a.(Typeable a, Eq a)=> EqDyn a
+
+instance Eq EqDyn where
+ (EqDyn x) == (EqDyn y)= typeOf x== typeOf y && x== unsafeCoerce y
+
+instance Eq Dynamic where
+  x == y =
+      let x' = fromDynamic x
+          y' = fromDynamic y
+      in case x' of
+                   Nothing -> False
+                   Just  a -> case y' of
+                                Nothing -> False
+                                Just  b -> typeOf b == typeOf a
+
 --mkContext :: [(Ty r, Q HType, Bool)] -> Q Context
+  {-
 mkContextF tys = do
     tys' <- traverse (\(rt,qht,mkImpl) -> do { ht <- qht; pure (rt,ht,mkImpl) }) tys
-    pure (ContextA ( map (mkT2H . fits) tys'
+    pure (ContextA ( map fits tys'
                   , map rev tys'
                   , map impl tys'
                   ))
@@ -259,22 +279,30 @@ mkContextF tys = do
 
     impl (rts, _, mkImpl)   |mkImpl = "unimplemented1"
                             | otherwise = mempty
+-}
 
 mkContext tys = do
-    tys' <- traverse (\(rt,qht,mkImpl) -> do { ht <- qht; pure (void rt,ht,mkImpl) }) tys
-    pure (ContextR ( map fits tys'
+    -- tys' :: [(Dynamic, HType, String)]
+    tys' <- traverse (\(rt,qht,mkImpl) -> do
+                                            ht <- qht
+                                            pure ((toDyn $ void rt),ht,mkImpl) ) tys
+    pure (ContextA ( map fits tys'
                   , map rev tys'
                   , map impl tys'
                   ))
   where
-    fits (rts, hts, _) rt _ | rt == rts = pure (pure hts, Nothing)
+    fits (rts, hts, _) rt _ | (Just rt) == (fromDynamic rts) = pure (pure hts, Nothing)
                             | otherwise = mempty
 
-    rev (rts, hts, _) ht _  | ht == hts = pure (pure rts)
+    rev (rts, hts, _) ht _  | ht == hts = case fromDynamic rts of
+                                            Nothing -> mempty
+                                            Just rtss -> pure (pure rtss)
                             | otherwise = mempty
 
 
-    impl (rts, _, mkImpl)   | mkImpl = implMarshalInto rts
+    impl (rts, _, mkImpl)   | mkImpl = case fromDynamic rts of
+                                         Nothing -> mempty
+                                         Just rtss -> implMarshalInto rtss
                             | otherwise = mempty
 
 
