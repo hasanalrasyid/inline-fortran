@@ -251,6 +251,7 @@ data EqDyn = forall a.(Typeable a, Eq a)=> EqDyn a
 instance Eq EqDyn where
  (EqDyn x) == (EqDyn y)= typeOf x== typeOf y && x== unsafeCoerce y
 
+  {-
 instance Eq Dynamic where
   x == y =
       let x' = fromDynamic x
@@ -260,6 +261,7 @@ instance Eq Dynamic where
                    Just  a -> case y' of
                                 Nothing -> False
                                 Just  b -> typeOf b == typeOf a
+-}
 
 --mkContext :: [(Ty r, Q HType, Bool)] -> Q Context
   {-
@@ -281,28 +283,29 @@ mkContextF tys = do
                             | otherwise = mempty
 -}
 
+contextToA :: Context -> Context
+contextToA (ContextR (a,b,c)) =
+   ContextA (map (go1 . uncurry) a, map go2 b, c)
+
+mkContext :: [(Ty a, Q HType, Bool)] -> Q Context
 mkContext tys = do
     -- tys' :: [(Dynamic, HType, String)]
     tys' <- traverse (\(rt,qht,mkImpl) -> do
                                             ht <- qht
-                                            pure ((toDyn $ void rt),ht,mkImpl) ) tys
-    pure (ContextA ( map fits tys'
+                                            pure ((void rt),ht,mkImpl) ) tys
+    pure (ContextR ( map fits tys'
                   , map rev tys'
                   , map impl tys'
                   ))
   where
-    fits (rts, hts, _) rt _ | (Just rt) == (fromDynamic rts) = pure (pure hts, Nothing)
+    fits (rts, hts, _) rt _ | rt == rts = pure (pure hts, Nothing)
                             | otherwise = mempty
 
-    rev (rts, hts, _) ht _  | ht == hts = case fromDynamic rts of
-                                            Nothing -> mempty
-                                            Just rtss -> pure (pure rtss)
+    rev (rts, hts, _) ht _  | ht == hts = pure (pure rts)
                             | otherwise = mempty
 
 
-    impl (rts, _, mkImpl)   | mkImpl = case fromDynamic rts of
-                                         Nothing -> mempty
-                                         Just rtss -> implMarshalInto rtss
+    impl (rts, _, mkImpl)   | mkImpl = implMarshalInto rts
                             | otherwise = mempty
 
 
