@@ -84,9 +84,9 @@ instance AType (FType) where
     (,) <$> qht <*> sequence qrtOpt
 
   getRTypeInContext rustType context@(ContextR _) =
-    case getFirst (lookupRTypeInContext rustType context) of
+    case Data.Monoid.getFirst (lookupRTypeInContext rustType context) of
       Just found -> found
-      Nothing -> ( fail $ unwords [ "Could not find information about"
+      Nothing -> ( fail $ unwords [ "1 Could not find information about"
                                   , show rustType
                                   , "in the context"
                                   ]
@@ -101,14 +101,14 @@ instance AType (RType) where
   getHTypeInContext haskType context =
     case getFirst (lookupHTypeInContext haskType context) of
       Just found -> found
-      Nothing -> fail $ unwords [ "Could not find information about"
+      Nothing -> fail $ unwords [ "2 Could not find information about"
                                 , pprint haskType
                                 , "in the context"
                                 ]
   getRTypeInContext rustType context@(ContextR _) =
     case getFirst (lookupRTypeInContext rustType context) of
       Just found -> found
-      Nothing -> ( fail $ unwords [ "Could not find information about"
+      Nothing -> ( fail $ unwords [ "3 Could not find information about"
                                   , renderType rustType
                                   , "in the context"
                                   ]
@@ -203,7 +203,7 @@ getFTypeInContext :: FType -> FContext -> (Q HType, Maybe (Q FType))
 getFTypeInContext rustType context =
   case getFirst (lookupFTypeInContext rustType context) of
     Just found -> found
-    Nothing -> ( fail $ unwords [ "Could not find information about"
+    Nothing -> ( fail $ unwords [ "4 Could not find information about"
                                 , show rustType
                                 , "in the FContext"
                                 ]
