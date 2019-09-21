@@ -14,7 +14,7 @@ setCrateRoot []
 main = do
   putStrLn "Haskell: Hello. Enter a number:"
   x <- readLn
-  y <- [rustIO| i32 {
+  y <- [fortIO| i32 {
     println!("Rust: Your number is {}", $(x: i32));
     $(x: i32) + 1
   } |]

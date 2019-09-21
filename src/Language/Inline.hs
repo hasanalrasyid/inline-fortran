@@ -24,6 +24,7 @@ module Language.Inline (
   -- $safe
   rust,
   rustIO,
+  fortIO,
   -- ** Unsafe
   --
   -- $unsafe
@@ -177,6 +178,8 @@ rust = rustQuasiQuoter Safe True True
 rustIO :: QuasiQuoter
 rustIO = rustQuasiQuoter Safe False True
 
+fortIO :: QuasiQuoter
+fortIO = rustQuasiQuoter Safe False True
 
 -- $unsafe
 --

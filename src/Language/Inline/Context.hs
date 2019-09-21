@@ -54,6 +54,7 @@ import qualified Language.Inline.Lexer.FreeForm as L
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
 import Data.Maybe                  ( fromMaybe )
+import Debug.Trace
 
 -- Easier on the eyes
 type RType = Ty ()
@@ -67,7 +68,7 @@ class AType a where
   lookupRTypeInContext :: a -> Context -> First (Q HType, Maybe (Q a))
   lookupHTypeInContext :: HType -> Context -> First (Q a)
   getHTypeInContext :: HType -> Context -> Q a
-
+--
 -- | Partial version of 'lookupRTypeInContext' that fails with an error message
 -- if the type is not convertible.
 -- | Get the existing context
@@ -76,17 +77,53 @@ getContext = fromMaybe mempty <$> getQ
 
 instance AType (FType) where
   lookupRTypeInContext rustType context@(ContextF (rules, _, _)) =
-    foldMap (\fits -> fits rustType context) rules
-  lookupRTypeInContext rustType context@(ContextR (rules, _, _)) = First Nothing
+    trace ("lookupRTypeInContext makan ContextF") $ foldMap (\fits -> fits rustType context) rules
+  lookupRTypeInContext rustType _ = trace ("lookupRTypeInContext FType calling non ContextF") $ First Nothing
 
   getAType rustType = do
     (qht, qrtOpt) <- getRTypeInContext rustType <$> getContext
     (,) <$> qht <*> sequence qrtOpt
 
+  getRTypeInContext rustType context@(ContextF _) =
+    case Data.Monoid.getFirst (lookupRTypeInContext rustType context) of
+      Just found -> found
+      Nothing -> ( fail $ unwords [ "1f ContextF Could not find information about"
+                                  , show rustType
+                                  , "in the context"
+                                  ]
+                 , Nothing )
+
   getRTypeInContext rustType context@(ContextR _) =
     case Data.Monoid.getFirst (lookupRTypeInContext rustType context) of
       Just found -> found
-      Nothing -> ( fail $ unwords [ "1 Could not find information about"
+      Nothing -> ( trace ("trace " ++ show rustType) $ fail $ unwords [ "1f ContextR Could not find information about"
+                                  , show rustType
+                                  , "in the context"
+                                  ]
+                 , Nothing )
+
+
+instance AType (AllType) where
+  lookupRTypeInContext rustType context@(ContextA (rules, _, _)) = -- trace ("lookupRTypeInContext makan ContextR") $ First Nothing
+    trace ("lookupRTypeInContext makan ContextA") $ foldMap (\fits -> fits rustType context) rules
+
+  getAType rustType = do
+    (qht, qrtOpt) <- getRTypeInContext rustType <$> getContext
+    (,) <$> qht <*> sequence qrtOpt
+
+  getRTypeInContext rustType context@(ContextA _) =
+    case Data.Monoid.getFirst (lookupRTypeInContext rustType context) of
+      Just found -> found
+      Nothing -> ( fail $ unwords [ "1a Could not find information about"
+                                  , show rustType
+                                  , "in the context"
+                                  ]
+                 , Nothing )
+
+  getRTypeInContext rustType context@(ContextR _) =
+    case Data.Monoid.getFirst (lookupRTypeInContext rustType context) of
+      Just found -> found
+      Nothing -> ( trace ("trace " ++ show rustType) $ fail $ unwords [ "1r Could not find information about"
                                   , show rustType
                                   , "in the context"
                                   ]
@@ -136,7 +173,23 @@ instance AType (RType) where
 -- recursively into the 'Context' again before possibly producing a Haskell
 -- type.
 
+data AllType = RType | FType deriving Show
+
 data Context =
+    ContextA ( [ AllType -> Context -> First (Q HType, Maybe (Q AllType)) ]
+            -- Given a Rust type in a quasiquote, we need to look up the
+            -- corresponding Haskell type (for the FFI import) as well as the
+            -- C-compatible Rust type (if the initial Rust type isn't already
+            -- @#[repr(C)]@.
+
+            , [ HType -> Context -> First (Q AllType) ]
+            -- Given a field in a Haskell ADT, we need to figure out which
+            -- (not-necessarily @#[repr(C)]@) Rust type normally maps into this
+            -- Haskell type.
+
+            , [ String ]
+            -- Source for the trait impls of @MarshalTo@
+            ) |
     ContextR ( [ RType -> Context -> First (Q HType, Maybe (Q RType)) ]
             -- Given a Rust type in a quasiquote, we need to look up the
             -- corresponding Haskell type (for the FFI import) as well as the
