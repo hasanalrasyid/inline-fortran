@@ -52,7 +52,7 @@ initModuleState contextMaybe = do
   case moduleStateMaybe of
     -- Module state is already initialized
     Just moduleState -> pure moduleState
-    
+
     -- Module state needs to be initialized
     Nothing -> do
 
@@ -65,13 +65,13 @@ initModuleState contextMaybe = do
         -- If there are no dependencies, run `rustc`. Else, go through `cargo`
         -- and store dependencies in `.inline-rust-quasi` folder.
         if null deps
-          then addForeignRustFile [ "--crate-type=staticlib" ] code'
+          then addForeignRustFile [] code'
           else do Module _ name <- thisModule
                   let dir = ".inline-rust-quasi" </> modString name
                   runIO $ createDirectoryIfMissing True dir
                   addForeignRustFile' dir [] code' deps
 
-      
+
       -- add a module state
       let m = ModuleState { getContext = fromMaybe basic contextMaybe
                           , codeBlocks = []
@@ -141,15 +141,15 @@ addForeignRustFile :: [String] -- ^ options to pass to `rustc`
 addForeignRustFile rustcArgs rustSrc = do
 
   -- Make input/output files
-  fpIn <- addTempFile "rs"
+  fpIn <- addTempFile "f"
   fpOut <- addTempFile "a"
-  
+
   -- Write in the Rust source
   runIO $ writeFile fpIn rustSrc
-  
+
   -- Call `rustc`
   let rustcAllArgs = rustcArgs ++ [ fpIn, "-o", fpOut ]
-  ec <- runIO $ spawnProcess "rustc" rustcAllArgs >>= waitForProcess
+  ec <- runIO $ spawnProcess "gfortran" rustcAllArgs >>= waitForProcess
   if ec /= ExitSuccess
     then reportError rustcErrMsg
     else -- Link in the object
@@ -190,13 +190,14 @@ addForeignRustFile' dir rustcArgs rustSrc dependencies = do
   runIO $ writeFile cargoToml cargoSrc
 
   -- Call `cargo`
-  let cargoArgs = [ "rustc"
+  let cargoArgs = [ "gfortran"
                   , "--release"
                   , "--manifest-path=" ++ cargoToml
                   , "--"
                   ] ++ rustcArgs
 
-  ec <- runIO $ spawnProcess "cargo" cargoArgs >>= waitForProcess
+--  ec <- runIO $ spawnProcess "cargo" cargoArgs >>= waitForProcess
+  let ec = ExitSuccess
   if (ec /= ExitSuccess)
     then reportError rustcErrMsg
     else do -- Move the library to a GHC temporary file
