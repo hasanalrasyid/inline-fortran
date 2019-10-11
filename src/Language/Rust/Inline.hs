@@ -279,6 +279,7 @@ processQQ safety isPure (QQParse rustRet rustBody rustArgs) = do
                    Just argName -> pure (VarE argName)
   let haskCall = foldl AppE (VarE qqName) haskArgsE
 
+  runIO $ putStrLn $ "rustBody: " ++ show rustBody
   -- Generate the Rust function
   void . emitCodeBlock . unlines $
     ["subroutine " ++ qqStrName ++ "(" ++ intercalate ", " (map fst rustArgs) ++")"

@@ -18,7 +18,7 @@ import Language.Rust.Parser
 import Language.Rust.Data.Position ( Spanned(..) )
 import Language.Rust.Data.Ident    ( Ident(..) )
 
-import Language.Haskell.TH         ( Q )
+import Language.Haskell.TH         ( Q, runIO )
 
 import Control.Monad               ( void )
 
@@ -62,7 +62,8 @@ parseQQ input = do
     case execParser lexer stream initPos of
       Left (ParseFail _ msg) -> fail msg
       Right parsed -> pure parsed
-
+  runIO $ putStrLn $ "rest1 : " ++ show rest1
+    {-
   -- Split off the leading type's tokens
   (tyToks, rest2) <-
     case break openBrace rest1 of
@@ -74,12 +75,13 @@ parseQQ input = do
     case parseFromToks tyToks of
       Left (ParseFail _ msg) -> fail msg
       Right parsed -> pure parsed
-
+-}
   -- Parse body of quasiquote
-  (bodyToks, vars) <- parseBody [] [] rest2
+  (bodyToks, vars) <- parseBody [] [] rest1
 
   -- Done!
-  pure (QQParse leadingTy bodyToks vars)
+  let dummy = snd $ head vars
+  pure (QQParse dummy bodyToks vars)
 
   where
     -- Parse the body of the quasiquote
