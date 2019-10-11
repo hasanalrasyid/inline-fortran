@@ -1,0 +1,2 @@
+gfortran -c kadal.f95
+gfortran kadal.o main.f95
