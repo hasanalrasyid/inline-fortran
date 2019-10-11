@@ -65,7 +65,7 @@ initModuleState contextMaybe = do
         -- If there are no dependencies, run `rustc`. Else, go through `cargo`
         -- and store dependencies in `.inline-rust-quasi` folder.
         if null deps
-          then addForeignRustFile [] code'
+          then addForeignRustFile ["-c"] code'
           else do Module _ name <- thisModule
                   let dir = ".inline-rust-quasi" </> modString name
                   runIO $ createDirectoryIfMissing True dir
@@ -141,15 +141,17 @@ addForeignRustFile :: [String] -- ^ options to pass to `rustc`
 addForeignRustFile rustcArgs rustSrc = do
 
   -- Make input/output files
-  fpIn <- addTempFile "f"
-  fpOut <- addTempFile "a"
+  fpIn <- addTempFile "f95"
+  fpOut <- addTempFile "o"
 
   -- Write in the Rust source
   runIO $ writeFile fpIn rustSrc
 
   -- Call `rustc`
   let rustcAllArgs = rustcArgs ++ [ fpIn, "-o", fpOut ]
-  ec <- runIO $ spawnProcess "gfortran" rustcAllArgs >>= waitForProcess
+  ec <- runIO $ do
+    putStrLn $ "running: gfortran " ++ unwords rustcAllArgs
+    spawnProcess "gfortran" rustcAllArgs >>= waitForProcess
   if ec /= ExitSuccess
     then reportError rustcErrMsg
     else -- Link in the object

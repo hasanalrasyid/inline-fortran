@@ -34,7 +34,7 @@ module Language.Rust.Inline (
   -- $interruptible
   rustInterruptible,
   rustInterruptibleIO,
- 
+
   -- * Contexts
   Context(..),
   RType,
@@ -68,7 +68,7 @@ module Language.Rust.Inline (
   externCrate,
 ) where
 
-import Language.Rust.Inline.Context 
+import Language.Rust.Inline.Context
 import Language.Rust.Inline.Internal
 import Language.Rust.Inline.Marshal
 import Language.Rust.Inline.Parser
@@ -79,7 +79,7 @@ import Language.Haskell.TH.Quote             ( QuasiQuoter(..) )
 
 
 import Foreign.Marshal.Utils                 ( with, new )
-import Foreign.Marshal.Alloc                 ( alloca, free ) 
+import Foreign.Marshal.Alloc                 ( alloca, free )
 import Foreign.Marshal.Array                 ( withArrayLen, newArray )
 import Foreign.Marshal.Unsafe                ( unsafeLocalState )
 import Foreign.Ptr                           ( freeHaskellFunPtr )
@@ -98,7 +98,7 @@ import Data.Traversable                      ( for )
 -- This works by the magic of Template Haskell. In a nutshell, for every Haskell
 -- source with a Rust quasiquote in it, a Rust source file is generated. Into
 -- this file are added
--- 
+--
 --   - all top-level Rust quasiquotes (contents are added in as-is)
 --
 --   - functions for all expression-level quasiquotes (function arguments
@@ -143,7 +143,7 @@ import Data.Traversable                      ( for )
 -- @
 --     rustInc x :: Int32 -> Int32
 --     rustInc x = [rust| i32 { 1i32 + $(x: i32) } |]
--- @ 
+-- @
 rust :: QuasiQuoter
 rust = rustQuasiQuoter Safe True True
 
@@ -153,7 +153,7 @@ rust = rustQuasiQuoter Safe True True
 -- @
 --     rustHello :: Int32 -> IO ()
 --     rustHello n = [rustIO| () { println!("Your number: {}", $(n: i32)) } |]
--- @ 
+-- @
 rustIO :: QuasiQuoter
 rustIO = rustQuasiQuoter Safe False True
 
@@ -220,9 +220,9 @@ rustQuasiQuoter :: Safety      -- ^ safety of FFI
                 -> Bool        -- ^ support declarations
                 -> QuasiQuoter
 rustQuasiQuoter safety isPure supportDecs = QuasiQuoter { quoteExp = expQuoter
-                                                        , quotePat = err 
+                                                        , quotePat = err
                                                         , quoteType = err
-                                                        , quoteDec = decQuoter 
+                                                        , quoteDec = decQuoter
                                                         }
   where
     who | supportDecs = "expressions and declarations"
@@ -281,11 +281,9 @@ processQQ safety isPure (QQParse rustRet rustBody rustArgs) = do
 
   -- Generate the Rust function
   void . emitCodeBlock . unlines $
-    [ "#[no_mangle]"
-    , "pub extern \"C\" fn " ++ qqStrName ++ "("
-    , intercalate ", " (map (\(s,t) -> s ++ ": " ++ renderType t) rustArgs)
-    , ") -> " ++ renderType rustRet
+    ["subroutine " ++ qqStrName ++ "(" ++ intercalate ", " (map fst rustArgs) ++")"
     , renderTokens rustBody
+    , "end subroutine " ++ qqStrName
     ]
 
   -- Return the Haskell call to the FFI import
