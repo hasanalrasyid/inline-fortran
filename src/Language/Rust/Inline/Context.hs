@@ -1,92 +1,143 @@
-{-# LANGUAGE TypeFamilies, QuasiQuotes, TemplateHaskell, GeneralizedNewtypeDeriving, DeriveDataTypeable #-}
+{-|
+Module      : Language.Rust.Inline.Context
+Description : Defines contexts (rules mapping Rust types to Haskell types)
+Copyright   : (c) Alec Theriault, 2017
+License     : BSD-style
+Maintainer  : alec.theriault@gmail.com
+Stability   : experimental
+Portability : GHC
+-}
+{-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 
-module Language.Rust.Inline.Context (
-  -- * Types
-  RType,
-  HType,
-  Context,
-  singleton,
-  lookupTypeInContext,
+module Language.Rust.Inline.Context where
 
-  -- * Contexts
-  basic,
-  libc,
-) where
+import Language.Rust.Inline.Pretty ( renderType )
 
-import qualified Language.Haskell.TH as Haskell
-import qualified Language.Rust.Syntax as Rust
+import Language.Rust.Syntax        ( Ty(BareFn, Ptr), Abi(..), FnDecl(..), Arg(..) )
+import Language.Rust.Quote         ( ty )
 
-import Language.Rust.Quote        ( ty )
-import Language.Haskell.TH.Syntax ( Q )
+import Language.Haskell.TH
 
-import Data.Semigroup             ( Semigroup )
-import Data.Monoid                ( First(..) )
-import Data.Typeable              ( Typeable )
+import Data.Semigroup              ( Semigroup )
+import Data.Monoid                 ( First(..) )
+import Data.Typeable               ( Typeable )
+import Control.Monad
+import Data.Traversable            ( for )
 
-import Control.Monad              ( void )
+import Data.Int                    ( Int8, Int16, Int32, Int64 )
+import Data.Word                   ( Word8, Word16, Word32, Word64 )
+import Foreign.Ptr                 ( Ptr, FunPtr )
+import Foreign.C.Types             -- pretty much every type here is used
+import qualified Control.Monad.Fail as Fail
 
-import Data.Int
-import Data.Word
-import Foreign.C.Types
-import Foreign.Ptr
+instance Fail.MonadFail First where
+  fail = error "MonadFail First error"
 
-type RType = Rust.Ty ()
-type HType = Haskell.Type
+-- Easier on the eyes
+type RType = Ty ()
+type HType = Type
 
 -- | Represents a prioritized set of rules for converting a Rust type to a
--- Haskell one.
+-- Haskell one. The 'Context' argument encodes the fact that we may need look
+-- recursively into the 'Context' again before possibly producing a Haskell
+-- type.
 newtype Context = Context [ RType -> Context -> First (Q HType) ]
-  deriving (Monoid, Semigroup, Typeable) 
+  deriving (Semigroup, Monoid, Typeable)
 
 -- | Search in a 'Context' for the Haskell type corresponding to a Rust type.
+-- The approach taken is to scan the context rules from left to right looking
+-- for the first successful conversion to a Haskell type.
 --
 -- It is expected that the 'HType' found from an 'RType' have a 'Storable'
 -- instance which has the memory layout of 'RType'.
-lookupTypeInContext :: RType -> Context -> Q HType
-lookupTypeInContext rustType context@(Context rules) = 
-  case getFirst matchingRules of
-    Nothing -> fail "Could not find information about TODO in the context"
-    Just tup -> tup
+lookupTypeInContext :: RType -> Context -> First (Q (HType))
+lookupTypeInContext rustType context@(Context rules) =
+  foldMap (\fits -> fits rustType context) rules
+
+
+-- | Partial version of 'lookupTypeInContext' that fails with an error message
+-- if the type is not convertible.
+getTypeInContext :: RType -> Context -> Q HType
+getTypeInContext rustType context =
+  case getFirst (lookupTypeInContext rustType context) of
+    Just hType -> hType
+    Nothing -> fail $ unwords [ "Could not find information about"
+                              , renderType rustType
+                              , "in the context"
+                              ]
+
+
+-- | Make a 'Context' consisting of rules to map the Rust types on the left to
+-- the Haskell types on the right.
+mkContext :: [(Ty a, Q HType)] -> Context
+mkContext = Context . map fits
   where
-    matchingRules = foldMap (\fits -> fits rustType context) rules
-    
+    fits (rts, qht) rt _ | rt == void rts = pure qht
+                         | otherwise = mempty
 
--- | Convenient function for making the definition of simple 'Context's nice.
-mkListContext :: [(Rust.Ty a, Q HType)] -> Context
-mkListContext = Context . map fits 
-  where
-    fits (rts, qht) rt _ | rt == void rts = First (Just qht)
-                         | otherwise = First Nothing
+-- | Make a singleton 'Context' consisting of a rule to map the given Rust type
+-- to the given Haskell type.
+singleton :: Ty a -> Q HType -> Context
+singleton rts qht = mkContext [(rts, qht)]
 
--- | Make a singleton 'Context'.
-singleton :: Rust.Ty a -> Q HType -> Context
-singleton rts qht = mkListContext [(rts, qht)]
 
+-- * Some handy contexts
 
 -- | Types defined in 'Foreign.C.Types' and the 'libc' crate.
 --
--- TODO: Expand this
+-- There should be no conversion required here - these have /identical/ memory
+-- layouts (since they both promise to have the same memory layout as C) and are
+-- passed on the stack.
 libc :: Context
-libc = mkListContext
-  [ ([ty| libc::boolean_t  |], [t| CBool    |]) -- _Bool
-  , ([ty| libc::c_char     |], [t| CChar    |]) -- char
-  , ([ty| libc::c_short    |], [t| CShort   |]) -- short
-  , ([ty| libc::c_int      |], [t| CInt     |]) -- int
-  , ([ty| libc::c_long     |], [t| CLong    |]) -- long
-  , ([ty| libc::c_longlong |], [t| CLLong   |]) -- long long
-  , ([ty| libc::size_t     |], [t| CSize    |]) -- size_t
-  , ([ty| libc::c_float    |], [t| CFloat   |]) -- float
-  , ([ty| libc::c_double   |], [t| CDouble  |]) -- double
-  , ([ty| libc::intptr_t   |], [t| CIntPtr  |]) -- intptr_t
-  , ([ty| libc::uintptr_t  |], [t| CUIntPtr |]) -- uintptr_t
+libc = mkContext
+  [ ([ty| libc::c_char      |], [t| CChar      |]) -- char
+  , ([ty| libc::c_schar     |], [t| CSChar     |]) -- signed char
+  , ([ty| libc::c_uchar     |], [t| CUChar     |]) -- unsigned char
+  , ([ty| libc::c_short     |], [t| CShort     |]) -- short
+  , ([ty| libc::c_ushort    |], [t| CUShort    |]) -- unsigned short
+  , ([ty| libc::c_int       |], [t| CInt       |]) -- int
+  , ([ty| libc::c_uint      |], [t| CUInt      |]) -- unsigned int
+  , ([ty| libc::c_long      |], [t| CLong      |]) -- long
+  , ([ty| libc::c_ulong     |], [t| CULong     |]) -- unsigned long
+  , ([ty| libc::ptrdiff_t   |], [t| CPtrdiff   |]) -- ptrdiff_t
+  , ([ty| libc::size_t      |], [t| CSize      |]) -- size_t
+  , ([ty| libc::wchar_t     |], [t| CWchar     |]) -- wchar_t
+  , ([ty| libc::c_longlong  |], [t| CLLong     |]) -- long long
+  , ([ty| libc::c_ulonglong |], [t| CULLong    |]) -- unsigned long long
+  , ([ty| libc::boolean_t   |], [t| CBool      |]) -- bool
+  , ([ty| libc::intptr_t    |], [t| CIntPtr    |]) -- intptr_t
+  , ([ty| libc::uintptr_t   |], [t| CUIntPtr   |]) -- uintptr_t
+  , ([ty| libc::intmax_t    |], [t| CIntMax    |]) -- intmax_t
+  , ([ty| libc::uintmax_t   |], [t| CUIntMax   |]) -- unsigned intmax_t
+  , ([ty| libc::clock_t     |], [t| CClock     |]) -- clock_t
+  , ([ty| libc::time_t      |], [t| CTime      |]) -- time_t
+  , ([ty| libc::useconds_t  |], [t| CUSeconds  |]) -- useconds_t
+  , ([ty| libc::suseconds_t |], [t| CSUSeconds |]) -- suseconds_t
+  , ([ty| libc::c_float     |], [t| CFloat     |]) -- float
+  , ([ty| libc::c_double    |], [t| CDouble    |]) -- double
+  , ([ty| libc::FILE        |], [t| CFile      |]) -- FILE
+  , ([ty| libc::fpos_t      |], [t| CFpos      |]) -- fpos_t
+  , ([ty| libc::int8_t      |], [t| Int8       |]) -- int8_t
+  , ([ty| libc::int16_t     |], [t| Int16      |]) -- int16_t
+  , ([ty| libc::int32_t     |], [t| Int32      |]) -- int32_t
+  , ([ty| libc::int64_t     |], [t| Int64      |]) -- int64_t
+  , ([ty| libc::uint8_t     |], [t| Word8      |]) -- uint8_t
+  , ([ty| libc::uint16_t    |], [t| Word16     |]) -- uint16_t
+  , ([ty| libc::uint32_t    |], [t| Word32     |]) -- uint32_t
+  , ([ty| libc::uint64_t    |], [t| Word64     |]) -- uint64_t
   ]
 
--- | Basic Haskell and Rust types.
+-- | Basic numeric (and similar) Haskell and Rust types.
 --
--- TODO: Expand this
+-- There should be no conversion required here as these should have identical
+-- memory layouts.
 basic :: Context
-basic = mkListContext
-  [ ([ty| bool  |], [t| Bool    |])
+basic = mkContext
+  [ ([ty| bool  |], [t| Word8   |])
+  , ([ty| char  |], [t| Char    |]) -- 4 bytes
   , ([ty| i8    |], [t| Int8    |])
   , ([ty| i16   |], [t| Int16   |])
   , ([ty| i32   |], [t| Int32   |])
@@ -97,6 +148,44 @@ basic = mkListContext
   , ([ty| u64   |], [t| Word64  |])
   , ([ty| f32   |], [t| Float   |])
   , ([ty| f64   |], [t| Double  |])
-  , ([ty| isize |], [t| IntPtr  |]) 
-  , ([ty| usize |], [t| WordPtr |]) 
+  , ([ty| isize |], [t| Int     |])
+  , ([ty| usize |], [t| Word    |])
+  , ([ty| ()    |], [t| ()      |])
   ]
+
+-- | Haskell pointers map onto Rust pointers. Note that unlike Rust, Haskell
+-- doesn't really distinguish between pointers pointing to immutable memory from
+-- those pointing to to mutable memory, so it is up to the user to enforce this.
+pointers :: Context
+pointers = Context [ rule ]
+  where
+  rule pt context = do
+    Ptr _ t _ <- pure pt
+    t' <- lookupTypeInContext t context
+    pure [t| Ptr $t' |]
+
+-- | This maps a Rust function type into the corresponding 'FunPtr' wrapped
+-- Haskell function type.
+--
+-- Note that as a user, you are still responsible for marshalling values of
+-- type 'FunPtr'. The reason for this is simple: the GHC runtime has no way of
+-- automatically detecting when a pointer to a function is no longer present on
+-- the Rust side.
+functions :: Context
+functions = Context [ rule ]
+  where
+  rule ft context = do
+    BareFn _ C _ (FnDecl args retTy False _) _ <- pure ft
+    args' <- for args $ \arg -> do
+               Arg _ argTy _ <- pure arg
+               lookupTypeInContext argTy context
+
+    retTy' <- case retTy of
+                Just t -> lookupTypeInContext t context
+                Nothing -> pure [t| IO () |]
+
+    let hFunTy = foldr (\l r -> [t| $l -> $r |]) retTy' args'
+    let hFunPtr = [t| FunPtr $hFunTy |]
+
+    pure hFunPtr
+

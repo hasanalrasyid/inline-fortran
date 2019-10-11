@@ -24,7 +24,7 @@ default-extensions:
   - CPP
   - QuasiQuotes
   - TemplateHaskell
-  - GeneralizedNewtypeDeriving
+#  - GeneralizedNewtypeDeriving
   - ForeignFunctionInterface
   - ScopedTypeVariables
   - MonadFailDesugaring
@@ -71,7 +71,9 @@ library:
   build-tools:
     - alex
     - happy
-  source-dirs: src
+  source-dirs:
+    - src
+    - refs/language-rust/src
 
 executables:
   x:
@@ -91,13 +93,13 @@ executables:
     - inline-fortran
     - vector
 
-tests:
-  inline-fortran-test:
-    main:                Spec.hs
-    source-dirs:         test
-    ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
-    dependencies:
-    - inline-fortran
+#tests:
+#  inline-fortran-test:
+#    main:                Spec.hs
+#    source-dirs:         test
+#    ghc-options:
+#    - -threaded
+#    - -rtsopts
+#    - -with-rtsopts=-N
+#    dependencies:
+#    - inline-fortran
