@@ -15,7 +15,8 @@ import Language.Rust.Inline.Pretty ( renderType )
 
 import Language.Rust.Syntax        ( Token(..), Delim(..), Ty )
 import Language.Rust.Parser
-import Language.Rust.Data.Position ( Position, Span, Spanned(..) )
+import Language.Rust.Data.Position ( Spanned(..) )
+import Language.Rust.Data.Ident    ( Ident(..) )
 
 import Language.Haskell.TH         ( Q )
 
@@ -59,7 +60,7 @@ parseQQ input = do
   -- Lex the quasiquote tokens
   rest1 <-
     case execParser lexer stream initPos of
-      Left (ParseFail errPos msg) -> fail $ "error ParseFail " ++  msg ++ "@" ++ show errPos
+      Left (ParseFail _ msg) -> fail msg
       Right parsed -> pure parsed
 
   -- Split off the leading type's tokens
@@ -95,7 +96,7 @@ parseQQ input = do
             (t1, rest3) <- parseEscape [] 1 rest2
 
             -- Add it to 'vars' if it isn't a duplicate
-            let i' = show i
+            let i' = name i
             let dupMsg t2 = concat [ "Variable `", i', ": ", renderType t1
                                     , "' has already been given type `"
                                     , renderType t2, "'"
@@ -121,7 +122,7 @@ parseQQ input = do
             | not (closeParen tok)    -> parseEscape (tok : toks) p     rest2
             | otherwise -> case parseFromToks (reverse toks) of
                              Left (ParseFail _ msg) -> fail msg
-                             Right parsed -> pure (parsed, rest2)
+                             Right parsed           -> pure (parsed, rest2)
 
 
 -- | Utility function for parsing AST structures from listf of spanned tokens

@@ -24,7 +24,7 @@ import Language.Haskell.TH
 import Data.Semigroup              ( Semigroup )
 import Data.Monoid                 ( First(..) )
 import Data.Typeable               ( Typeable )
-import Control.Monad
+import Control.Monad               ( void )
 import Data.Traversable            ( for )
 
 import Data.Int                    ( Int8, Int16, Int32, Int64 )
@@ -35,7 +35,6 @@ import qualified Control.Monad.Fail as Fail
 
 instance Fail.MonadFail First where
   fail = error "MonadFail First error"
-
 -- Easier on the eyes
 type RType = Ty ()
 type HType = Type
