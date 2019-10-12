@@ -59,6 +59,7 @@ dependencies:
 
 #    - fortran-src
 
+    - inline-c
     - uniplate
     - text
     - lens
