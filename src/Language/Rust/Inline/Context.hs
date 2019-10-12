@@ -19,7 +19,7 @@ import Language.Rust.Inline.Pretty ( renderType )
 import Language.Rust.Syntax        ( Ty(BareFn, Ptr), Abi(..), FnDecl(..), Arg(..) )
 import Language.Rust.Quote         ( ty )
 
-import Language.Haskell.TH
+import Language.Haskell.THr
 
 import Data.Semigroup              ( Semigroup )
 import Data.Monoid                 ( First(..) )
@@ -65,7 +65,8 @@ getTypeInContext rustType context =
     Just hType -> hType
     Nothing -> fail $ unwords [ "Could not find information about"
                               , renderType rustType
-                              , "in the context"
+                              , "in the context of"
+                              , show rustType
                               ]
 
 

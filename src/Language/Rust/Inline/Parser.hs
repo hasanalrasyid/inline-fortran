@@ -13,9 +13,9 @@ module Language.Rust.Inline.Parser where
 
 import Language.Rust.Inline.Pretty ( renderType )
 
-import Language.Rust.Syntax        ( Token(..), Delim(..), Ty )
+import Language.Rust.Syntax        ( Token(..), Delim(..), Ty(..) )
 import Language.Rust.Parser
-import Language.Rust.Data.Position ( Spanned(..) )
+import Language.Rust.Data.Position ( Spanned(..), Position(..), Span(..) )
 import Language.Rust.Data.Ident    ( Ident(..) )
 
 import Language.Haskell.TH         ( Q, runIO )
@@ -64,6 +64,8 @@ parseQQ input = do
       Right parsed -> pure parsed
   runIO $ putStrLn $ "rest1 : " ++ show rest1
 
+  {- No need for leading type, we can go straight to body
+      it means body need no brace
   -- Split off the leading type's tokens
   (tyToks, rest2) <-
     case break openBrace rest1 of
@@ -75,13 +77,16 @@ parseQQ input = do
     case parseFromToks tyToks of
       Left (ParseFail _ msg) -> fail msg
       Right parsed -> pure parsed
+--}
 
   -- Parse body of quasiquote
-  (bodyToks, vars) <- parseBody [] [] rest2
+  (bodyToks, vars) <- parseBody [] [] rest1
 
   -- Done!
-  let dummy = snd $ head vars
-  pure (QQParse leadingTy bodyToks vars)
+--  let dummy = snd $ head vars
+  let dummy = Never (Span NoPosition NoPosition)
+  runIO $ putStrLn $ "dummy: " ++ show dummy
+  pure (QQParse dummy bodyToks vars)
 
   where
     -- Parse the body of the quasiquote

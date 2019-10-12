@@ -261,7 +261,9 @@ processQQ safety isPure (QQParse rustRet rustBody rustArgs) = do
 
   -- Find out what the corresponding Haskell representations are for the
   -- argument and return types
+    {- haskRet unneeded, due to dummy rustRet
   haskRet <- getType (void rustRet)
+  -}
   haskArgs <- traverse (\(_, rustArg) -> getType (void rustArg)) rustArgs
 
   -- Generate the Haskell FFI import declaration and emit it
