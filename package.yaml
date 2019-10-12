@@ -81,14 +81,14 @@ executables:
     source-dirs:         app
     #c-sources:           app/Main.c
     cc-options:           -Wall -O2
-    #extra-libraries:      gsl gslcblas m
+    extra-libraries:  gfortran #    gsl gslcblas m
     ghc-options:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
     - -keep-tmp-files
     - -Wno-orphans
-#    - -tmpdir .stack-work/tmpdir
+    #- -tmpdir .stack-work/tmpdir
     dependencies:
     - inline-fortran
     - vector

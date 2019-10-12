@@ -165,7 +165,6 @@ addForeignRustFile rustcArgs rustSrc = do
     else do -- Link in the object
       runIO $ putStrLn $ "Link in the object addForeignRustFile " ++ fpOut
       addForeignFilePath RawObject fpOut
-      runIO $ putStrLn "!Link in the object addForeignRustFile"
 
 
 -- | This is a more involved version of 'addForeignRustFile' which works for
