@@ -19,7 +19,7 @@ import Language.Rust.Inline.Pretty ( renderType )
 import Language.Rust.Syntax        ( Ty(BareFn, Ptr), Abi(..), FnDecl(..), Arg(..) )
 import Language.Rust.Quote         ( ty )
 
-import Language.Haskell.THr
+import Language.Haskell.TH
 
 import Data.Semigroup              ( Semigroup )
 import Data.Monoid                 ( First(..) )
