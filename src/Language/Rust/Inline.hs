@@ -288,8 +288,8 @@ processQQ safety isPure (QQParse rustRet rustBody rustArgs) = do
     [ "subroutine " ++ qqStrName ++ "(" ++ intercalate ", " (map fst rustArgs) ++")"
     , "integer, intent(in) :: " ++ intercalate ", " (map fst rustArgs)
     , "integer :: k"
-    , renderTokens rustBody
-    , "print *, \"adalah \",4,x,k"
+--    , renderTokens rustBody
+    , "print *, \"adalah \", 4"
     , "end subroutine " ++ qqStrName
     ]
 

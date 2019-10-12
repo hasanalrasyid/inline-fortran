@@ -51,7 +51,7 @@ dependencies:
 
     - prettyprinter
     - deepseq
-#    - language-rust
+    - language-rust
     - array
     - json
     - process
@@ -73,7 +73,6 @@ library:
     - happy
   source-dirs:
     - src
-    - refs/language-rust/src
 
 executables:
   x:
@@ -88,7 +87,7 @@ executables:
     - -with-rtsopts=-N
     - -keep-tmp-files
     - -Wno-orphans
-    #- -tmpdir .stack-work/tmpdir
+    - -tmpdir .stack-work/tmpdir
     dependencies:
     - inline-fortran
     - vector

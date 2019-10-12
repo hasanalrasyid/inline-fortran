@@ -91,7 +91,7 @@ initModuleState contextMaybe = do
 emitCodeBlock :: String -> Q [Dec]
 emitCodeBlock code = do
   moduleState <- initModuleState Nothing
-  runIO $ putStrLn "emitCodeBlock: after initModuleState"
+  runIO $ putStrLn $ unlines [ "emitCodeBlock: after initModuleState",code]
   putQ (moduleState { codeBlocks = code : codeBlocks moduleState })
   pure []
 
