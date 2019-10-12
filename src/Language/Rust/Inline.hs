@@ -264,6 +264,7 @@ processQQ safety isPure (QQParse rustRet rustBody rustArgs) = do
     {- haskRet unneeded, due to dummy rustRet
   haskRet <- getType (void rustRet)
   -}
+  haskRet <- [t|()|] -- this means haskRet will be always void in C
   haskArgs <- traverse (\(_, rustArg) -> getType (void rustArg)) rustArgs
 
   -- Generate the Haskell FFI import declaration and emit it
