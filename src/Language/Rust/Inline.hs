@@ -255,13 +255,13 @@ processQQ :: Safety -> Bool -> RustQuasiquoteParse -> Q Exp
 processQQ safety isPure (QQParse rustRet rustBody rustArgs) = do
 
   -- Make a name to thread through Haskell/Rust (see Trac #13054)
-  qqName' <- newName "quasiquote"
+  qqName' <- newName "qq"
   qqName <- newName (show qqName')
   let qqStrName = show qqName
 
   -- Find out what the corresponding Haskell representations are for the
   -- argument and return types
-    {- haskRet unneeded, due to dummy rustRet
+  {- haskRet unneeded, due to dummy rustRet
   haskRet <- getType (void rustRet)
   -}
   haskRet <- [t|()|] -- this means haskRet will be always void in C
@@ -285,8 +285,11 @@ processQQ safety isPure (QQParse rustRet rustBody rustArgs) = do
   runIO $ putStrLn $ "rustBody: " ++ show rustBody
   -- Generate the Rust function
   void . emitCodeBlock . unlines $
-    ["subroutine " ++ qqStrName ++ "(" ++ intercalate ", " (map fst rustArgs) ++")"
+    [ "subroutine " ++ qqStrName ++ "(" ++ intercalate ", " (map fst rustArgs) ++")"
+    , "integer, intent(in) :: " ++ intercalate ", " (map fst rustArgs)
+    , "integer :: k"
     , renderTokens rustBody
+    , "print *, \"adalah \",4,x,k"
     , "end subroutine " ++ qqStrName
     ]
 

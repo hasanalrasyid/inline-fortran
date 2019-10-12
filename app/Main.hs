@@ -9,8 +9,7 @@ main = do
   putStrLn "Haskell: Hello. Enter a number:"
   x <- readLn
   y <- [rustIO|
-    println("Rust: Your number is {}", $(x: i32));
-    $(x: i32) + 1
+    k = $(x: i32) + 1
     |]
   putStrLn $ "Haskell: Rust says number plus 1 is " ++ show y
 

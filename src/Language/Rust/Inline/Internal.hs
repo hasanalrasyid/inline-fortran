@@ -65,11 +65,16 @@ initModuleState contextMaybe = do
         -- If there are no dependencies, run `rustc`. Else, go through `cargo`
         -- and store dependencies in `.inline-rust-quasi` folder.
         if null deps
-          then addForeignRustFile ["-c"] code'
-          else do Module _ name <- thisModule
-                  let dir = ".inline-rust-quasi" </> modString name
-                  runIO $ createDirectoryIfMissing True dir
-                  addForeignRustFile' dir [] code' deps
+          then do
+            runIO $ putStrLn "null deps: True"
+            addForeignRustFile ["-c","-fno-underscoring"] code'
+            runIO $ putStrLn "!addForeignRustFile: True"
+          else do
+            Module _ name <- thisModule
+            runIO $ putStrLn "null deps: False - should be dummy"
+            let dir = ".inline-rust-quasi" </> modString name
+            runIO $ createDirectoryIfMissing True dir
+            addForeignRustFile' dir [] code' deps
 
 
       -- add a module state
@@ -78,6 +83,7 @@ initModuleState contextMaybe = do
                           , crates = []
                           }
       putQ m
+      runIO $ putStrLn $ "ModuleState:"
       pure m
 
 
@@ -85,6 +91,7 @@ initModuleState contextMaybe = do
 emitCodeBlock :: String -> Q [Dec]
 emitCodeBlock code = do
   moduleState <- initModuleState Nothing
+  runIO $ putStrLn "emitCodeBlock: after initModuleState"
   putQ (moduleState { codeBlocks = code : codeBlocks moduleState })
   pure []
 
@@ -129,6 +136,7 @@ externCrate crateName crateVersion = do
   moduleState <- initModuleState Nothing
   putQ (moduleState { crates = (crateName, crateVersion) : crates moduleState })
 
+  runIO $ putStrLn "externCrate: emitCodeBlock"
   emitCodeBlock ("extern crate " ++ crateName ++ ";")
 
 
@@ -154,8 +162,10 @@ addForeignRustFile rustcArgs rustSrc = do
     spawnProcess "gfortran" rustcAllArgs >>= waitForProcess
   if ec /= ExitSuccess
     then reportError rustcErrMsg
-    else -- Link in the object
-         addForeignFilePath RawObject fpOut
+    else do -- Link in the object
+      runIO $ putStrLn $ "Link in the object addForeignRustFile " ++ fpOut
+      addForeignFilePath RawObject fpOut
+      runIO $ putStrLn "!Link in the object addForeignRustFile"
 
 
 -- | This is a more involved version of 'addForeignRustFile' which works for
@@ -190,9 +200,9 @@ addForeignRustFile' dir rustcArgs rustSrc dependencies = do
                          , "crate-type = [\"staticlib\"]"
                          ]
   runIO $ writeFile cargoToml cargoSrc
-
+  runIO $ putStrLn "gfortrancargo is running"
   -- Call `cargo`
-  let cargoArgs = [ "gfortran"
+  let cargoArgs = [ "gfortrancargo"
                   , "--release"
                   , "--manifest-path=" ++ cargoToml
                   , "--"
