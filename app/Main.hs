@@ -7,7 +7,7 @@ import Data.Int
 
 main = do
   putStrLn "Haskell: Hello. Enter a number:"
-  x <- readLn
+  let x = 55
   y <- [rustIO|
     k = $(x: i32) + 1
     |]
