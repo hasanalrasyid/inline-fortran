@@ -67,7 +67,7 @@ initModuleState contextMaybe = do
         if null deps
           then do
             runIO $ putStrLn "null deps: True"
-            addForeignRustFile ["-c","-fno-underscoring"] code'
+            addForeignRustFile ["-c","-fpic","-g","-fno-underscoring"] code'
             runIO $ putStrLn "!addForeignRustFile: True"
           else do
             Module _ name <- thisModule

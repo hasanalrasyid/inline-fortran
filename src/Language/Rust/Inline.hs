@@ -82,7 +82,7 @@ import Foreign.Marshal.Utils                 ( with, new )
 import Foreign.Marshal.Alloc                 ( alloca, free )
 import Foreign.Marshal.Array                 ( withArrayLen, newArray )
 import Foreign.Marshal.Unsafe                ( unsafeLocalState )
-import Foreign.Ptr                           ( freeHaskellFunPtr )
+import Foreign.Ptr                           ( freeHaskellFunPtr, Ptr(..) )
 
 import Control.Monad                         ( void )
 import Data.List                             ( intercalate )
@@ -266,9 +266,10 @@ processQQ safety isPure (QQParse rustRet rustBody rustArgs) = do
   -}
   haskRet <- [t|()|] -- this means haskRet will be always void in C
   haskArgs <- traverse (\(_, rustArg) -> getType (void rustArg)) rustArgs
-
+  runIO $ putStrLn $ "haskArgs: " ++ show haskArgs
   -- Generate the Haskell FFI import declaration and emit it
-  haskSig <- foldr (\l r -> [t| $(pure l) -> $r |])
+  -- in Fortran, all arguments are Ptr thus we have this line
+  haskSig <- foldr (\l r -> [t| Ptr $(pure l) -> $r |])
                    (if isPure then pure haskRet else [t| IO $(pure haskRet) |])
                    haskArgs
   let ffiImport = ForeignD (ImportF CCall safety qqStrName qqName haskSig)
@@ -286,9 +287,9 @@ processQQ safety isPure (QQParse rustRet rustBody rustArgs) = do
   -- Generate the Rust function
   void . emitCodeBlock . unlines $
     [ "subroutine " ++ qqStrName ++ "(" ++ intercalate ", " (map fst rustArgs) ++")"
-    , "integer, intent(in) :: " ++ intercalate ", " (map fst rustArgs)
+    , "integer, intent(inout) :: " ++ intercalate ", " (map fst rustArgs)
     , "integer :: k"
---    , renderTokens rustBody
+    , renderTokens rustBody
     , "print *, \"adalah \", 4"
     , "end subroutine " ++ qqStrName
     ]

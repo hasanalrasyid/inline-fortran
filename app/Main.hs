@@ -11,11 +11,11 @@ main = do
   let i = 55
   r <- return ()
   rr <- withPtr_ $ \x -> do
-    let x = 2
     [rustIO|
-      k = $(x : i32) + 1
-      print *, "adalah dia", k
+      print *, "adalah dianya yang sepertinya"
+      print *, "adalah dianya yang sepertinya ",x
+      k = $(x : i32) + 5
+      x = 5
     |]
-    putStrLn $ "Haskell: Rust says in withPtr " ++ show x
-  putStrLn $ "Haskell: Rust says number plus 1 is " ++ show (rr :: Int32)
-
+    putStrLn $ "Haskell: Rust says in withPtr x=" ++ show x
+  putStrLn $ "Haskell: Rust says number plus 1 is " ++ show rr
