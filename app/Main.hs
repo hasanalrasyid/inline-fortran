@@ -19,6 +19,7 @@ main = do
       k = $(x : i32) + 5
       x = x + k
     |]
+      -- k = 5 + $(x : i32) # anehnya, ini error
     putStrLn $ "Haskell: Rust says in withPtr x=" ++ show x
     xContent <- peek x
     putStrLn $ "Haskell: Rust says in withPtr x=" ++ show xContent
