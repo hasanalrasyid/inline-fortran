@@ -12,7 +12,7 @@ main = do
   let i = 55
   r <- return ()
   rr <- withPtr_ $ \x -> do
-    poke x 75
+    poke x i
     [rustIO|
       print *, "adalah dianya yang sepertinya"
       print *, "adalah dianya yang sepertinya ",x
