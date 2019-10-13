@@ -16,7 +16,7 @@ main = do
     [rustIO|
       print *, "adalah dianya yang sepertinya"
       print *, "adalah dianya yang sepertinya ",x
-      k = $(x : i32) + 5
+      k = $(x : real) + 5
       x = x + k
     |]
       -- k = 5 + $(x : i32) # anehnya, ini error

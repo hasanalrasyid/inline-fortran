@@ -151,6 +151,9 @@ basic = mkContext
   , ([ty| isize |], [t| Int     |])
   , ([ty| usize |], [t| Word    |])
   , ([ty| ()    |], [t| ()      |])
+-- Fortran
+  , ([ty| integer |], [t| Int32   |])
+  , ([ty| real    |], [t| Float   |])
   ]
 
 -- | Haskell pointers map onto Rust pointers. Note that unlike Rust, Haskell

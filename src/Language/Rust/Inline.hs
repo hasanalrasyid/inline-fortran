@@ -287,14 +287,13 @@ processQQ safety isPure (QQParse rustRet rustBody rustArgs) = do
   -- Generate the Rust function
   void . emitCodeBlock . unlines $
     [ "subroutine " ++ qqStrName ++ "(" ++ intercalate ", " (map fst rustArgs) ++")"
-    , "integer, intent(inout) :: " ++ intercalate ", " (map fst rustArgs)
-    , "integer :: k"
+    , unlines $ map genVars rustArgs
     , renderTokens rustBody
-    , "print *, \"adalah \", 4"
     , "end subroutine " ++ qqStrName
     ]
 
   -- Return the Haskell call to the FFI import
   pure haskCall
-
+  where
+    genVars (s,t) = (renderType t) ++ ", intent(inout) :: " ++ s
 
