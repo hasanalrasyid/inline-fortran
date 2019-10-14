@@ -9,6 +9,7 @@ Portability : GHC
 -}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE MagicHash #-}
 
 module Language.Rust.Inline.Marshal where
 
@@ -17,15 +18,78 @@ import Language.Rust.Inline.Context
 import Language.Haskell.TH 
 import Language.Haskell.TH.Syntax  ( addTopDecls ) 
 
-import Data.Word                   ( Word8 )
+import Data.Word
+import Data.Int
 
 import Foreign.Ptr                 ( Ptr, FunPtr, plusPtr )
 import Foreign.ForeignPtr          ( withForeignPtr )
+import Foreign.StablePtr           ( StablePtr )
 import Foreign.Storable            ( Storable )
 
 import Data.ByteString.Internal    ( ByteString(..) )
 import Data.Array.Storable         ( StorableArray, Ix, withStorableArray,
                                      getBounds )
+
+import GHC.Exts
+
+data MarshalForm
+  = UnboxedDirect      -- ^ value is marshallable and must be passed directly to the FFI
+  | BoxedDirect        -- ^ value is marshallable and can be passed directly to the FFI
+  | BoxedIndirect      -- ^ value isn't marshallable directly but may be passed indirectly via a 'Ptr'
+  deriving (Eq)
+
+-- | Identify which types can be marshalled by the GHC FFI and which types are
+-- unlifted. A negative response to the first of these questions doesn't mean
+-- the type can't be marshalled - just that we aren't sure it can.
+--
+-- This is based on section 8.4.2 (Foreign Types) of Haskell2010 and section
+-- 11.1.1 (Unboxed types) of the GHC manual. We could do a better job here by
+-- also letting through type synonyms / newtypes.
+ghcMarshallable :: Type -> Q MarshalForm
+ghcMarshallable ty = do
+   simpleU <- sequence qSimpleUnboxed
+   simpleB <- sequence qSimpleBoxed
+   tyconsU <- sequence qTyconsUnboxed
+   tyconsB <- sequence qTyconsBoxed
+
+   case ty of
+     _          | ty  `elem` simpleU -> pure UnboxedDirect
+                | ty  `elem` simpleB -> pure BoxedDirect
+     AppT con _ | con `elem` tyconsU -> pure UnboxedDirect
+                | con `elem` tyconsB -> pure BoxedDirect
+     _                               -> pure BoxedIndirect
+  where
+  qSimpleUnboxed = [ [t| Char#   |]
+                   , [t| Int#    |]
+                   , [t| Word#   |]
+                   , [t| Double# |]
+                   , [t| Float#  |]
+                   , [t| Addr# |]
+                --   , [t| ForeignObj# |] TODO: where is this even defined
+                   , [t| ByteArray# |]
+                   ]
+
+  qTyconsUnboxed = [ [t| StablePtr# |]
+                   , [t| MutableByteArray# |]
+                   ]
+
+  qSimpleBoxed   = [ [t| Char   |] 
+                   , [t| Int    |]
+                   , [t| Word   |]
+                   , [t| Double |]
+                   , [t| Float  |]
+                   
+                   , [t| Bool |], [t| () |] -- TODO: let through `IO ()` but not `()`
+                   
+                   , [t| Int8  |], [t| Int16  |], [t| Int32  |], [t| Int64  |]
+                   , [t| Word8 |], [t| Word16 |], [t| Word32 |], [t| Word64 |]
+                  
+                   ]
+
+  qTyconsBoxed   = [ [t| Ptr |]
+                   , [t| FunPtr |]
+                   , [t| StablePtr |]
+                   ]
 
 
 -- * Function pointers
@@ -76,6 +140,23 @@ withFunPtr hTy = do
                     ; pure $(varE ret)
                     }
     |]
+
+-- | TH utility for converting function pointers back into Haskell functions. 
+-- Remember to use the 'functions' context. Note that the function is only
+-- valid as long as the function pointer.
+--
+-- @
+--    unFunPtr [t| Int -> Int |] fooPtr
+-- @
+unFunPtr :: Q HType -> Q Exp
+unFunPtr hTy = do
+  -- Generate FFI
+  unFun <- newName . show =<< newName "dyn" -- Make a name to thread through Haskell/Rust (see Trac #13054)
+  dec <- forImpD CCall Safe "dynamic" unFun [t| FunPtr $hTy -> $hTy |]
+  addTopDecls [dec]
+  
+  -- Call FFI
+  pure (VarE unFun)
 
 
 -- * Bytestrings

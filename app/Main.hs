@@ -7,6 +7,10 @@ import Data.Int
 import Language.C.Inline
 import Foreign
 
+extendContext basic
+
+setCrateRoot []
+
 main = do
   putStrLn "Haskell: Hello. Enter a number:"
   let i = 55

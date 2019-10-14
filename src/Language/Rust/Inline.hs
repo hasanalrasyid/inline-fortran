@@ -40,16 +40,22 @@ module Language.Rust.Inline (
   RType,
   HType,
   -- ** Using and defining contexts
-  setContext,
+  setCrateModule,
+  setCrateRoot,
+  extendContext,
   singleton,
   mkContext,
-  lookupTypeInContext,
-  getTypeInContext,
+  lookupRTypeInContext,
+  getRTypeInContext,
+  lookupHTypeInContext,
+  getHTypeInContext,
   -- ** Built-in contexts
   basic,
   libc,
+  ghcUnboxed,
   functions,
   pointers,
+  prelude,
   -- ** Marshalling
   with,
   alloca,
@@ -57,36 +63,44 @@ module Language.Rust.Inline (
   new,
   withFunPtr,
   newFunPtr,
+  unFunPtr,
   freeHaskellFunPtr,
   withArrayLen,
   withStorableArrayLen,
   newArray,
   withByteString,
   unsafeLocalState,
+  mkStorable,
+  mkReprC,
 
   -- * Top-level Rust items
-  externCrate,
+ -- externCrate,
 ) where
 
 import Language.Rust.Inline.Context
+import Language.Rust.Inline.Context.Prelude  ( prelude )
 import Language.Rust.Inline.Internal
 import Language.Rust.Inline.Marshal
 import Language.Rust.Inline.Parser
 import Language.Rust.Inline.Pretty
+import Language.Rust.Inline.TH.Storable      ( mkStorable )
+import Language.Rust.Inline.TH.ReprC         ( mkReprC )
 
 import Language.Haskell.TH.Syntax
+import Language.Haskell.TH.Lib
 import Language.Haskell.TH.Quote             ( QuasiQuoter(..) )
-
+import Language.Haskell.TH                   ( pprParendType )
 
 import Foreign.Marshal.Utils                 ( with, new )
 import Foreign.Marshal.Alloc                 ( alloca, free )
 import Foreign.Marshal.Array                 ( withArrayLen, newArray )
 import Foreign.Marshal.Unsafe                ( unsafeLocalState )
-import Foreign.Ptr                           ( freeHaskellFunPtr, Ptr(..) )
+import Foreign.Ptr                           ( freeHaskellFunPtr, Ptr )
 
 import Control.Monad                         ( void )
 import Data.List                             ( intercalate )
 import Data.Traversable                      ( for )
+import System.Random                         ( randomIO )
 
 -- $overview
 --
@@ -126,7 +140,6 @@ import Data.Traversable                      ( for )
 -- pure expressions. Incorrectly annotating an impure expression as pure will
 -- /not/ cause a compile-time error but may break type safety and referential
 -- transparency.
-
 
 -- $safe
 --
@@ -238,6 +251,9 @@ rustQuasiQuoter safety isPure supportDecs = QuasiQuoter { quoteExp = expQuoter
               | otherwise = err
 
 
+showTy :: Type -> String
+showTy = show . pprParendType
+
 -- | This function sums up the packages. What it does:
 --
 --    1. Map the Rust type annotations in the quasiquote to their Haskell types.
@@ -252,48 +268,133 @@ rustQuasiQuoter safety isPure supportDecs = QuasiQuoter { quoteExp = expQuoter
 --       right Haskell arguments.
 --
 processQQ :: Safety -> Bool -> RustQuasiquoteParse -> Q Exp
-processQQ safety isPure (QQParse rustRet rustBody rustArgs) = do
+processQQ safety isPure (QQParse rustRet rustBody rustNamedArgs) = do
 
   -- Make a name to thread through Haskell/Rust (see Trac #13054)
-  qqName' <- newName "qq"
+  q <- runIO randomIO :: Q Int
+  qqName' <- newName $ "qq" ++ show (abs q)
   qqName <- newName (show qqName')
   let qqStrName = show qqName
 
   -- Find out what the corresponding Haskell representations are for the
   -- argument and return types
-  {- haskRet unneeded, due to dummy rustRet
-  haskRet <- getType (void rustRet)
+  let (rustArgNames, rustArgs) = unzip rustNamedArgs
+    {-
+  (haskRet, reprCRet) <- getRType (void rustRet)
   -}
-  haskRet <- [t|()|] -- this means haskRet will be always void in C
-  haskArgs <- traverse (\(_, rustArg) -> getType (void rustArg)) rustArgs
-  runIO $ putStrLn $ "haskArgs: " ++ show haskArgs
+  reprCRet <- pure Nothing
+  haskRet <- [t| () |]  -- this means haskRet will be always void in C
+  runIO $ putStrLn $ "rustArgs:" ++ show rustArgs
+  (haskArgs, reprCArgs) <- unzip <$> traverse (getRType . void) rustArgs
+
+  -- Convert the Haskell return type to a marshallable FFI type
+  (returnFfi, haskRet') <- do
+    marshalFrom <- ghcMarshallable haskRet
+    ret <- case marshalFrom of
+             BoxedDirect -> [t| IO $(pure haskRet) |]
+             BoxedIndirect -> [t| Ptr $(pure haskRet) -> IO () |]
+             UnboxedDirect
+               | isPure -> pure haskRet
+               | otherwise ->
+                   let retTy = showTy haskRet
+                   in fail ("Cannot put unlifted type ‘" ++ retTy ++ "’ in IO")
+    pure (marshalFrom, pure ret)
+
+  -- Convert the Haskell arguments to marshallable FFI types
+  (argsByVal, haskArgs') <- fmap unzip $
+    for haskArgs $ \haskArg -> do
+      marshalForm <- ghcMarshallable haskArg
+      case marshalForm of
+        BoxedIndirect
+          | returnFfi == UnboxedDirect ->
+              let argTy = showTy haskArg
+                  retTy = showTy haskRet
+              in fail ("Cannot pass an argument ‘" ++ argTy ++ "’" ++
+                       " indirectly when returning an unlifted type " ++
+                       "‘" ++ retTy ++ "’")
+
+          | otherwise -> do
+              ptr <- [t| Ptr $(pure haskArg) |]
+              pure (False, ptr)
+
+        _ -> pure (True, haskArg)
+
   -- Generate the Haskell FFI import declaration and emit it
-  -- in Fortran, all arguments are Ptr thus we have this line
-  haskSig <- foldr (\l r -> [t| Ptr $(pure l) -> $r |])
-                   (if isPure then pure haskRet else [t| IO $(pure haskRet) |])
-                   haskArgs
+  haskSig <- foldr (\l r -> [t| $(pure l) -> $r |]) haskRet' haskArgs'
   let ffiImport = ForeignD (ImportF CCall safety qqStrName qqName haskSig)
   addTopDecls [ffiImport]
 
   -- Generate the Haskell FFI call
-  haskArgsE <- for rustArgs $ \(argStr, _) -> do
-                 arg <- lookupValueName argStr
-                 case arg of
-                   Nothing -> fail ("Could not find Haskell variable `" ++ argStr ++ "'")
-                   Just argName -> pure (VarE argName)
-  let haskCall = foldl AppE (VarE qqName) haskArgsE
+  let goArgs :: [Q Exp]           -- ^ arguments accumulated so far (reversed)
+             -> [(String, Bool)]  -- ^ remaining arguments to process
+             -> Q Exp             -- ^ FFI call
 
-  runIO $ putStrLn $ "rustBody: " ++ show rustBody
-  -- Generate the Rust function
+      -- Once we run out of arguments we call the quasiquote function with all the
+      -- accumulated arguments. If the return value is not marshallable, we have to
+      -- 'alloca' some space to put the return value.
+      goArgs acc []
+        | returnFfi /= BoxedIndirect = appsE (varE qqName : reverse acc)
+        | otherwise = do
+            ret <- newName "ret"
+            [e| alloca (\( $(varP ret) ) ->
+                  do { $(appsE (varE qqName : reverse (varE ret : acc)))
+                     ; peek $(varE ret)
+                     }) |]
+
+      -- If an argument is by value, we just stack it into the accumulated arguments.
+      -- Otherwise, we use 'with' to get a pointer to its stack position.
+      goArgs acc ((argStr, byVal) : args) = do
+        arg <- lookupValueName argStr
+        case arg of
+          Nothing -> fail ("Could not find Haskell variable ‘" ++ argStr ++ "’")
+          Just argName | byVal -> goArgs (varE argName : acc) args
+                       | otherwise -> do
+                          x <- newName "x"
+                          [e| with $(varE argName) (\( $(varP x) ) ->
+                                $(goArgs (varE x : acc) args)) |]
+
+  let haskCall' = goArgs [] (rustArgNames `zip` argsByVal)
+      haskCall = if isPure && returnFfi /= UnboxedDirect
+                   then [e| unsafeLocalState $haskCall' |]
+                   else haskCall'
+
+  -- Generate the Rust function arguments and the converted arguments
+  let (rustArgs', rustConvertedArgs) = unzip $ zipWith mergeArgs rustArgs reprCArgs
+      (rustRet', rustConvertedRet) = mergeArgs rustRet reprCRet
+
+     -- mergeArgs :: Ty Span -> Maybe RType -> (Ty Span, Ty Span)
+      mergeArgs t Nothing       = (t, t)
+      mergeArgs t (Just tInter) = (fmap (const mempty) tInter, t)
+
+  -- Generate the Rust function.
+  let retByVal = returnFfi /= BoxedIndirect
+      (retArg, retTy, ret)
+         | retByVal  = ( []
+                       , renderType rustRet'
+                       , "out.marshal()"
+                       )
+         | otherwise = ( ["ret_" ++ qqStrName ++ ": *mut " ++ renderType rustRet']
+                       , "()"
+                       , "unsafe { ::std::ptr::write(ret_" ++ qqStrName ++ ", out.marshal()) }"
+                       )
   void . emitCodeBlock . unlines $
-    [ "subroutine " ++ qqStrName ++ "(" ++ intercalate ", " (map fst rustArgs) ++")"
-    , unlines $ map genVars rustArgs
-    , renderTokens rustBody
-    , "end subroutine " ++ qqStrName
+    [ "subroutine " ++ qqStrName ++ "("
+    , "  " ++ intercalate ", " ([ s ++ ": " ++ marshal (renderType t)
+                                | (s,t,v) <- zip3 rustArgNames rustArgs' argsByVal
+                                , let marshal x = if v then x else "*const " ++ x
+                                ] ++ retArg)
+    , ") -> " ++ retTy ++ " {"
+    , unlines [ "  let " ++ s ++ ": " ++ renderType t ++ " = " ++ marshal s ++ ".marshal();"
+              | (s,t,v) <- zip3 rustArgNames rustConvertedArgs argsByVal
+              , let marshal x = if v then x else "unsafe { ::std::ptr::read(" ++ x ++ ") }"
+              ]
+    , "  let out: " ++ renderType rustConvertedRet ++ " = (|| {" ++ renderTokens rustBody ++ "})();"
+    , "  " ++ ret
+    , "}"
     ]
 
   -- Return the Haskell call to the FFI import
-  pure haskCall
-  where
-    genVars (s,t) = (renderType t) ++ ", intent(inout) :: " ++ s
+  haskCall
+
+
 
