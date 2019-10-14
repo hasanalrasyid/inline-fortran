@@ -114,6 +114,7 @@ data Token
 -- same to the parser.
 data Space
   = Whitespace  -- ^ usual white space: @[\\ \\t\\n\\f\\v\\r]+@
+  | NewLine
   | Comment     -- ^ comment (either inline or not)
   deriving (Eq, Ord, Show, Enum, Bounded, Data, Typeable, Generic, NFData)
 
@@ -357,6 +358,7 @@ instance Show Token where
   show (IdentTok i) = name i
   show (LifetimeTok l) = "'" ++ show l
   show (Space Whitespace _) = "<whitespace>"
+  show (Space NewLine _) = "<NewLine>\n"
   show (Space Comment n) = "/*" ++ show n ++ " */"
   show (Doc d Inner True) = "/*!" ++ d ++ "*/"
   show (Doc d Outer True) = "/**" ++ d ++ "*/"

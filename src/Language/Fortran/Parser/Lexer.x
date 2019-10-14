@@ -985,7 +985,7 @@ $hexit             = [0-9a-fA-F]
 
 tokens :-
 
-$white+         { \s -> pure (Space Whitespace s)  }
+$white+         { \s -> checkWhite s}
 
 "="             { token Equal }
 "<"             { token Less }
@@ -1281,5 +1281,10 @@ lexShebangLine = do
         _ <- nextChar
         (c' :) <$> toNewline
 
+checkWhite p = do
+  c <- peekChar
+  case c of
+    Just '\n' ->  pure (Space NewLine p)
+    _ -> pure (Space Whitespace p)
 
 }

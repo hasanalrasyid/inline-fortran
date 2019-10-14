@@ -126,6 +126,7 @@ parseQQ input = do
     -- Parse the part of escapes like @$(x: i32)@ that comes after the @:@.
     parseEscape :: [SpTok] -> Int -> [SpTok] -> Q (Ty Span, [SpTok])
     parseEscape toks p rst1 = do
+        runIO $ putStrLn $ "parseEscape toks p rst1: " ++ show toks ++ show p ++ show rst1
         case rst1 of
           [] -> fail "Ran out of input while parsing variable escape"
           tok : rst2
