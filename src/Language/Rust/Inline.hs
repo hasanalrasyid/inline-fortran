@@ -378,19 +378,26 @@ processQQ safety isPure (QQParse rustRet rustBody rustNamedArgs) = do
                        , "unsafe { ::std::ptr::write(ret_" ++ qqStrName ++ ", out.marshal()) }"
                        )
   void . emitCodeBlock . unlines $
-    [ "subroutine " ++ qqStrName ++ "("
-    , "  " ++ intercalate ", " ([ s ++ ": " ++ marshal (renderType t)
+    [ "subroutine " ++ qqStrName ++ "(" ++
+        intercalate ", " rustArgNames ++
+      {-
+        intercalate ", " ([ s ++ ": " ++ marshal (renderType t)
                                 | (s,t,v) <- zip3 rustArgNames rustArgs' argsByVal
                                 , let marshal x = if v then x else "*const " ++ x
-                                ] ++ retArg)
-    , ") -> " ++ retTy ++ " {"
+                                ] ++ retArg) ++
+                                -}
+                                ")"
+    , unlines [ (renderType t) ++ ", intent(inout) :: " ++ s | (s,t) <- zip rustArgNames rustArgs' ]
+    , renderTokens rustBody
+    , "end subroutine " ++ qqStrName
+  {-
     , unlines [ "  let " ++ s ++ ": " ++ renderType t ++ " = " ++ marshal s ++ ".marshal();"
               | (s,t,v) <- zip3 rustArgNames rustConvertedArgs argsByVal
               , let marshal x = if v then x else "unsafe { ::std::ptr::read(" ++ x ++ ") }"
               ]
     , "  let out: " ++ renderType rustConvertedRet ++ " = (|| {" ++ renderTokens rustBody ++ "})();"
     , "  " ++ ret
-    , "}"
+              -}
     ]
 
   -- Return the Haskell call to the FFI import

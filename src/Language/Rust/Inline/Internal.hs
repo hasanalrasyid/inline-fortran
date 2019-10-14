@@ -32,7 +32,7 @@ import Data.Maybe                  ( fromMaybe )
 import Data.List                   ( unfoldr )
 import Data.Char                   ( isAlpha, isAlphaNum )
 
-import System.FilePath             ( (</>), (<.>), takeExtension )
+import System.FilePath             ( (</>), (-<.>), (<.>), takeExtension )
 import System.Directory            ( copyFile, createDirectoryIfMissing )
 import System.Process              ( spawnProcess, readProcess, waitForProcess )
 import System.Exit                 ( ExitCode(..) )
@@ -174,7 +174,9 @@ cargoFinalizer extraArgs dependencies = do
   --           specifying libraries to pass to the final linker call.
   --
   runIO $ setEnv "RUSTFLAGS" "--print native-static-libs"
-  let cargoArgs = [ "-c", "-fpic", "-g", "-fno-underscoring", dir </> thisFile
+  let cargoArgs = [ "-c", "-fpic", "-g", "-fno-underscoring"
+                  , "-o", dir </> thisFile -<.> "o"
+                  , dir </> thisFile
                   ] ++ extraArgs
       msgFormat = [ "--message-format=json" ]
 
@@ -182,6 +184,7 @@ cargoFinalizer extraArgs dependencies = do
   when (ec /= ExitSuccess)
     (reportError rustcErrMsg)
 
+  {-
   -- Run Cargo again to get the static library path
   jOuts <- runIO $ readProcess "cargo" (cargoArgs ++ msgFormat) ""
   let jOut = last (lines jOuts)
@@ -191,11 +194,11 @@ cargoFinalizer extraArgs dependencies = do
       Ok jObj -> case lookup "filenames" (fromJSObject jObj) of
                    Just (JSArray [ JSString jStr ]) -> pure (fromJSString jStr)
                    _ -> fail ("cargoFinalizer: did not find one static library")
-
+  -}
   -- Move the library to a GHC temporary file
-  let ext = takeExtension rustLibFp
+  let ext = ".o"
   rustLibFp' <- addTempFile ext
-  runIO $ copyFile rustLibFp rustLibFp'
+  runIO $ copyFile (dir </> thisFile -<.> "o") rustLibFp'
 
   -- Link in the static library
   addForeignFilePath RawObject rustLibFp'
@@ -224,7 +227,8 @@ fileFinalizer = do
   -- Figure out what we are putting into this file
   Just cb <- getQ
   Just (Context (_,_,impls)) <- getQ
-  let code = showsCodeBlocks cb
+  let code = showsCodeBlocks cb ""
+    {-
            . showString "pub mod marshal {\n"
            . showString "#[allow(unused_imports)] use super::*;\n"
            . showString "pub trait MarshalInto<T> { fn marshal(self) -> T; }\n"
@@ -232,6 +236,7 @@ fileFinalizer = do
            . showString "}\n"
            . showString "#[allow(unused_imports)]  use self::marshal::*;\n"
            $ ""
+           -}
 
   -- Write out the file
   runIO $ createDirectoryIfMissing True dir
