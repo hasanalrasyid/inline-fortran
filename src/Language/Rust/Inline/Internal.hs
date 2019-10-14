@@ -127,7 +127,7 @@ getHType haskType = getHTypeInContext haskType =<< getContext
 -- * Finalizers
 
 -- | A finalizer to run Cargo and link in the static library. This function
--- should be the very last @inline-rust@ related TH to run.
+-- should be the very last @inline-fortran@ related TH to run.
 --
 -- After generating an appropriate @Cargo.toml@ file, it calls out to Cargo to
 -- compile all the Rust files into a static library and which it then tells TH
@@ -138,9 +138,9 @@ cargoFinalizer :: [String]           -- ^ Extra @cargo@ arguments
 cargoFinalizer extraArgs dependencies = do
   (pkg, mods) <- currentFile
 
-  let dir = ".inline-rust" </> pkg
+  let dir = ".inline-fortran" </> pkg
       thisFile = foldr1 (</>) mods <.> "f95"
-      crate = "quasiquote_" ++ pkg
+      crate = "q_" ++ pkg
 
   -- Make contents of a @Cargo.toml@ file
   let cargoToml = dir </> "Cargo" <.> "toml"
@@ -214,14 +214,14 @@ rustcErrMsg :: String
 rustcErrMsg = "Rust source file associated with this module failed to compile"
 
 -- | A finalizer to write out a Rust source file when we are done processing
--- a module. This emits into a file in the @.inline-rust@ directory all of the
+-- a module. This emits into a file in the @.inline-fortran@ directory all of the
 -- Rust code we have produced while processing the current files contexts and
 -- quasiquotes.
 fileFinalizer :: Q ()
 fileFinalizer = do
   (pkg, mods) <- currentFile
 
-  let dir = ".inline-rust" </> pkg
+  let dir = ".inline-fortran" </> pkg
       thisFile = foldr1 (</>) mods <.> "f95"
 
   -- Figure out what we are putting into this file
