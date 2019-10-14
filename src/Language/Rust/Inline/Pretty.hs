@@ -15,7 +15,7 @@ module Language.Rust.Inline.Pretty (
 
 import Language.Rust.Pretty                    ( Pretty(..) )
 import Language.Rust.Data.Position             ( Spanned(..) )
-import Language.Rust.Syntax                    ( Ty, Token(..), TokenTree(..), TokenStream(..) )
+import Language.Fortran.Syntax                    ( Ty, Token(..), TokenTree(..), TokenStream(..) )
 
 import Data.Text.Prettyprint.Doc               ( layoutPretty, defaultLayoutOptions )
 import Data.Text.Prettyprint.Doc.Render.String ( renderString )

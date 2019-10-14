@@ -67,6 +67,7 @@ dependencies:
     - pretty
     - GenericPretty
     - fgl
+      #needed for fortran
 
 library:
   build-tools:

@@ -13,8 +13,8 @@ module Language.Rust.Inline.Parser where
 
 import Language.Rust.Inline.Pretty ( renderType )
 
-import Language.Rust.Syntax        ( Token(..), Delim(..), Ty(..) )
-import Language.Rust.Parser
+import Language.Fortran.Syntax        ( Token(..), Delim(..), Ty(..) )
+import Language.Fortran.Parser
 import Language.Rust.Data.Position ( Spanned(..), Position(..), Span(..) )
 import Language.Rust.Data.Ident    ( Ident(..) )
 

@@ -17,7 +17,7 @@ module Language.Rust.Inline.Context where
 import Language.Rust.Inline.Pretty ( renderType )
 
 import Language.Rust.Syntax        ( Ty(BareFn, Ptr), Abi(..), FnDecl(..), Arg(..) )
-import Language.Rust.Quote         ( ty )
+import Language.Fortran.Quote         ( ty )
 
 import Language.Haskell.TH
 
@@ -32,6 +32,7 @@ import Data.Word                   ( Word8, Word16, Word32, Word64 )
 import Foreign.Ptr                 ( Ptr, FunPtr )
 import Foreign.C.Types             -- pretty much every type here is used
 import qualified Control.Monad.Fail as Fail
+import Eigen.Internal -- CComplex
 
 instance Fail.MonadFail First where
   fail = error "MonadFail First error"
@@ -151,10 +152,58 @@ basic = mkContext
   , ([ty| isize |], [t| Int     |])
   , ([ty| usize |], [t| Word    |])
   , ([ty| ()    |], [t| ()      |])
+  , ([ty| integer         |], [t| Int32           |])
+  , ([ty| real            |], [t| Float           |])
+  , ([ty| logical         |], [t| Int8            |])
+  , ([ty| real            |], [t| Float           |])
+  , ([ty| complex         |], [t| CComplex Float  |])
+  , ([ty| character       |], [t| CChar           |])
 -- Fortran
-  , ([ty| integer |], [t| Int32   |])
-  , ([ty| real    |], [t| Float   |])
+  {-
+  , ([ty| logical(kind=1) |], [t| Int8            |])
+  , ([ty| character(len=1)|], [t| CChar           |])
+--  , ([ty| integer         |], [t| CInt            |])
+--  , ([ty| integer(kind=2) |], [t| CShort          |])
+--  , ([ty| integer(kind=4) |], [t| CInt            |])
+--  , ([ty| integer(kind=4) |], [t| CLong           |])
+--  , ([ty| integer(kind=8) |], [t| CLLong          |])
+--  , ([ty| integer(kind=1) |], [t| CChar           |])
+--  , ([ty| integer(kind=4) |], [t| CSize           |])
+  , ([ty| integer(kind=1) |], [t| Int8            |])
+  , ([ty| integer(kind=2) |], [t| Int16           |])
+  , ([ty| integer(kind=4) |], [t| Int32           |])
+  , ([ty| integer(kind=8) |], [t| Int64           |])
+  , ([ty| real(kind=4)    |], [t| Float           |])
+  , ([ty| real(kind=8)    |], [t| Double          |])
+  , ([ty| complex(kind=4) |], [t| CComplex Float  |])
+  , ([ty| complex(kind=8) |], [t| CComplex Double |])
+  -}
   ]
+    {- Interop C Fortran
+C_BOOL                      _Bool                   logical(kind=1)           Int8
+                                                    character                 CChar
+C_CHAR                      char                    character(len=1)          CChar
+                                                    integer                   CInt
+C_SHORT                     short int               integer(kind=2)           CShort
+C_INT                       int                     integer(kind=4)           CInt      Int32
+C_LONG                      long int                integer(kind=4 or 8)      CLong     Int32/64
+C_LONG_LONG                 long long int           integer(kind=8)           CLLong    Int64
+C_SIGNED_CHAR               u/signed char           integer(kind=1)           CChar     Int8
+C_SIZE_T                    size_t                  integer(kind=4 or 8)      CSize     Int32/64
+C_INT8_T                    int8_t                  integer(kind=1)           Int8
+C_INT16_T                   int16_t                 integer(kind=2)           Int16
+C_INT32_T                   int32_t                 integer(kind=4)           Int32
+C_INT64_T                   int64_t                 integer(kind=8)           Int64
+                                                    real                      Float
+C_FLOAT                     float                   real(kind=4)              Float
+C_DOUBLE                    double                  real(kind=8)              Double
+C_LONG_DOUBLE               long double             real(kind=8 or 16)        Double            -- we do not implement LongDouble
+                                                    complex                   CComplex Float
+C_FLOAT_COMPLEX             float _Complex          complex(kind=4)           CComplex Float    -- CComplex provided by Data.Eigen.Matrix
+C_DOUBLE_COMPLEX            double _Complex         complex(kind=8)           CComplex Double
+C_LONG_DOUBLE_COMPLEX       long double _Complex    complex(kind=8 or 16)     CComplex Double
+       -}
+
 
 -- | Haskell pointers map onto Rust pointers. Note that unlike Rust, Haskell
 -- doesn't really distinguish between pointers pointing to immutable memory from
@@ -191,4 +240,3 @@ functions = Context [ rule ]
     let hFunPtr = [t| FunPtr $hFunTy |]
 
     pure hFunPtr
-
