@@ -278,13 +278,15 @@ processQQ safety isPure (QQParse rustRet rustBody rustNamedArgs) = do
 
   -- Find out what the corresponding Haskell representations are for the
   -- argument and return types
-  let (rustArgNames, rustArgs) = unzip rustNamedArgs
+  let (rustArgNames, rustArgs_intents) = unzip rustNamedArgs
+  let (rustArgs, intents) = unzip rustArgs_intents
     {-
   (haskRet, reprCRet) <- getRType (void rustRet)
   -}
   reprCRet <- pure Nothing
   haskRet <- [t| () |]  -- this means haskRet will be always void in C
   runIO $ putStrLn $ "rustArgs:" ++ show rustArgs
+  runIO $ putStrLn $ "intents:" ++ show intents
   (haskArgs, reprCArgs) <- unzip <$> traverse (getRType . void) rustArgs
 
   -- Convert the Haskell return type to a marshallable FFI type
@@ -387,7 +389,7 @@ processQQ safety isPure (QQParse rustRet rustBody rustNamedArgs) = do
                                 ] ++ retArg) ++
                                 -}
                                 ")"
-    , unlines [ (renderType t) ++ ", intent(inout) :: " ++ s | (s,t) <- zip rustArgNames rustArgs' ]
+    , unlines [ (renderType t) ++ ", intent(" ++ i ++ ") :: " ++ s | (s,t,i) <- zip3 rustArgNames rustArgs' intents]
     , renderTokens rustBody
     , "end subroutine " ++ qqStrName
   {-

@@ -37,7 +37,7 @@ data RustQuasiquoteParse = QQParse
   , body :: [SpTok]
 
   -- | escaped arguments
-  , variables :: [(String, Ty Span)]
+  , variables :: [(String, (Ty Span, String))]
 
   } deriving (Show)
 
@@ -62,7 +62,7 @@ parseQQ input = do
     case execParser lexer stream initPos of
       Left (ParseFail _ msg) -> fail msg
       Right parsed -> pure parsed
-  runIO $ putStrLn $ "rest1 : " ++ show rest1
+  runIO $ putStrLn $ "rest1: " ++ show rest1
 
   {- No need for leading type, we can go straight to body
       it means body need no brace
@@ -90,17 +90,21 @@ parseQQ input = do
 
   where
     -- Parse the body of the quasiquote
-    parseBody toks vars rest1
-      = case rest1 of
+    parseBody toks vars rest = do
+        case rest of
           [] -> pure (reverse toks, vars)
 
           (Spanned Dollar _            :
            Spanned (OpenDelim Paren) _ :
            Spanned (IdentTok i) _      :
-           Spanned Colon _             : rest2) -> do
-
+           Spanned Colon _             :
+           Spanned (IdentTok intent) _ :
+           Spanned Colon _             : rst2) -> do
             -- Parse the rest of the escape
-            (t1, rest3) <- parseEscape [] 1 rest2
+            (t1, rst3) <- parseEscape [] 1 rst2
+            runIO $ putStrLn $ "parseBody $(i) rst2: " ++ show rst2
+--            runIO $ putStrLn $ "parseBody $(i)   t1: " ++ show t1
+--            runIO $ putStrLn $ "parseBody $(i) rst3: " ++ show rst3
 
             -- Add it to 'vars' if it isn't a duplicate
             let i' = name i
@@ -108,33 +112,36 @@ parseQQ input = do
                                     , "' has already been given type `"
                                     , renderType t2, "'"
                                     ]
+            let intent' = name intent
             newVars <- case lookup i' vars of
-                         Nothing -> pure ((i', t1) : vars)
-                         Just t2 | void t1 == void t2 -> pure vars
-                                 | otherwise -> fail (dupMsg t2)
+                         Nothing -> pure ((i', (t1,intent')) : vars)
+                         Just (t2,_) | void t1 == void t2 -> pure vars
+                                     | otherwise -> fail (dupMsg t2)
 
             -- Continue parsing
-            parseBody (pure (IdentTok i) : toks) newVars rest3
+            parseBody (pure (IdentTok i) : toks) newVars rst3
 
-          (tok : rest2) -> parseBody (tok : toks) vars rest2
+          (tok : rst2) -> parseBody (tok : toks) vars rst2
 
     -- Parse the part of escapes like @$(x: i32)@ that comes after the @:@.
     parseEscape :: [SpTok] -> Int -> [SpTok] -> Q (Ty Span, [SpTok])
-    parseEscape toks p rest1
-      = case rest1 of
+    parseEscape toks p rst1 = do
+        case rst1 of
           [] -> fail "Ran out of input while parsing variable escape"
-          tok : rest2
-            | openParen tok           -> parseEscape (tok : toks) (p+1) rest2
-            | closeParen tok && p > 1 -> parseEscape (tok : toks) (p-1) rest2
-            | not (closeParen tok)    -> parseEscape (tok : toks) p     rest2
-            | otherwise -> case parseFromToks (reverse toks) of
+          tok : rst2
+            | openParen tok           -> parseEscape (tok : toks) (p+1) rst2
+            | closeParen tok && p > 1 -> parseEscape (tok : toks) (p-1) rst2
+            | not (closeParen tok)    -> parseEscape (tok : toks) p     rst2
+            | otherwise -> do
+                runIO $ putStrLn $ "parseEscape otherwise: " ++ show toks
+                case parseFromToks (reverse toks) of
                              Left (ParseFail _ msg) -> fail msg
-                             Right parsed           -> pure (parsed, rest2)
+                             Right parsed           -> pure (parsed, rst2)
 
 
 -- | Utility function for parsing AST structures from listf of spanned tokens
 parseFromToks :: Parse a => [SpTok] -> Either ParseFail a
-parseFromToks toks = execParserTokens parser (reverse toks) initPos
+parseFromToks toks = execParserTokens parser toks initPos
 
 -- | Identifies an open brace token
 openBrace :: SpTok -> Bool

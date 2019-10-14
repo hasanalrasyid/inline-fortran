@@ -20,8 +20,8 @@ main = do
     [rustIO|
       print *, "adalah dianya yang sepertinya"
       print *, "adalah dianya yang sepertinya ",x
-      k = $(x : real) + 5
-      x = x + k
+      k = $(x:in:real) + 5
+      print *, "adalah dianya yang sepertinya ",k
     |]
       -- k = 5 + $(x : i32) # anehnya, ini error
     putStrLn $ "Haskell: Rust says in withPtr x=" ++ show x

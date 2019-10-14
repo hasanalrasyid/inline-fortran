@@ -186,6 +186,8 @@ import qualified Data.List.NonEmpty as N
   if             { Spanned (IdentTok "if") _ }
   impl           { Spanned (IdentTok "impl") _ }
   in             { Spanned (IdentTok "in") _ }
+  out            { Spanned (IdentTok "out") _ }
+  inout          { Spanned (IdentTok "inout") _ }
   let            { Spanned (IdentTok "let") _ }
   loop           { Spanned (IdentTok "loop") _ }
   match          { Spanned (IdentTok "match") _ }
