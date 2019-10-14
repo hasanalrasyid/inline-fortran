@@ -16,7 +16,7 @@ module Language.Rust.Inline.Context where
 
 import Language.Rust.Inline.Pretty ( renderType )
 
-import Language.Rust.Syntax        ( Ty(BareFn, Ptr), Abi(..), FnDecl(..), Arg(..) )
+import Language.Fortran.Syntax        ( Ty(BareFn, Ptr), Abi(..), FnDecl(..), Arg(..) )
 import Language.Fortran.Quote         ( ty )
 
 import Language.Haskell.TH
@@ -152,12 +152,12 @@ basic = mkContext
   , ([ty| isize |], [t| Int     |])
   , ([ty| usize |], [t| Word    |])
   , ([ty| ()    |], [t| ()      |])
-  , ([ty| integer         |], [t| Int32           |])
-  , ([ty| real            |], [t| Float           |])
-  , ([ty| logical         |], [t| Int8            |])
-  , ([ty| real            |], [t| Float           |])
-  , ([ty| complex         |], [t| CComplex Float  |])
-  , ([ty| character       |], [t| CChar           |])
+  , ([ty| integer   |], [t| Int32           |])
+  , ([ty| real      |], [t| Float           |])
+  , ([ty| logical   |], [t| Int8            |])
+  , ([ty| real      |], [t| Float           |])
+  , ([ty| complex   |], [t| CComplex Float  |])
+  , ([ty| character |], [t| CChar           |])
 -- Fortran
   {-
   , ([ty| logical(kind=1) |], [t| Int8            |])

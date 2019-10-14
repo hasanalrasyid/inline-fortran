@@ -13,7 +13,7 @@ module Language.Rust.Inline.Pretty (
   renderTokens,
 ) where
 
-import Language.Rust.Pretty                    ( Pretty(..) )
+import Language.Fortran.Pretty                    ( Pretty(..) )
 import Language.Rust.Data.Position             ( Spanned(..) )
 import Language.Fortran.Syntax                    ( Ty, Token(..), TokenTree(..), TokenStream(..) )
 
