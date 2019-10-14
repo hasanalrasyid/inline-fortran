@@ -982,10 +982,12 @@ $hexit             = [0-9a-fA-F]
 -- Macro related
 
 @subst_nt          = "$" @ident
+$newline = ['\n']
 
 tokens :-
 
-$white+         { \s -> checkWhite s}
+$newline        { token TNewLine }
+$white          { \s -> pure (Space Whitespace s) }
 
 "="             { token Equal }
 "<"             { token Less }
@@ -1280,11 +1282,5 @@ lexShebangLine = do
       Just c' -> do
         _ <- nextChar
         (c' :) <$> toNewline
-
-checkWhite p = do
-  c <- peekChar
-  case c of
-    Just '\n' ->  pure (Space NewLine p)
-    _ -> pure (Space Whitespace p)
 
 }

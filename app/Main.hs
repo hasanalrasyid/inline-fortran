@@ -20,7 +20,7 @@ main = do
     [rustIO|
       print *, "adalah dianya yang sepertinya"
       print *, "adalah dianya yang sepertinya ",x
-      k = 1;
+      k = 1
       $(x:out:real) = k + 5
       print *, "adalah dianya yang sepertinya ",k
     |]

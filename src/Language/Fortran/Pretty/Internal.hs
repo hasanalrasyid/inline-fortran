@@ -266,6 +266,7 @@ printToken FatArrow = "=>"
 printToken Pound = "#"
 printToken Dollar = "$"
 printToken Question = "?"
+printToken TNewLine = "\n"
 -- Delimiters, eg. @{@, @]@, @(@
 printToken (OpenDelim Paren) = "("
 printToken (OpenDelim Bracket) = "["
@@ -281,7 +282,6 @@ printToken (LiteralTok l s) = noIndent $ printLitTok l <> perhaps printName s
 printToken (IdentTok i) = printIdent i
 printToken (LifetimeTok i) = "'" <> printIdent i
 printToken (Space Whitespace _) = " "
-printToken (Space NewLine _) = "\n"
 printToken (Space Comment n) = "/*" <> printName n <> " */"
 printToken (Doc d Inner True) = "/*!" <> printName d <> "*/"
 printToken (Doc d Outer True) = "/**" <> printName d <> "*/"
