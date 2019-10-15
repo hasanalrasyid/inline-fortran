@@ -1,3 +1,4 @@
+export INLINE_FORTRAN_CC = -g
 default:
 	stack build
 	stack exec x
