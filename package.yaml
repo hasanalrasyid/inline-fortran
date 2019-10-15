@@ -51,7 +51,7 @@ dependencies:
 
     - prettyprinter
     - deepseq
-    - language-rust
+    - language-rust >= 0.2.0.27
     - array
     - json
     - process
@@ -75,6 +75,7 @@ library:
     - happy
   source-dirs:
     - src
+  extra-libraries:  gfortran #    gsl gslcblas m
 
 executables:
   x:
@@ -82,7 +83,6 @@ executables:
     source-dirs:         app
     #c-sources:           app/Main.c
     cc-options:           -Wall -O2
-    extra-libraries:  gfortran #    gsl gslcblas m
     ghc-options:
     - -threaded
     - -rtsopts
