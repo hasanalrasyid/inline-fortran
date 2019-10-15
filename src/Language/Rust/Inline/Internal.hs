@@ -173,18 +173,19 @@ cargoFinalizer extraArgs dependencies = do
   --         * We could automatically link in these libraries, if GHC supported
   --           specifying libraries to pass to the final linker call.
   --
-  inlineCC <- runIO $ lookupEnv "INLINE_FORTRAN_CC"
+  inlineFFlags <- runIO $ fromMaybe "" <$> lookupEnv "INLINE_FORTRAN_FFLAGS"
+  inlineFC <- runIO $ fromMaybe "gfortran" <$> lookupEnv "INLINE_FORTRAN_FC"
+
   runIO $ setEnv "RUSTFLAGS" "--print native-static-libs"
-  let cargoArgs = (words . unwords) [ "-c", "-fpic"
-                                    , "-fno-underscoring"
-                                    , fromMaybe "" inlineCC
+  let cargoArgs = (words . unwords) [ "-c -fpic -fno-underscoring"
+                                    , inlineFFlags
                                     , "-o", dir </> thisFile -<.> "o"
                                     , dir </> thisFile
                                     ] ++ extraArgs
       msgFormat = [ "--message-format=json" ]
   runIO $ putStrLn $ "cargoArgs: " ++ show cargoArgs
 
-  ec <- runIO $ spawnProcess "gfortran" cargoArgs >>= waitForProcess
+  ec <- runIO $ spawnProcess inlineFC cargoArgs >>= waitForProcess
   when (ec /= ExitSuccess)
     (reportError rustcErrMsg)
 
