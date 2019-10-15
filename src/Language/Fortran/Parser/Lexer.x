@@ -53,6 +53,7 @@ import Language.Fortran.Syntax.Token
 import Data.Char                       ( chr )
 import Data.Word                       ( Word8 )
 
+import Control.Monad                   (void)
 -- Things to review:
 --   * improved error messages
 
@@ -1251,6 +1252,13 @@ lexNonSpace :: P (Spanned Token)
 lexNonSpace = do
   tok <- lexToken
   case tok of
+    Spanned TNewLine _ -> do
+      c <- peekChar
+      case c of
+        Just 'c' -> void toNewline >> pure tok
+        Just 'C' -> void toNewline >> pure tok
+        Just '!' -> void toNewline >> pure tok
+        _ -> pure tok
     Spanned Space{} _ -> lexNonSpace
     _ -> pure tok
 
@@ -1271,16 +1279,16 @@ lexShebangLine = do
   case peekChars 3 inp of
     '#':'!':r | r /= "[" -> Just <$> toNewline
     _ -> pure Nothing
-  where
-  -- Lexes a string until a newline
-  toNewline :: P String
-  toNewline = do
-    c <- peekChar
-    case c of
-      Nothing -> pure ""
-      Just '\n' -> pure ""
-      Just c' -> do
-        _ <- nextChar
-        (c' :) <$> toNewline
+
+-- Lexes a string until a newline
+toNewline :: P String
+toNewline = do
+  c <- peekChar
+  case c of
+    Nothing -> pure ""
+    Just '\n' -> pure "\n"
+    Just c' -> do
+      _ <- nextChar
+      (c' :) <$> toNewline
 
 }

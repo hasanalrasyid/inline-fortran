@@ -20,6 +20,9 @@ main = do
     [rustIO|
       print *, "adalah dianya yang sepertinya"
       print *, "adalah dianya yang sepertinya ",x
+C Testing for comment  1
+! Testing for comment  2
+c Testing for comment  3
       k = 1
       $(x:out:real) = k + 5
       print *, "adalah dianya yang sepertinya ",k
