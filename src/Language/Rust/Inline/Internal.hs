@@ -36,7 +36,7 @@ import System.FilePath             ( (</>), (-<.>), (<.>), takeExtension )
 import System.Directory            ( copyFile, createDirectoryIfMissing )
 import System.Process              ( spawnProcess, readProcess, waitForProcess )
 import System.Exit                 ( ExitCode(..) )
-import System.Environment          ( setEnv )
+import System.Environment          ( lookupEnv, setEnv )
 
 import Text.JSON
 
@@ -173,12 +173,16 @@ cargoFinalizer extraArgs dependencies = do
   --         * We could automatically link in these libraries, if GHC supported
   --           specifying libraries to pass to the final linker call.
   --
+  inlineCC <- runIO $ lookupEnv "INLINE_FORTRAN_CC"
   runIO $ setEnv "RUSTFLAGS" "--print native-static-libs"
-  let cargoArgs = [ "-c", "-fpic", "-g", "-fno-underscoring"
-                  , "-o", dir </> thisFile -<.> "o"
-                  , dir </> thisFile
-                  ] ++ extraArgs
+  let cargoArgs = (words . unwords) [ "-c", "-fpic"
+                                    , "-fno-underscoring"
+                                    , fromMaybe "" inlineCC
+                                    , "-o", dir </> thisFile -<.> "o"
+                                    , dir </> thisFile
+                                    ] ++ extraArgs
       msgFormat = [ "--message-format=json" ]
+  runIO $ putStrLn $ "cargoArgs: " ++ show cargoArgs
 
   ec <- runIO $ spawnProcess "gfortran" cargoArgs >>= waitForProcess
   when (ec /= ExitSuccess)
