@@ -30,23 +30,23 @@ To get information about transition states and such, run
 
 module Language.Fortran.Parser.Internal (
   -- * Parsers
-  parseAttr,
-  parseBlock,
-  parseExpr,
-  parseGenerics,
-  parseImplItem,
-  parseItem,
-  parseLifetimeDef,
-  parseLit,
-  parsePat,
-  parseSourceFile,
-  parseStmt,
-  parseTokenStream,
-  parseTraitItem,
-  parseTt,
-  parseTy,
-  parseTyParam,
-  parseWhereClause,
+--  parseAttr,
+--  parseBlock,
+--  parseExpr,
+--  parseGenerics,
+--  parseImplItem,
+--  parseItem,
+--  parseLifetimeDef,
+--  parseLit,
+--  parsePat,
+--  parseSourceFile,
+--  parseStmt,
+--  parseTokenStream,
+--  parseTraitItem,
+--  parseTt,
+--  parseTyParam,
+--  parseWhereClause,
+  parseTy
 ) where
 
 import Language.Fortran.Syntax
@@ -364,16 +364,16 @@ ident :: { Spanned Ident }
 --h--        PipePipe -> pushToken (Spanned Pipe s') *> pushToken (Spanned Pipe s'')
 --h--        _        -> pushToken (Spanned tok s)
 --h--    }
---h--
---h---------------
---h---- Utility --
---h---------------
---h--
---h---- | One or more occurences of 'p'
---h--some(p) :: { Reversed NonEmpty _ }
---h--  : some(p) p             { let Reversed xs = $1 in Reversed ($2 <| xs) }
---h--  | p                     { [$1] }
---h--
+
+-------------
+-- Utility --
+-------------
+
+-- | One or more occurences of 'p'
+some(p) :: { Reversed NonEmpty _ }
+  : some(p) p             { let Reversed xs = $1 in Reversed ($2 <| xs) }
+  | p                     { [$1] }
+
 --h---- | Zero or more occurences of 'p'
 --h--many(p) :: { [ _ ] }
 --h--  : some(p)               { toList $1 }
@@ -615,8 +615,8 @@ ty_no_plus :: { Ty Span }
 --h--
 -- All (non-sum) types not starting with a 'for'
 no_for_ty :: { Ty Span }
-  : no_for_ty_prim                   { $1 }
-  | '(' ')'                          { TupTy [] ($1 # $2) }
+--  : no_for_ty_prim                   { $1 }
+  : '(' ')'                          { TupTy [] ($1 # $2) }
   | '(' ty ')'                       { ParenTy $2 ($1 # $3) }
   | '(' ty ',' ')'                   { TupTy [$2] ($1 # $4) }
   | '(' ty ',' sep_by1T(ty,',') ')'  { TupTy ($2 : toList $4) ($1 # $5) }
@@ -1551,151 +1551,151 @@ no_for_ty :: { Ty Span }
 --h--  : mod_path '!' '[' token_stream ']' ';'  { Mac $1 $4 ($1 # $>) }
 --h--  | mod_path '!' '{' token_stream '}'      { Mac $1 $4 ($1 # $>) }
 --h--  | mod_path '!' '(' token_stream ')' ';'  { Mac $1 $4 ($1 # $>) }
---h--
---h--token_stream :: { TokenStream }
---h--  : {- empty -}                                { Stream [] }
---h--  | some(token_tree)                           {
---h--      case $1 of
---h--        [tt] -> Tree tt
---h--        tts -> Stream [ Tree tt | tt <- toList tts ]
---h--    }
---h--
---h--token_tree :: { TokenTree }
---h--  : ntTT                                       { $1 }
---h--  -- # Delimited
---h--  | '(' token_stream ')'                       { Delimited ($1 # $3) Paren $2 }
---h--  | '{' token_stream '}'                       { Delimited ($1 # $3) Brace $2 }
---h--  | '[' token_stream ']'                       { Delimited ($1 # $3) Bracket $2 }
---h--  -- # Token
---h--  | token                                      { let Spanned t s = $1 in Token s t }
---h--
---h--token :: { Spanned Token }
---h--  : '='        { $1 }
---h--  | '<'        { $1 }
---h--  | '>'        { $1 }
---h--  | '!'        { $1 }
---h--  | '~'        { $1 }
---h--  | '-'        { $1 }
---h--  | '/'        { $1 }
---h--  | '+'        { $1 }
---h--  | '*'        { $1 }
---h--  | '%'        { $1 }
---h--  | '^'        { $1 }
---h--  | '&'        { $1 }
---h--  | '|'        { $1 }
---h--  | '<<='      { $1 }
---h--  | '>>='      { $1 }
---h--  | '-='       { $1 }
---h--  | '&='       { $1 }
---h--  | '|='       { $1 }
---h--  | '+='       { $1 }
---h--  | '*='       { $1 }
---h--  | '/='       { $1 }
---h--  | '^='       { $1 }
---h--  | '%='       { $1 }
---h--  | '||'       { $1 }
---h--  | '&&'       { $1 }
---h--  | '=='       { $1 }
---h--  | '!='       { $1 }
---h--  | '<='       { $1 }
---h--  | '>='       { $1 }
---h--  | '<<'       { $1 }
---h--  | '>>'       { $1 }
---h--  -- Structural symbols.
---h--  | '@'        { $1 }
---h--  | '...'      { $1 }
---h--  | '..='      { $1 }
---h--  | '..'       { $1 }
---h--  | '.'        { $1 }
---h--  | ','        { $1 }
---h--  | ';'        { $1 }
---h--  | '::'       { $1 }
---h--  | ':'        { $1 }
---h--  | '->'       { $1 }
---h--  | '<-'       { $1 }
---h--  | '=>'       { $1 }
---h--  | '#'        { $1 }
---h--  | '$'        { $1 }
---h--  | '?'        { $1 }
---h--  | '#!'       { $1 }
---h--  -- Literals.
---h--  | byte       { $1 }
---h--  | char       { $1 }
---h--  | int        { $1 }
---h--  | float      { $1 }
---h--  | str        { $1 }
---h--  | byteStr    { $1 }
---h--  | rawStr     { $1 }
---h--  | rawByteStr { $1 }
---h--  -- Strict keywords used in the language
---h--  | as         { $1 }
---h--  | box        { $1 }
---h--  | break      { $1 }
---h--  | const      { $1 }
---h--  | continue   { $1 }
---h--  | crate      { $1 }
---h--  | else       { $1 }
---h--  | enum       { $1 }
---h--  | extern     { $1 }
---h--  | false      { $1 }
---h--  | fn         { $1 }
---h--  | for        { $1 }
---h--  | if         { $1 }
---h--  | impl       { $1 }
---h--  | in         { $1 }
---h--  | let        { $1 }
---h--  | loop       { $1 }
---h--  | match      { $1 }
---h--  | mod        { $1 }
---h--  | move       { $1 }
---h--  | mut        { $1 }
---h--  | pub        { $1 }
---h--  | ref        { $1 }
---h--  | return     { $1 }
---h--  | Self       { $1 }
---h--  | self       { $1 }
---h--  | static     { $1 }
---h--  | struct     { $1 }
---h--  | super      { $1 }
---h--  | trait      { $1 }
---h--  | true       { $1 }
---h--  | type       { $1 }
---h--  | unsafe     { $1 }
---h--  | use        { $1 }
---h--  | where      { $1 }
---h--  | while      { $1 }
---h--  -- Keywords reserved for future use
---h--  | abstract   { $1 }
---h--  | alignof    { $1 }
---h--  | become     { $1 }
---h--  | do         { $1 }
---h--  | final      { $1 }
---h--  | macro      { $1 }
---h--  | offsetof   { $1 }
---h--  | override   { $1 }
---h--  | priv       { $1 }
---h--  | proc       { $1 }
---h--  | pure       { $1 }
---h--  | sizeof     { $1 }
---h--  | typeof     { $1 }
---h--  | unsized    { $1 }
---h--  | virtual    { $1 }
---h--  -- Weak keywords, have special meaning only in specific contexts.
---h--  | default    { $1 }
---h--  | union      { $1 }
---h--  | catch      { $1 }
---h--  | auto       { $1 }
---h--  | yield      { $1 }
---h--  | dyn        { $1 }
---h--  -- Comments
---h--  | outerDoc   { $1 }
---h--  | innerDoc   { $1 }
---h--  -- Identifiers.
---h--  | IDENT      { $1 }
---h--  | '_'        { $1 }
---h--  -- Lifetimes.
---h--  | LIFETIME   { $1 }
---h--
+
+token_stream :: { TokenStream }
+  : {- empty -}                                { Stream [] }
+  | some(token_tree)                           {
+      case $1 of
+        [tt] -> Tree tt
+        tts -> Stream [ Tree tt | tt <- toList tts ]
+    }
+
+token_tree :: { TokenTree }
+  : ntTT                                       { $1 }
+  -- # Delimited
+  | '(' token_stream ')'                       { Delimited ($1 # $3) Paren $2 }
+  | '{' token_stream '}'                       { Delimited ($1 # $3) Brace $2 }
+  | '[' token_stream ']'                       { Delimited ($1 # $3) Bracket $2 }
+  -- # Token
+  | token                                      { let Spanned t s = $1 in Token s t }
+
+token :: { Spanned Token }
+  : '='        { $1 }
+  | '<'        { $1 }
+  | '>'        { $1 }
+  | '!'        { $1 }
+  | '~'        { $1 }
+  | '-'        { $1 }
+  | '/'        { $1 }
+  | '+'        { $1 }
+  | '*'        { $1 }
+  | '%'        { $1 }
+  | '^'        { $1 }
+  | '&'        { $1 }
+  | '|'        { $1 }
+  | '<<='      { $1 }
+  | '>>='      { $1 }
+  | '-='       { $1 }
+  | '&='       { $1 }
+  | '|='       { $1 }
+  | '+='       { $1 }
+  | '*='       { $1 }
+  | '/='       { $1 }
+  | '^='       { $1 }
+  | '%='       { $1 }
+  | '||'       { $1 }
+  | '&&'       { $1 }
+  | '=='       { $1 }
+  | '!='       { $1 }
+  | '<='       { $1 }
+  | '>='       { $1 }
+  | '<<'       { $1 }
+  | '>>'       { $1 }
+  -- Structural symbols.
+  | '@'        { $1 }
+  | '...'      { $1 }
+  | '..='      { $1 }
+  | '..'       { $1 }
+  | '.'        { $1 }
+  | ','        { $1 }
+  | ';'        { $1 }
+  | '::'       { $1 }
+  | ':'        { $1 }
+  | '->'       { $1 }
+  | '<-'       { $1 }
+  | '=>'       { $1 }
+  | '#'        { $1 }
+  | '$'        { $1 }
+  | '?'        { $1 }
+  | '#!'       { $1 }
+  -- Literals.
+  | byte       { $1 }
+  | char       { $1 }
+  | int        { $1 }
+  | float      { $1 }
+  | str        { $1 }
+  | byteStr    { $1 }
+  | rawStr     { $1 }
+  | rawByteStr { $1 }
+  -- Strict keywords used in the language
+  | as         { $1 }
+  | box        { $1 }
+  | break      { $1 }
+  | const      { $1 }
+  | continue   { $1 }
+  | crate      { $1 }
+  | else       { $1 }
+  | enum       { $1 }
+  | extern     { $1 }
+  | false      { $1 }
+  | fn         { $1 }
+  | for        { $1 }
+  | if         { $1 }
+  | impl       { $1 }
+  | in         { $1 }
+  | let        { $1 }
+  | loop       { $1 }
+  | match      { $1 }
+  | mod        { $1 }
+  | move       { $1 }
+  | mut        { $1 }
+  | pub        { $1 }
+  | ref        { $1 }
+  | return     { $1 }
+  | Self       { $1 }
+  | self       { $1 }
+  | static     { $1 }
+  | struct     { $1 }
+  | super      { $1 }
+  | trait      { $1 }
+  | true       { $1 }
+  | type       { $1 }
+  | unsafe     { $1 }
+  | use        { $1 }
+  | where      { $1 }
+  | while      { $1 }
+  -- Keywords reserved for future use
+  | abstract   { $1 }
+  | alignof    { $1 }
+  | become     { $1 }
+  | do         { $1 }
+  | final      { $1 }
+  | macro      { $1 }
+  | offsetof   { $1 }
+  | override   { $1 }
+  | priv       { $1 }
+  | proc       { $1 }
+  | pure       { $1 }
+  | sizeof     { $1 }
+  | typeof     { $1 }
+  | unsized    { $1 }
+  | virtual    { $1 }
+  -- Weak keywords, have special meaning only in specific contexts.
+  | default    { $1 }
+  | union      { $1 }
+  | catch      { $1 }
+  | auto       { $1 }
+  | yield      { $1 }
+  | dyn        { $1 }
+  -- Comments
+  | outerDoc   { $1 }
+  | innerDoc   { $1 }
+  -- Identifiers.
+  | IDENT      { $1 }
+  | '_'        { $1 }
+  -- Lifetimes.
+  | LIFETIME   { $1 }
+
 --h--
 --h-----------------------
 --h---- Just for export --
@@ -1714,16 +1714,16 @@ no_for_ty :: { Ty Span }
 --h--  | safety '{' '}'                                         { Block [] (unspan $1) ($1 # $2 # $>) }
 --h--  | safety '{' stmts_possibly_no_semi '}'                  { Block [ s | Just s <- $3 ] (unspan $1) ($1 # $2 # $>) }
 --h--
---h--{
+{
 --h---- | Parser for literals.
 --h--parseLit :: P (Lit Span)
 --h--
 --h---- | Parser for attributes.
 --h--parseAttr :: P (Attribute Span)
---h--
---h---- | Parser for types.
---h--parseTy :: P (Ty Span)
---h--
+
+-- | Parser for types.
+parseTy :: P (Ty Span)
+
 --h---- | Parser for patterns.
 --h--parsePat :: P (Pat Span)
 --h--
@@ -1762,80 +1762,80 @@ no_for_ty :: { Ty Span }
 --h--
 --h---- | Parser for generics (although 'WhereClause' is always empty here).
 --h--parseGenerics :: P (Generics Span)
---h--
---h---- | Generate a nice looking error message based on expected tokens
---h--expParseError :: (Spanned Token, [String]) -> P a
---h--expParseError (Spanned t _, exps) = fail $ "Syntax error: unexpected `" ++ show t ++ "'" ++
---h--    case go (sort exps) [] replacements of
---h--      []       -> ""
---h--      [s]      -> " (expected " ++ s ++ ")"
---h--      [s2,s1]  -> " (expected " ++ s1 ++ " or " ++ s2 ++ ")"
---h--      (s : ss) -> " (expected " ++ (reverse ss >>= (++ ", ")) ++ "or " ++ s ++ ")"
---h--  where
---h--
---h--  go []     msgs _ = msgs
---h--  go (e:es) msgs rs | e `elem` ignore = go es msgs rs
---h--  go (e:es) msgs [] = go es (e : msgs) []
---h--  go es     msgs ((rep,msg):rs)
---h--    | rep `isSubsequenceOf` es = go (es \\ rep) (msg : msgs) rs
---h--    | otherwise = go es msgs rs
---h--
---h--  ignore = words "ntItem ntBlock ntStmt ntPat ntExpr ntTy ntIdent ntPath ntTT" ++
---h--           words "ntArm ntImplItem ntTraitItem ntGenerics ntWhereClause ntArg ntLit"
---h--
---h--  replacements = map (\(ks,v) -> (sort ks,v)) $
---h--    [ (expr,                              "an expression"   )
---h--
---h--    , (lit,                               "a literal"       )
---h--    , (boolLit,                           "a boolean"       )
---h--    , (byteLit,                           "a byte"          )
---h--    , (charLit,                           "a character"     )
---h--    , (intLit,                            "an int"          )
---h--    , (floatLit,                          "a float"         )
---h--    , (strLit,                            "a string"        )
---h--    , (byteStrLit,                        "a byte string"   )
---h--    , (rawStrLit,                         "a raw string"    )
---h--    , (rawByteStrLit,                     "a raw bytestring")
---h--
---h--    , (doc,                               "a doc"           )
---h--    , (outerDoc,                          "an outer doc"    )
---h--    , (innerDoc,                          "an inner doc"    )
---h--
---h--    , (identifier,                        "an identifier"   )
---h--    , (lifetime,                          "a lifetime"      )
---h--    ]
---h--
---h--  expr :: [String]
---h--  expr = lit ++ identifier ++ lifetime ++
---h--         words "'<' '!' '-' '*' '&' '|' '...' '..=' '..' '::'" ++
---h--         words "'||' '&&' '<<' '(' '[' '{' box break continue" ++
---h--         words "for if loop match move return Self self      " ++
---h--         words "static super unsafe while do default union   " ++
---h--         words "catch auto yield dyn"
---h--
---h--  lit = boolLit ++ byteLit ++ charLit ++ intLit ++ floatLit ++ strLit ++
---h--        byteStrLit ++ rawStrLit ++ rawByteStrLit
---h--  boolLit       = words "true false"
---h--  byteLit       = words "byte"
---h--  charLit       = words "char"
---h--  intLit        = words "int"
---h--  floatLit      = words "float"
---h--  strLit        = words "str"
---h--  byteStrLit    = words "byteStr"
---h--  rawStrLit     = words "rawStr"
---h--  rawByteStrLit = words "rawByteStr"
---h--
---h--  doc = outerDoc ++ innerDoc
---h--  outerDoc = words "outerDoc"
---h--  innerDoc = words "innerDoc"
---h--
---h--  identifier = words "IDENT"
---h--  lifetime = words "LIFETIME"
---h--
---h---- | Convert an 'IdentTok' into an 'Ident'
---h--toIdent :: Spanned Token -> Spanned Ident
---h--toIdent (Spanned (IdentTok i) s) = Spanned i s
---h--
+
+-- | Generate a nice looking error message based on expected tokens
+expParseError :: (Spanned Token, [String]) -> P a
+expParseError (Spanned t _, exps) = fail $ "Syntax error: unexpected `" ++ show t ++ "'" ++
+    case go (sort exps) [] replacements of
+      []       -> ""
+      [s]      -> " (expected " ++ s ++ ")"
+      [s2,s1]  -> " (expected " ++ s1 ++ " or " ++ s2 ++ ")"
+      (s : ss) -> " (expected " ++ (reverse ss >>= (++ ", ")) ++ "or " ++ s ++ ")"
+  where
+
+  go []     msgs _ = msgs
+  go (e:es) msgs rs | e `elem` ignore = go es msgs rs
+  go (e:es) msgs [] = go es (e : msgs) []
+  go es     msgs ((rep,msg):rs)
+    | rep `isSubsequenceOf` es = go (es \\ rep) (msg : msgs) rs
+    | otherwise = go es msgs rs
+
+  ignore = words "ntItem ntBlock ntStmt ntPat ntExpr ntTy ntIdent ntPath ntTT" ++
+           words "ntArm ntImplItem ntTraitItem ntGenerics ntWhereClause ntArg ntLit"
+
+  replacements = map (\(ks,v) -> (sort ks,v)) $
+    [ (expr,                              "an expression"   )
+
+    , (lit,                               "a literal"       )
+    , (boolLit,                           "a boolean"       )
+    , (byteLit,                           "a byte"          )
+    , (charLit,                           "a character"     )
+    , (intLit,                            "an int"          )
+    , (floatLit,                          "a float"         )
+    , (strLit,                            "a string"        )
+    , (byteStrLit,                        "a byte string"   )
+    , (rawStrLit,                         "a raw string"    )
+    , (rawByteStrLit,                     "a raw bytestring")
+
+    , (doc,                               "a doc"           )
+    , (outerDoc,                          "an outer doc"    )
+    , (innerDoc,                          "an inner doc"    )
+
+    , (identifier,                        "an identifier"   )
+    , (lifetime,                          "a lifetime"      )
+    ]
+
+  expr :: [String]
+  expr = lit ++ identifier ++ lifetime ++
+         words "'<' '!' '-' '*' '&' '|' '...' '..=' '..' '::'" ++
+         words "'||' '&&' '<<' '(' '[' '{' box break continue" ++
+         words "for if loop match move return Self self      " ++
+         words "static super unsafe while do default union   " ++
+         words "catch auto yield dyn"
+
+  lit = boolLit ++ byteLit ++ charLit ++ intLit ++ floatLit ++ strLit ++
+        byteStrLit ++ rawStrLit ++ rawByteStrLit
+  boolLit       = words "true false"
+  byteLit       = words "byte"
+  charLit       = words "char"
+  intLit        = words "int"
+  floatLit      = words "float"
+  strLit        = words "str"
+  byteStrLit    = words "byteStr"
+  rawStrLit     = words "rawStr"
+  rawByteStrLit = words "rawByteStr"
+
+  doc = outerDoc ++ innerDoc
+  outerDoc = words "outerDoc"
+  innerDoc = words "innerDoc"
+
+  identifier = words "IDENT"
+  lifetime = words "LIFETIME"
+
+-- | Convert an 'IdentTok' into an 'Ident'
+toIdent :: Spanned Token -> Spanned Ident
+toIdent (Spanned (IdentTok i) s) = Spanned i s
+
 --h---- | Try to convert an expression to a statement given information about whether there is a trailing
 --h---- semicolon
 --h--toStmt :: Expr Span -> Bool -> Bool -> Span -> Stmt Span
