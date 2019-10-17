@@ -89,10 +89,23 @@ parseQQ input = do
   pure (QQParse dummy bodyToks vars)
 
   where
+    parseTilEnd ts p (r1:rs) = do
+      case r1 of
+            | openParen r1            -> parseTilEnd (r1 : ts) (p+1) rs
+            | closeParen r1 && p > 0  -> parseTilEnd (r1 : ts) (p-1) rs
+            | not (closeParen r1)     -> parseTilEnd (r1 : ts) p     rs
+             isNewline r1 && p == 0  -> if r1  pure (r1:ts,rs)
+
+
     -- Parse the body of the quasiquote
     parseBody toks vars rest = do
         case rest of
           [] -> pure (reverse toks, vars)
+
+          (Spanned TNewLine _                       :
+           t0@(Spanned (LiteralTok (IntegerTok _) _) _) : rst2) -> do
+             (t1,rst3) <- parseTilEnd [] 0 rst2
+             parseBody (t1 ++ (t0:toks)) vars rst3
 
           (Spanned Dollar _            :
            Spanned (OpenDelim Paren) _ :

@@ -288,84 +288,84 @@ spaceNeeded _ _ = False
 -- | This instance is only for error messages and debugging purposes.
 instance Show Token where
   -- Single character expression-operator symbols.
-  show Equal = "="
-  show Less = "<"
-  show Greater = ">"
-  show Ampersand = "&"
-  show Pipe = "|"
-  show Exclamation = "!"
-  show Tilde = "~"
-  show Plus = "+"
-  show Minus = "-"
-  show Star = "*"
-  show Slash = "/"
-  show Percent = "%"
-  -- Multi character eexpression-operator symbols
-  show GreaterEqual = ">="
-  show GreaterGreaterEqual = ">>="
-  show AmpersandAmpersand = "&&"
-  show PipePipe = "||"
-  show LessLess = "<<"
-  show GreaterGreater = ">>"
-  show EqualEqual = "=="
-  show NotEqual = "!="
-  show LessEqual = "<="
-  show LessLessEqual = "<<="
-  show MinusEqual = "-="
-  show AmpersandEqual = "&="
-  show PipeEqual = "|="
-  show PlusEqual = "+="
-  show StarEqual = "*="
-  show SlashEqual = "/="
-  show CaretEqual = "^="
-  show PercentEqual = "%="
-  show Caret = "^"
-  -- Structural symbols
-  show At = "@"
-  show Dot = "."
-  show DotDot = ".."
-  show DotDotDot = "..."
-  show DotDotEqual = "..="
-  show Comma = ","
-  show Semicolon = ";"
-  show Colon = ":"
-  show ModSep = "::"
-  show RArrow = "->"
-  show LArrow = "<-"
-  show FatArrow = "=>"
-  show Pound = "#"
-  show Dollar = "$"
-  show Question = "?"
-  show TNewLine = "\n"
-  -- Delimiters, eg. @{@, @]@, @(@
-  show (OpenDelim Paren) = "("
-  show (OpenDelim Bracket) = "["
-  show (OpenDelim Brace) = "{"
-  show (OpenDelim NoDelim) = ""
-  show (CloseDelim Paren) = ")"
-  show (CloseDelim Bracket) = "]"
-  show (CloseDelim Brace) = "}"
-  show (CloseDelim NoDelim) = ""
-  -- Literals
-  show (LiteralTok (ByteTok n) s) = "b'" ++ n ++ "'" ++ fromMaybe "" s
-  show (LiteralTok (CharTok n) s) = "'"  ++ n ++ "'" ++ fromMaybe "" s
-  show (LiteralTok (IntegerTok n) s) = n ++ fromMaybe "" s
-  show (LiteralTok (FloatTok n) s) = n ++ fromMaybe "" s
-  show (LiteralTok (StrTok n) s) = "\"" ++ n ++ "\"" ++ fromMaybe "" s
-  show (LiteralTok (StrRawTok n i) s) = "r" ++ replicate i '#' ++ "\"" ++ n ++ "\"" ++ replicate i '#' ++ fromMaybe "" s
-  show (LiteralTok (ByteStrTok n) s) = "b\"" ++ n ++ "\"" ++ fromMaybe "" s
-  show (LiteralTok (ByteStrRawTok n i) s) = "br" ++ replicate i '#' ++ "\"" ++ n ++ "\"" ++ replicate i '#' ++ fromMaybe "" s
-  -- Name components
-  show (IdentTok i) = name i
-  show (LifetimeTok l) = "'" ++ show l
-  show (Space Whitespace _) = "<whitespace>"
-  show (Space Comment n) = "/*" ++ show n ++ " */"
-  show (Doc d Inner True) = "/*!" ++ d ++ "*/"
-  show (Doc d Outer True) = "/**" ++ d ++ "*/"
-  show (Doc d Inner False) = "//!" ++ d
-  show (Doc d Outer False) = "///" ++ d
-  show Shebang = "#!"
-  show Eof = "<EOF>"
-  -- Macro related
-  show Interpolated{} = "<Interpolated>"
+  show Equal                                      = "Equal= "
+  show Less                                       = "Less<"
+  show Greater                                    = "Greater>"
+  show Ampersand                                  = "Ampersand&"
+  show Pipe                                       = "Pipe|"
+  show Exclamation                                = "Exclamation!"
+  show Tilde                                      = "Tilde~"
+  show Plus                                       = "Plus+"
+  show Minus                                      = "Minus-"
+  show Star                                       = "Star*"
+  show Slash                                      = "Slash/"
+  show Percent                                    = "Percent%"
+  -- Multi character eexpression-operator symbols    lti character eexpre
+  show GreaterEqual                               = "GreaterEqual>= "
+  show GreaterGreaterEqual                        = "GreaterGreaterEqual>>= "
+  show AmpersandAmpersand                         = "AmpersandAmpersand&&"
+  show PipePipe                                   = "PipePipe||"
+  show LessLess                                   = "LessLess<<"
+  show GreaterGreater                             = "GreaterGreater>>"
+  show EqualEqual                                 = "EqualEqual== "
+  show NotEqual                                   = "NotEqual!= "
+  show LessEqual                                  = "LessEqual<= "
+  show LessLessEqual                              = "LessLessEqual<<= "
+  show MinusEqual                                 = "MinusEqual-= "
+  show AmpersandEqual                             = "AmpersandEqual&= "
+  show PipeEqual                                  = "PipeEqual|= "
+  show PlusEqual                                  = "PlusEqual+= "
+  show StarEqual                                  = "StarEqual*= "
+  show SlashEqual                                 = "SlashEqual/= "
+  show CaretEqual                                 = "CaretEqual^= "
+  show PercentEqual                               = "PercentEqual%= "
+  show Caret                                      = "Caret^"
+  -- Structural symbols                              ructural symbols
+  show At                                         = "At@"
+  show Dot                                        = "Dot."
+  show DotDot                                     = "DotDot.."
+  show DotDotDot                                  = "DotDotDot..."
+  show DotDotEqual                                = "DotDotEqual..= "
+  show Comma                                      = "Comma,"
+  show Semicolon                                  = "Semicolon;"
+  show Colon                                      = "Colon:"
+  show ModSep                                     = "ModSep::"
+  show RArrow                                     = "RArrow->"
+  show LArrow                                     = "LArrow<-"
+  show FatArrow                                   = "FatArrow=>"
+  show Pound                                      = "Pound#"
+  show Dollar                                     = "Dollar$"
+  show Question                                   = "Question?"
+  show TNewLine                                   = "TNewLine\n"
+  -- Delimiters, eg. @{@, @]@, @(@                   limiters, eg. @{@, @
+  show (OpenDelim Paren)                          = "(OpenDelim Paren)("
+  show (OpenDelim Bracket)                        = "(OpenDelim Bracket)["
+  show (OpenDelim Brace)                          = "(OpenDelim Brace){"
+  show (OpenDelim NoDelim)                        = "(OpenDelim NoDelim)"
+  show (CloseDelim Paren)                         = "(CloseDelim Paren))"
+  show (CloseDelim Bracket)                       = "(CloseDelim Bracket)]"
+  show (CloseDelim Brace)                         = "(CloseDelim Brace)}"
+  show (CloseDelim NoDelim)                       = "(CloseDelim NoDelim)"
+  -- Literals                                        terals
+  show (LiteralTok (ByteTok n) s)                 = "(LiteralTok (ByteTokb'" ++ n ++ "'" ++ fromMaybe "" s
+  show (LiteralTok (CharTok n) s)                 = "(LiteralTok (CharTok'"  ++ n ++ "'" ++ fromMaybe "" s
+  show (LiteralTok (IntegerTok n) s)              = "(LiteralTok (Integer" ++ n ++ fromMaybe "" s
+  show (LiteralTok (FloatTok n) s)                = "(LiteralTok (FloatTo" ++ n ++ fromMaybe "" s
+  show (LiteralTok (StrTok n) s)                  = "(LiteralTok (StrTok \"" ++ n ++ "\"" ++ fromMaybe "" s
+  show (LiteralTok (StrRawTok n i) s)             = "(LiteralTok (StrRawTr" ++ replicate i '#' ++ "\"" ++ n ++ "\"" ++ replicate i '#' ++ fromMaybe "" s
+  show (LiteralTok (ByteStrTok n) s)              = "(LiteralTok (ByteStrb\"" ++ n ++ "\"" ++ fromMaybe "" s
+  show (LiteralTok (ByteStrRawTok n i) s)         = "(LiteralTok (ByteStrbr" ++ replicate i '#' ++ "\"" ++ n ++ "\"" ++ replicate i '#' ++ fromMaybe "" s
+  -- Name components                                 me components
+  show (IdentTok i)                               = "(IdentTok i)" ++ name i
+  show (LifetimeTok l)                            = "(LifetimeTok l)'" ++ show l
+  show (Space Whitespace _)                       = "(Space Whitespace _)<whitespace>"
+  show (Space Comment n)                          = "(Space Comment n)/*" ++ show n ++ " */"
+  show (Doc d Inner True)                         = "(Doc d Inner True)/*!" ++ d ++ "*/"
+  show (Doc d Outer True)                         = "(Doc d Outer True)/**" ++ d ++ "*/"
+  show (Doc d Inner False)                        = "(Doc d Inner False)//!" ++ d
+  show (Doc d Outer False)                        = "(Doc d Outer False)///" ++ d
+  show Shebang                                    = "Shebang#!"
+  show Eof                                        = "Eof<EOF>"
+  -- Macro related                                   cro related
+  show Interpolated{}                             = "Interpolated{}<Interpolated>"
 

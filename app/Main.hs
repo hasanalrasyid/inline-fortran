@@ -23,6 +23,7 @@ main = do
 C Testing for comment  1
 ! Testing for comment  2
 c Testing for comment  3
+10001   FORMAT(' IDLING TIME :',F9.2,' sec (',F6.2,' %)')
       k = 1
       $(x:out:real) = k + 5
       print *, "adalah dianya yang sepertinya ",k
