@@ -23,7 +23,9 @@ The examples below assume the following GHCi flag and import:
 
 
 module Language.Fortran.Quote (
-  lit, attr, ty, pat, stmt, expr, item, sourceFile, implItem, traitItem, tokenTree, block
+--  lit, attr,
+  ty,
+--  pat, stmt, expr, item, sourceFile, implItem, traitItem, tokenTree, block
 ) where
 
 {-
@@ -93,16 +95,16 @@ quoter p = QuasiQuoter
 -- >>> void [lit| 1.4e29f64 |]
 -- Float 1.4e29 F64 ()
 --
-lit :: QuasiQuoter
-lit = quoter parseLit
-
--- | Quasiquoter for attributes (see 'Language.Rust.Syntax.Attribute')
---
--- >>> void [attr| #[no_mangle] |]
--- Attribute Outer (Path False [PathSegment "no_mangle" Nothing ()] ()) (Stream []) ()
---
-attr :: QuasiQuoter
-attr = quoter parseAttr
+--h--lit :: QuasiQuoter
+--h--lit = quoter parseLit
+--h--
+--h---- | Quasiquoter for attributes (see 'Language.Rust.Syntax.Attribute')
+--h----
+--h---- >>> void [attr| #[no_mangle] |]
+--h---- Attribute Outer (Path False [PathSegment "no_mangle" Nothing ()] ()) (Stream []) ()
+--h----
+--h--attr :: QuasiQuoter
+--h--attr = quoter parseAttr
 
 -- | Quasiquoter for types (see 'Language.Rust.Syntax.Ty')
 --
@@ -118,74 +120,74 @@ ty = quoter parseTy
 -- IdentP (ByValue Immutable) "x" (Just (RangeP (Lit [] (Int Dec 1 Unsuffixed ()) ())
 --                                              (Lit [] (Int Dec 5 Unsuffixed ()) ()) ())) ()
 --
-pat :: QuasiQuoter
-pat = quoter parsePat
-
--- | Quasiquoter for statements (see 'Language.Rust.Syntax.Stmt')
---
--- >>> void [stmt| let x = 4i32; |]
--- Local (IdentP (ByValue Immutable) "x" Nothing ()) Nothing (Just (Lit [] (Int Dec 4 I32 ()) ())) [] ()
---
-stmt :: QuasiQuoter
-stmt = quoter parseStmt
-
--- | Quasiquoter for expressions (see 'Language.Rust.Syntax.Expr')
---
--- >>> void [expr| (x,) |]
--- TupExpr [] [PathExpr [] Nothing (Path False [PathSegment "x" Nothing ()] ()) ()] ()
---
-expr :: QuasiQuoter
-expr = quoter parseExpr
-
+--h--pat :: QuasiQuoter
+--h--pat = quoter parsePat
+--h--
+--h---- | Quasiquoter for statements (see 'Language.Rust.Syntax.Stmt')
+--h----
+--h---- >>> void [stmt| let x = 4i32; |]
+--h---- Local (IdentP (ByValue Immutable) "x" Nothing ()) Nothing (Just (Lit [] (Int Dec 4 I32 ()) ())) [] ()
+--h----
+--h--stmt :: QuasiQuoter
+--h--stmt = quoter parseStmt
+--h--
+--h---- | Quasiquoter for expressions (see 'Language.Rust.Syntax.Expr')
+--h----
+--h---- >>> void [expr| (x,) |]
+--h---- TupExpr [] [PathExpr [] Nothing (Path False [PathSegment "x" Nothing ()] ()) ()] ()
+--h----
+--h--expr :: QuasiQuoter
+--h--expr = quoter parseExpr
+--h--
 -- | Quasiquoter for items (see 'Language.Rust.Syntax.Item')
 --
 -- >>> void [item| type Unit = (); |]
 -- TyAlias [] InheritedV "Unit" (TupTy [] ()) (Generics [] [] (WhereClause [] ()) ()) ()
 --
-item :: QuasiQuoter
-item = quoter parseItem
-
--- | Quasiquoter for a whole source file (see 'Language.Rust.Syntax.SourceFile')
---
--- >>> void [sourceFile| fn main() { } |]
--- SourceFile Nothing [] [Fn [] InheritedV "main"
---                           (FnDecl [] Nothing False ())
---                           Normal NotConst Rust
---                           (Generics [] [] (WhereClause [] ()) ())
---                           (Block [] Normal ()) ()]
---
-sourceFile :: QuasiQuoter
-sourceFile = quoter parseSourceFile
-
--- | Quasiquoter for blocks (see 'Language.Rust.Syntax.Block')
---
--- >>> void [block| unsafe { 1i32 } |]
--- Block [NoSemi (Lit [] (Int Dec 1 I32 ()) ()) ()] Unsafe ()
---
-block :: QuasiQuoter
-block = quoter parseBlock
-
--- | Quasiquoter for impl items (see 'Language.Rust.Syntax.ImplItem')
---
--- >>> void [implItem| type Item = (); |]
--- TypeI [] InheritedV Final "Item" (TupTy [] ()) ()
---
-implItem :: QuasiQuoter
-implItem = quoter parseImplItem
-
--- | Quasiquoter for trait items (see 'Language.Rust.Syntax.TraitItem')
---
--- >>> void [traitItem| type Item; |]
--- TypeT [] "Item" [] Nothing ()
---
-traitItem :: QuasiQuoter
-traitItem = quoter parseTraitItem
-
--- | Quasiquoter for token trees (see 'Language.Rust.Syntax.TokenTree')
---
--- >>> [tokenTree| fn |]
--- Token (Span (Position 1 2 14) (Position 3 2 16)) fn
---
-tokenTree :: QuasiQuoter
-tokenTree = quoter parseTt
+--h--item :: QuasiQuoter
+--h--item = quoter parseItem
+--h--
+--h---- | Quasiquoter for a whole source file (see 'Language.Rust.Syntax.SourceFile')
+--h----
+--h---- >>> void [sourceFile| fn main() { } |]
+--h---- SourceFile Nothing [] [Fn [] InheritedV "main"
+--h----                           (FnDecl [] Nothing False ())
+--h----                           Normal NotConst Rust
+--h----                           (Generics [] [] (WhereClause [] ()) ())
+--h----                           (Block [] Normal ()) ()]
+--h----
+--h--sourceFile :: QuasiQuoter
+--h--sourceFile = quoter parseSourceFile
+--h--
+--h---- | Quasiquoter for blocks (see 'Language.Rust.Syntax.Block')
+--h----
+--h---- >>> void [block| unsafe { 1i32 } |]
+--h---- Block [NoSemi (Lit [] (Int Dec 1 I32 ()) ()) ()] Unsafe ()
+--h----
+--h--block :: QuasiQuoter
+--h--block = quoter parseBlock
+--h--
+--h---- | Quasiquoter for impl items (see 'Language.Rust.Syntax.ImplItem')
+--h----
+--h---- >>> void [implItem| type Item = (); |]
+--h---- TypeI [] InheritedV Final "Item" (TupTy [] ()) ()
+--h----
+--h--implItem :: QuasiQuoter
+--h--implItem = quoter parseImplItem
+--h--
+--h---- | Quasiquoter for trait items (see 'Language.Rust.Syntax.TraitItem')
+--h----
+--h---- >>> void [traitItem| type Item; |]
+--h---- TypeT [] "Item" [] Nothing ()
+--h----
+--h--traitItem :: QuasiQuoter
+--h--traitItem = quoter parseTraitItem
+--h--
+--h---- | Quasiquoter for token trees (see 'Language.Rust.Syntax.TokenTree')
+--h----
+--h---- >>> [tokenTree| fn |]
+--h---- Token (Span (Position 1 2 14) (Position 3 2 16)) fn
+--h----
+--h--tokenTree :: QuasiQuoter
+--h--tokenTree = quoter parseTt
 
