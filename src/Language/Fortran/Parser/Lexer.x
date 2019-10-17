@@ -1253,14 +1253,17 @@ lexNonSpace = do
   tok <- lexToken
   case tok of
     Spanned TNewLine _ -> do
-      c <- peekChar
-      case c of
-        Just 'c' -> void toNewline >> pure tok
-        Just 'C' -> void toNewline >> pure tok
-        Just '!' -> void toNewline >> pure tok
-        _ -> pure tok
+      cekForComment tok
     Spanned Space{} _ -> lexNonSpace
     _ -> pure tok
+  where
+    cekForComment tok = do
+      c <- peekChar
+      case c of
+        Just 'c' -> void toNewline >> cekForComment tok
+        Just 'C' -> void toNewline >> cekForComment tok
+        Just '!' -> void toNewline >> cekForComment tok
+        _ -> pure tok
 
 -- | Apply the given lexer repeatedly until (but not including) the 'Eof' token. Meant for debugging
 -- purposes - in general this defeats the point of a threaded lexer.
