@@ -26,10 +26,9 @@ c Testing for comment  3
       $(x:out:real) = k + 5
 
       write(*,10001) k,x
-10001   FORMAT(' IDLING TIME :',I10,' sec (',F6.2,' %)')
+10001   FORMAT('IDLING TIME : ',I10,' sec (',F6.2,' %)')
       print *, "adalah ",k
     |]
-
       -- k = 5 + $(x : i32) # anehnya, ini error
     putStrLn $ "Haskell: Rust says in withPtr x=" ++ show x
     xContent <- peek x

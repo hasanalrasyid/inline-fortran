@@ -285,8 +285,8 @@ processQQ safety isPure (QQParse rustRet rustBody rustNamedArgs) = do
   -}
   reprCRet <- pure Nothing
   haskRet <- [t| () |]  -- this means haskRet will be always void in C
-  runIO $ putStrLn $ "rustArgs:" ++ show rustArgs
-  runIO $ putStrLn $ "intents:" ++ show intents
+--  runIO $ putStrLn $ "rustArgs:" ++ show rustArgs
+--  runIO $ putStrLn $ "intents:" ++ show intents
   (haskArgs, reprCArgs) <- unzip <$> traverse (getRType . void) rustArgs
 
   -- Convert the Haskell return type to a marshallable FFI type

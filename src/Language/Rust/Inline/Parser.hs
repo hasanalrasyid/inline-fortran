@@ -57,7 +57,7 @@ parseQQ input = do
   let lexer = lexTokens lexNonSpace
   let stream = inputStreamFromString input
   -- dari sini stream tak punya newline setelah openParen
-  runIO $ putStrLn $ "stream: " ++ show stream
+--  runIO $ putStrLn $ "stream: " ++ show stream
 
   -- Lex the quasiquote tokens
   rest1 <-
@@ -65,7 +65,7 @@ parseQQ input = do
       Left (ParseFail _ msg) -> fail msg
       Right parsed -> pure parsed
   -- dari sini rest1 sudah punya newline setelah openParen
-  runIO $ putStrLn $ "rest1: " ++ show rest1
+--  runIO $ putStrLn $ "rest1: " ++ show rest1
 
   {- No need for leading type, we can go straight to body
       it means body need no brace

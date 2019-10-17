@@ -213,7 +213,7 @@ libc = mkContext []
 -- memory layouts.
 basic :: Q Context
 basic = do
-  runIO $ putStrLn $  "==========debug" ++ show [ty| i32 |]
+--  runIO $ putStrLn $  "==========debug" ++ show [ty| i32 |]
   mkContext
     [ ([ty| char  |], [t| Char    |], True) -- 4 bytes
     , ([ty| i8    |], [t| Int8    |], True)
