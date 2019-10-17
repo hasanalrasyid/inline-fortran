@@ -54,6 +54,8 @@ import Data.Char                       ( chr )
 import Data.Word                       ( Word8 )
 
 import Control.Monad                   (void)
+import Debug.Trace (trace)
+
 -- Things to review:
 --   * improved error messages
 
@@ -1260,7 +1262,8 @@ lexNonSpace = do
         Just '!' -> void toNewline >> pure tok
         _ -> pure tok
     Spanned Space{} _ -> lexNonSpace
-    _ -> pure tok
+    _ -> do
+      pure tok
 
 -- | Apply the given lexer repeatedly until (but not including) the 'Eof' token. Meant for debugging
 -- purposes - in general this defeats the point of a threaded lexer.

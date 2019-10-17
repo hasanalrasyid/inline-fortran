@@ -29,7 +29,7 @@ module Language.Fortran.Parser (
   -- * Parsing
   parse,
   parse',
-  readSourceFile,
+--  readSourceFile,
   readTokens,
   Parse(..),
   P,
@@ -113,8 +113,8 @@ execParserTokens p toks = execParser (pushTokens toks *> p) (inputStreamFromStri
 --                           (Generics [] [] (WhereClause [] ()) ())
 --                           (Block [] Normal ()) ()]
 --
-readSourceFile :: Handle -> IO (SourceFile Span)
-readSourceFile hdl = parse' <$> hReadInputStream hdl
+--h--readSourceFile :: Handle -> IO (SourceFile Span)
+--h--readSourceFile hdl = parse' <$> hReadInputStream hdl
 
 -- | Given a path pointing to a Rust source file, read that file and lex it (ignoring whitespace)
 --
@@ -134,20 +134,20 @@ class Parse a where
   -- | Complete parser (fails if not all of the input is consumed)
   parser :: P a
 
-instance Parse (Lit Span)         where parser = parseLit
-instance Parse (Attribute Span)   where parser = parseAttr
+--h--instance Parse (Lit Span)         where parser = parseLit
+--h--instance Parse (Attribute Span)   where parser = parseAttr
 instance Parse (Ty Span)          where parser = parseTy
-instance Parse (Pat Span)         where parser = parsePat
-instance Parse (Expr Span)        where parser = parseExpr
-instance Parse (Stmt Span)        where parser = parseStmt
-instance Parse (Item Span)        where parser = parseItem
-instance Parse (SourceFile Span)  where parser = parseSourceFile
-instance Parse TokenTree          where parser = parseTt
-instance Parse TokenStream        where parser = parseTokenStream
-instance Parse (Block Span)       where parser = parseBlock
-instance Parse (ImplItem Span)    where parser = parseImplItem
-instance Parse (TraitItem Span)   where parser = parseTraitItem
-instance Parse (TyParam Span)     where parser = parseTyParam
-instance Parse (LifetimeDef Span) where parser = parseLifetimeDef
-instance Parse (Generics Span)    where parser = parseGenerics
-instance Parse (WhereClause Span) where parser = parseWhereClause
+--h--instance Parse (Pat Span)         where parser = parsePat
+--h--instance Parse (Expr Span)        where parser = parseExpr
+--h--instance Parse (Stmt Span)        where parser = parseStmt
+--h--instance Parse (Item Span)        where parser = parseItem
+--h--instance Parse (SourceFile Span)  where parser = parseSourceFile
+--h--instance Parse TokenTree          where parser = parseTt
+--h--instance Parse TokenStream        where parser = parseTokenStream
+--h--instance Parse (Block Span)       where parser = parseBlock
+--h--instance Parse (ImplItem Span)    where parser = parseImplItem
+--h--instance Parse (TraitItem Span)   where parser = parseTraitItem
+--h--instance Parse (TyParam Span)     where parser = parseTyParam
+--h--instance Parse (LifetimeDef Span) where parser = parseLifetimeDef
+--h--instance Parse (Generics Span)    where parser = parseGenerics
+--h--instance Parse (WhereClause Span) where parser = parseWhereClause

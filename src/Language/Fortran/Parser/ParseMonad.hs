@@ -52,6 +52,7 @@ import Language.Fortran.Syntax.Token      ( Token )
 import Control.Exception               ( Exception )
 import Data.Maybe                      ( listToMaybe )
 import Data.Typeable                   ( Typeable )
+import Debug.Trace (trace)
 
 -- | Parsing and lexing monad. A value of type @'P' a@ represents a parser that can be run (using
 -- 'execParser') to possibly produce a value of type @a@.
@@ -103,6 +104,7 @@ instance Exception ParseFail
 -- either the position of an error and the error message, or the value parsed.
 execParser :: P a -> InputStream -> Position -> Either ParseFail a
 execParser p input pos = execParser' p input pos id
+--execParser p input pos = execParser' p input pos id
 
 -- | Generalized version of 'execParser' that expects an extra argument that lets you hot-swap a
 -- token that was just lexed before it gets passed to the parser.

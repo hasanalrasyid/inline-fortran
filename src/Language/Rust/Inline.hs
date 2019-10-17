@@ -71,7 +71,7 @@ module Language.Rust.Inline (
   withByteString,
   unsafeLocalState,
   mkStorable,
-  mkReprC,
+--  mkReprC,
 
   -- * Top-level Rust items
  -- externCrate,
@@ -84,7 +84,7 @@ import Language.Rust.Inline.Marshal
 import Language.Rust.Inline.Parser
 import Language.Rust.Inline.Pretty
 import Language.Rust.Inline.TH.Storable      ( mkStorable )
-import Language.Rust.Inline.TH.ReprC         ( mkReprC )
+--import Language.Rust.Inline.TH.ReprC         ( mkReprC )
 
 import Language.Haskell.TH.Syntax
 import Language.Haskell.TH.Lib
@@ -392,6 +392,7 @@ processQQ safety isPure (QQParse rustRet rustBody rustNamedArgs) = do
     , unlines [ (renderType t) ++ ", intent(" ++ i ++ ") :: " ++ s | (s,t,i) <- zip3 rustArgNames rustArgs' intents]
     , renderTokens rustBody
     , "end subroutine " ++ qqStrName
+
   {-
     , unlines [ "  let " ++ s ++ ": " ++ renderType t ++ " = " ++ marshal s ++ ".marshal();"
               | (s,t,v) <- zip3 rustArgNames rustConvertedArgs argsByVal

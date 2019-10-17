@@ -78,7 +78,7 @@ library:
   extra-libraries:  gfortran #    gsl gslcblas m
 
 executables:
-  x:
+  i:
     main:                Main.hs
     source-dirs:         app
     #c-sources:           app/Main.c

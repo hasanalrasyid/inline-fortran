@@ -30,7 +30,7 @@ To get information about transition states and such, run
 
 module Language.Fortran.Parser.Internal (
   -- * Parsers
---  parseAttr,
+  parseAttr,
 --  parseBlock,
 --  parseExpr,
 --  parseGenerics,
@@ -72,7 +72,7 @@ import qualified Data.List.NonEmpty as N
 -- in order to document the parsers, we have to alias them
 %name parseTy ty
 --h--%name parseLit lit
---h--%name parseAttr export_attribute
+%name parseAttr export_attribute
 --h--%name parsePat pat
 --h--%name parseStmt stmt
 --h--%name parseExpr expr
@@ -411,19 +411,19 @@ sep_by1T(p,sep) :: { Reversed NonEmpty _ }
 --h--  |             many(mod_item)   { ([],        $1) }
 --h--
 --h--
---h----------------------------
---h---- Attributes
---h----------------------------
---h--
---h--outer_attribute :: { Attribute Span }
---h--  : '#' '[' mod_path token_stream ']'         { Attribute Outer $3 $4 ($1 # $>) }
---h--  | outerDoc                                  { let Spanned (Doc str _ l) x = $1 in SugaredDoc Outer l str x }
---h--
---h--inner_attribute :: { Attribute Span }
---h--  : '#' '!' '[' mod_path token_stream ']'     { Attribute Inner $4 $5 ($1 # $>) }
---h--  | '#!'    '[' mod_path token_stream ']'     { Attribute Inner $3 $4 ($1 # $>) }
---h--  | innerDoc                                  { let Spanned (Doc str _ l) x = $1 in SugaredDoc Inner l str x }
---h--
+--------------------------
+-- Attributes
+--------------------------
+
+outer_attribute :: { Attribute Span }
+  : '#' '[' mod_path token_stream ']'         { Attribute Outer $3 $4 ($1 # $>) }
+  | outerDoc                                  { let Spanned (Doc str _ l) x = $1 in SugaredDoc Outer l str x }
+
+inner_attribute :: { Attribute Span }
+  : '#' '!' '[' mod_path token_stream ']'     { Attribute Inner $4 $5 ($1 # $>) }
+  | '#!'    '[' mod_path token_stream ']'     { Attribute Inner $3 $4 ($1 # $>) }
+  | innerDoc                                  { let Spanned (Doc str _ l) x = $1 in SugaredDoc Inner l str x }
+
 --h---- TODO: for some precedence related reason, using 'some' here doesn't work
 --h--inner_attrs :: { Reversed NonEmpty (Attribute Span) }
 --h--  : inner_attrs inner_attribute               { let Reversed xs = $1 in Reversed ($2 <| xs) }
@@ -566,22 +566,22 @@ sep_by1T(p,sep) :: { Reversed NonEmpty _ }
 --h----
 --h---- TODO: This is O(n^2) in the segment length! I haven't been able to make the grammar work out in
 --h----       order to refactor this nicely
---h--mod_path :: { Path Span  }
---h--  : ntPath               { $1 }
---h--  | self_or_ident        { Path False [PathSegment (unspan $1) Nothing (spanOf $1)] (spanOf $1) }
---h--  | '::' self_or_ident   { Path True  [PathSegment (unspan $2) Nothing (spanOf $2)] ($1 # $>) }
---h--  | mod_path '::' self_or_ident  {
---h--      let Path g segs _ = $1 in
---h--      Path g (segs <> [PathSegment (unspan $3) Nothing (spanOf $3) ]) ($1 # $3)
---h--    }
---h--
---h--self_or_ident :: { Spanned Ident }
---h--  : ident                   { $1 }
---h--  | crate                   { Spanned "crate" (spanOf $1) }
---h--  | self                    { Spanned "self" (spanOf $1) }
---h--  | Self                    { Spanned "Self" (spanOf $1) }
---h--  | super                   { Spanned "super" (spanOf $1) }
---h--
+mod_path :: { Path Span  }
+  : ntPath               { $1 }
+  | self_or_ident        { Path False [PathSegment (unspan $1) Nothing (spanOf $1)] (spanOf $1) }
+  | '::' self_or_ident   { Path True  [PathSegment (unspan $2) Nothing (spanOf $2)] ($1 # $>) }
+  | mod_path '::' self_or_ident  {
+      let Path g segs _ = $1 in
+      Path g (segs <> [PathSegment (unspan $3) Nothing (spanOf $3) ]) ($1 # $3)
+    }
+
+self_or_ident :: { Spanned Ident }
+  : ident                   { $1 }
+  | crate                   { Spanned "crate" (spanOf $1) }
+  | self                    { Spanned "self" (spanOf $1) }
+  | Self                    { Spanned "Self" (spanOf $1) }
+  | super                   { Spanned "super" (spanOf $1) }
+
 --h--
 --h-------------
 --h---- Types --
@@ -616,7 +616,8 @@ ty_no_plus :: { Ty Span }
 -- All (non-sum) types not starting with a 'for'
 no_for_ty :: { Ty Span }
 --  : no_for_ty_prim                   { $1 }
-  : '(' ')'                          { TupTy [] ($1 # $2) }
+  : ident                            { Infer (spanOf $1) }
+  | '(' ')'                          { TupTy [] ($1 # $>) }
   | '(' ty ')'                       { ParenTy $2 ($1 # $3) }
   | '(' ty ',' ')'                   { TupTy [$2] ($1 # $4) }
   | '(' ty ',' sep_by1T(ty,',') ')'  { TupTy ($2 : toList $4) ($1 # $5) }
@@ -1701,12 +1702,12 @@ token :: { Spanned Token }
 --h---- Just for export --
 --h-----------------------
 --h--
---h---- These rules aren't used anywhere in the grammar above, they just provide a more general parsers.
---h--
---h---- Any attribute
---h--export_attribute :: { Attribute Span }
---h--  : inner_attribute { $1 }
---h--  | outer_attribute { $1 }
+-- These rules aren't used anywhere in the grammar above, they just provide a more general parsers.
+
+-- Any attribute
+export_attribute :: { Attribute Span }
+  : inner_attribute { $1 }
+  | outer_attribute { $1 }
 --h--
 --h---- Complete blocks
 --h--export_block :: { Block Span }

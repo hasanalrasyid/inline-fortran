@@ -41,6 +41,7 @@ import GHC.Exts                    ( Char#, Int#, Word#, Float#, Double#,
 
 import qualified Control.Monad.Fail as Fail
 import Eigen.Internal -- CComplex
+import qualified Debug.Trace as D
 
 instance Fail.MonadFail First where
   fail = error "MonadFail First error"
@@ -168,105 +169,108 @@ singleton rts qht = mkContext [(rts, qht, True)]
 -- layouts (since they both promise to have the same memory layout as C) and are
 -- passed on the stack.
 libc :: Q Context
-libc = mkContext
-  [ ([ty| libc::c_char      |], [t| CChar      |], False) -- char
-  , ([ty| libc::c_schar     |], [t| CSChar     |], False) -- signed char
-  , ([ty| libc::c_uchar     |], [t| CUChar     |], False) -- unsigned char
-  , ([ty| libc::c_short     |], [t| CShort     |], False) -- short
-  , ([ty| libc::c_ushort    |], [t| CUShort    |], False) -- unsigned short
-  , ([ty| libc::c_int       |], [t| CInt       |], False) -- int
-  , ([ty| libc::c_uint      |], [t| CUInt      |], False) -- unsigned int
-  , ([ty| libc::c_long      |], [t| CLong      |], False) -- long
-  , ([ty| libc::c_ulong     |], [t| CULong     |], False) -- unsigned long
-  , ([ty| libc::ptrdiff_t   |], [t| CPtrdiff   |], False) -- ptrdiff_t
-  , ([ty| libc::size_t      |], [t| CSize      |], False) -- size_t
-  , ([ty| libc::wchar_t     |], [t| CWchar     |], False) -- wchar_t
-  , ([ty| libc::c_longlong  |], [t| CLLong     |], False) -- long long
-  , ([ty| libc::c_ulonglong |], [t| CULLong    |], False) -- unsigned long long
-  , ([ty| libc::boolean_t   |], [t| CBool      |], False) -- bool
-  , ([ty| libc::intptr_t    |], [t| CIntPtr    |], False) -- intptr_t
-  , ([ty| libc::uintptr_t   |], [t| CUIntPtr   |], False) -- uintptr_t
-  , ([ty| libc::intmax_t    |], [t| CIntMax    |], False) -- intmax_t
-  , ([ty| libc::uintmax_t   |], [t| CUIntMax   |], False) -- unsigned intmax_t
-  , ([ty| libc::clock_t     |], [t| CClock     |], False) -- clock_t
-  , ([ty| libc::time_t      |], [t| CTime      |], False) -- time_t
-  , ([ty| libc::useconds_t  |], [t| CUSeconds  |], False) -- useconds_t
-  , ([ty| libc::suseconds_t |], [t| CSUSeconds |], False) -- suseconds_t
-  , ([ty| libc::c_float     |], [t| CFloat     |], False) -- float
-  , ([ty| libc::c_double    |], [t| CDouble    |], False) -- double
-  , ([ty| libc::FILE        |], [t| CFile      |], True)  -- FILE
-  , ([ty| libc::fpos_t      |], [t| CFpos      |], True)  -- fpos_t
-  , ([ty| libc::int8_t      |], [t| Int8       |], False) -- int8_t
-  , ([ty| libc::int16_t     |], [t| Int16      |], False) -- int16_t
-  , ([ty| libc::int32_t     |], [t| Int32      |], False) -- int32_t
-  , ([ty| libc::int64_t     |], [t| Int64      |], False) -- int64_t
-  , ([ty| libc::uint8_t     |], [t| Word8      |], False) -- uint8_t
-  , ([ty| libc::uint16_t    |], [t| Word16     |], False) -- uint16_t
-  , ([ty| libc::uint32_t    |], [t| Word32     |], False) -- uint32_t
-  , ([ty| libc::uint64_t    |], [t| Word64     |], False) -- uint64_t
-  ]
+libc = mkContext []
+--h--  [ ([ty| libc::c_char      |], [t| CChar      |], False) -- char
+--h--  , ([ty| libc::c_schar     |], [t| CSChar     |], False) -- signed char
+--h--  , ([ty| libc::c_uchar     |], [t| CUChar     |], False) -- unsigned char
+--h--  , ([ty| libc::c_short     |], [t| CShort     |], False) -- short
+--h--  , ([ty| libc::c_ushort    |], [t| CUShort    |], False) -- unsigned short
+--h--  , ([ty| libc::c_int       |], [t| CInt       |], False) -- int
+--h--  , ([ty| libc::c_uint      |], [t| CUInt      |], False) -- unsigned int
+--h--  , ([ty| libc::c_long      |], [t| CLong      |], False) -- long
+--h--  , ([ty| libc::c_ulong     |], [t| CULong     |], False) -- unsigned long
+--h--  , ([ty| libc::ptrdiff_t   |], [t| CPtrdiff   |], False) -- ptrdiff_t
+--h--  , ([ty| libc::size_t      |], [t| CSize      |], False) -- size_t
+--h--  , ([ty| libc::wchar_t     |], [t| CWchar     |], False) -- wchar_t
+--h--  , ([ty| libc::c_longlong  |], [t| CLLong     |], False) -- long long
+--h--  , ([ty| libc::c_ulonglong |], [t| CULLong    |], False) -- unsigned long long
+--h--  , ([ty| libc::boolean_t   |], [t| CBool      |], False) -- bool
+--h--  , ([ty| libc::intptr_t    |], [t| CIntPtr    |], False) -- intptr_t
+--h--  , ([ty| libc::uintptr_t   |], [t| CUIntPtr   |], False) -- uintptr_t
+--h--  , ([ty| libc::intmax_t    |], [t| CIntMax    |], False) -- intmax_t
+--h--  , ([ty| libc::uintmax_t   |], [t| CUIntMax   |], False) -- unsigned intmax_t
+--h--  , ([ty| libc::clock_t     |], [t| CClock     |], False) -- clock_t
+--h--  , ([ty| libc::time_t      |], [t| CTime      |], False) -- time_t
+--h--  , ([ty| libc::useconds_t  |], [t| CUSeconds  |], False) -- useconds_t
+--h--  , ([ty| libc::suseconds_t |], [t| CSUSeconds |], False) -- suseconds_t
+--h--  , ([ty| libc::c_float     |], [t| CFloat     |], False) -- float
+--h--  , ([ty| libc::c_double    |], [t| CDouble    |], False) -- double
+--h--  , ([ty| libc::FILE        |], [t| CFile      |], True)  -- FILE
+--h--  , ([ty| libc::fpos_t      |], [t| CFpos      |], True)  -- fpos_t
+--h--  , ([ty| libc::int8_t      |], [t| Int8       |], False) -- int8_t
+--h--  , ([ty| libc::int16_t     |], [t| Int16      |], False) -- int16_t
+--h--  , ([ty| libc::int32_t     |], [t| Int32      |], False) -- int32_t
+--h--  , ([ty| libc::int64_t     |], [t| Int64      |], False) -- int64_t
+--h--  , ([ty| libc::uint8_t     |], [t| Word8      |], False) -- uint8_t
+--h--  , ([ty| libc::uint16_t    |], [t| Word16     |], False) -- uint16_t
+--h--  , ([ty| libc::uint32_t    |], [t| Word32     |], False) -- uint32_t
+--h--  , ([ty| libc::uint64_t    |], [t| Word64     |], False) -- uint64_t
+--h--  ]
 
 -- | Basic numeric (and similar) Haskell and Rust types.
 --
 -- There should be no conversion required here as these should have identical
 -- memory layouts.
 basic :: Q Context
-basic = mkContext
-  [ ([ty| char  |], [t| Char    |], True) -- 4 bytes
-  , ([ty| i8    |], [t| Int8    |], True)
-  , ([ty| i16   |], [t| Int16   |], True)
-  , ([ty| i32   |], [t| Int32   |], True)
-  , ([ty| i64   |], [t| Int64   |], True)
-  , ([ty| u8    |], [t| Word8   |], True)
-  , ([ty| u16   |], [t| Word16  |], True)
-  , ([ty| u32   |], [t| Word32  |], True)
-  , ([ty| u64   |], [t| Word64  |], True)
-  , ([ty| f32   |], [t| Float   |], True)
-  , ([ty| f64   |], [t| Double  |], True)
-  , ([ty| isize |], [t| Int     |], True)
-  , ([ty| usize |], [t| Word    |], True)
-  , ([ty| bool  |], [t| Word8   |], True)
-  , ([ty| ()    |], [t| ()      |], True)
--- Fortran
-  , ([ty| integer   |], [t| Int32           |], True )
-  , ([ty| real      |], [t| Float           |], True )
-  , ([ty| logical   |], [t| Int8            |], True )
-  , ([ty| real      |], [t| Float           |], True )
-  , ([ty| complex   |], [t| CComplex Float  |], True )
-  , ([ty| character |], [t| CChar           |], True )
-  {-
-  , ([ty| logical(kind=1) |], [t| Int8            |])
-  , ([ty| character(len=1)|], [t| CChar           |])
---  , ([ty| integer         |], [t| CInt            |])
---  , ([ty| integer(kind=2) |], [t| CShort          |])
---  , ([ty| integer(kind=4) |], [t| CInt            |])
---  , ([ty| integer(kind=4) |], [t| CLong           |])
---  , ([ty| integer(kind=8) |], [t| CLLong          |])
---  , ([ty| integer(kind=1) |], [t| CChar           |])
---  , ([ty| integer(kind=4) |], [t| CSize           |])
-  , ([ty| integer(kind=1) |], [t| Int8            |])
-  , ([ty| integer(kind=2) |], [t| Int16           |])
-  , ([ty| integer(kind=4) |], [t| Int32           |])
-  , ([ty| integer(kind=8) |], [t| Int64           |])
-  , ([ty| real(kind=4)    |], [t| Float           |])
-  , ([ty| real(kind=8)    |], [t| Double          |])
-  , ([ty| complex(kind=4) |], [t| CComplex Float  |])
-  , ([ty| complex(kind=8) |], [t| CComplex Double |])
-  -}
-  ]
+basic = do
+  runIO $ putStrLn $  "==========debug" ++ show [ty| i32 |]
+  mkContext
+    [ ([ty| char  |], [t| Char    |], True) -- 4 bytes
+    , ([ty| i8    |], [t| Int8    |], True)
+    , ([ty| i16   |], [t| Int16   |], True)
+    , ([ty| i32   |], [t| Int32   |], True)
+    , ([ty| i64   |], [t| Int64   |], True)
+    , ([ty| u8    |], [t| Word8   |], True)
+    , ([ty| u16   |], [t| Word16  |], True)
+    , ([ty| u32   |], [t| Word32  |], True)
+    , ([ty| u64   |], [t| Word64  |], True)
+    , ([ty| f32   |], [t| Float   |], True)
+    , ([ty| f64   |], [t| Double  |], True)
+    , ([ty| isize |], [t| Int     |], True)
+    , ([ty| usize |], [t| Word    |], True)
+    , ([ty| bool  |], [t| Word8   |], True)
+    , ([ty| ()    |], [t| ()      |], True)
+--   Fortran
+    , ([ty| integer   |], [t| Int32           |], True )
+    , ([ty| real      |], [t| Float           |], True )
+    , ([ty| logical   |], [t| Int8            |], True )
+    , ([ty| real      |], [t| Float           |], True )
+    , ([ty| complex   |], [t| CComplex Float  |], True )
+    , ([ty| character |], [t| CChar           |], True )
+    {-
+    , ([ty| logical(kind=1) |], [t| Int8            |])
+    , ([ty| character(len=1)|], [t| CChar           |])
+--    , ([ty| integer         |], [t| CInt            |])
+--    , ([ty| integer(kind=2) |], [t| CShort          |])
+--    , ([ty| integer(kind=4) |], [t| CInt            |])
+--    , ([ty| integer(kind=4) |], [t| CLong           |])
+--    , ([ty| integer(kind=8) |], [t| CLLong          |])
+--    , ([ty| integer(kind=1) |], [t| CChar           |])
+--    , ([ty| integer(kind=4) |], [t| CSize           |])
+    , ([ty| integer(kind=1) |], [t| Int8            |])
+    , ([ty| integer(kind=2) |], [t| Int16           |])
+    , ([ty| integer(kind=4) |], [t| Int32           |])
+    , ([ty| integer(kind=8) |], [t| Int64           |])
+    , ([ty| real(kind=4)    |], [t| Float           |])
+    , ([ty| real(kind=8)    |], [t| Double          |])
+    , ([ty| complex(kind=4) |], [t| CComplex Float  |])
+    , ([ty| complex(kind=8) |], [t| CComplex Double |])
+    -}
+    ]
 
 -- | Basic unboxed Haskell types
 --
 -- TODO: MutableByteArray#
 ghcUnboxed :: Q Context
-ghcUnboxed = mkContext
-  [ ([ty| char      |], [t| Char#      |], False)
-  , ([ty| isize     |], [t| Int#       |], False)
-  , ([ty| usize     |], [t| Word#      |], False)
-  , ([ty| f32       |], [t| Float#     |], False)
-  , ([ty| f64       |], [t| Double#    |], False)
-  , ([ty| *const i8 |], [t| ByteArray# |], False)
-  ]
+ghcUnboxed = do
+  mkContext
+    [ ([ty| char      |], [t| Char#      |], False)
+    , ([ty| isize     |], [t| Int#       |], False)
+    , ([ty| usize     |], [t| Word#      |], False)
+    , ([ty| f32       |], [t| Float#     |], False)
+    , ([ty| f64       |], [t| Double#    |], False)
+--    , ([ty| *const i8 |], [t| ByteArray# |], False)
+    ]
 
 -- | Haskell pointers map onto Rust pointers. Note that unlike Rust, Haskell
 -- doesn't really distinguish between pointers pointing to immutable memory from

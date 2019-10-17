@@ -34,7 +34,7 @@ import Data.Char                   ( isAlpha, isAlphaNum )
 
 import System.FilePath             ( (</>), (-<.>), (<.>), takeExtension )
 import System.Directory            ( copyFile, createDirectoryIfMissing )
-import System.Process              ( spawnProcess, readProcess, waitForProcess )
+import System.Process              ( spawnProcess, readProcess, waitForProcess, readProcessWithExitCode )
 import System.Exit                 ( ExitCode(..) )
 import System.Environment          ( lookupEnv, setEnv )
 
@@ -141,7 +141,7 @@ cargoFinalizer extraArgs dependencies = do
   let dir = ".inline-fortran" </> pkg
       thisFile = foldr1 (</>) mods <.> "f95"
       crate = "q_" ++ pkg
-
+        {-
   -- Make contents of a @Cargo.toml@ file
   let cargoToml = dir </> "Cargo" <.> "toml"
       cargoSrc = unlines [ "[package]"
@@ -157,8 +157,9 @@ cargoFinalizer extraArgs dependencies = do
                          , "path = \"" ++ thisFile ++ "\""
                          , "crate-type = [\"staticlib\"]"
                          ]
+                         -}
   runIO $ createDirectoryIfMissing True dir
-  runIO $ writeFile cargoToml cargoSrc
+--  runIO $ writeFile cargoToml cargoSrc
 
   -- Run Cargo to compile the project
   --
@@ -185,9 +186,9 @@ cargoFinalizer extraArgs dependencies = do
       msgFormat = [ "--message-format=json" ]
   runIO $ putStrLn $ "cargoArgs: " ++ show cargoArgs
 
-  ec <- runIO $ spawnProcess inlineFC cargoArgs >>= waitForProcess
+  (ec,_,se) <- runIO $ readProcessWithExitCode inlineFC cargoArgs ""
   when (ec /= ExitSuccess)
-    (reportError rustcErrMsg)
+    (reportError $ unlines [rustcErrMsg, se])
 
   {-
   -- Run Cargo again to get the static library path

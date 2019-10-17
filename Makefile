@@ -1,6 +1,6 @@
 export INLINE_FORTRAN_CC = -g
 default:
-	stack build
+	stack test
 	stack exec x
 clean:
 	stack clean

@@ -56,12 +56,15 @@ parseQQ input = do
 
   let lexer = lexTokens lexNonSpace
   let stream = inputStreamFromString input
+  -- dari sini stream tak punya newline setelah openParen
+  runIO $ putStrLn $ "stream: " ++ show stream
 
   -- Lex the quasiquote tokens
   rest1 <-
     case execParser lexer stream initPos of
       Left (ParseFail _ msg) -> fail msg
       Right parsed -> pure parsed
+  -- dari sini rest1 sudah punya newline setelah openParen
   runIO $ putStrLn $ "rest1: " ++ show rest1
 
   {- No need for leading type, we can go straight to body
@@ -85,7 +88,7 @@ parseQQ input = do
   -- Done!
 --  let dummy = snd $ head vars
   let dummy = Never (Span NoPosition NoPosition)
-  runIO $ putStrLn $ "dummy: " ++ show dummy
+--  runIO $ putStrLn $ "dummy: " ++ show dummy
   pure (QQParse dummy bodyToks vars)
 
   where
@@ -94,6 +97,16 @@ parseQQ input = do
         case rest of
           [] -> pure (reverse toks, vars)
 
+          (t@(Spanned (OpenDelim Paren) _)         :
+           tt@(Spanned t2 _)                          : rst2) -> do
+            runIO $ putStrLn $ "parseBody OpenDelim Paren:" ++ show rst2
+            runIO $ do
+              case t2 of
+                TNewLine -> do
+                  putStrLn $ "parseBody afterthat :"
+                  print t2
+                _ -> putStrLn "unknown token"
+            parseBody (t:tt:toks) vars rst2
           (Spanned Dollar _            :
            Spanned (OpenDelim Paren) _ :
            Spanned (IdentTok i) _      :
@@ -102,7 +115,7 @@ parseQQ input = do
            Spanned Colon _             : rst2) -> do
             -- Parse the rest of the escape
             (t1, rst3) <- parseEscape [] 1 rst2
-            runIO $ putStrLn $ "parseBody $(i) rst2: " ++ show rst2
+--            runIO $ putStrLn $ "parseBody $(i) rst2: " ++ show rst2
 --            runIO $ putStrLn $ "parseBody $(i)   t1: " ++ show t1
 --            runIO $ putStrLn $ "parseBody $(i) rst3: " ++ show rst3
 
@@ -126,7 +139,7 @@ parseQQ input = do
     -- Parse the part of escapes like @$(x: i32)@ that comes after the @:@.
     parseEscape :: [SpTok] -> Int -> [SpTok] -> Q (Ty Span, [SpTok])
     parseEscape toks p rst1 = do
-        runIO $ putStrLn $ "parseEscape toks p rst1: " ++ show toks ++ show p ++ show rst1
+--        runIO $ putStrLn $ "parseEscape toks p rst1: " ++ show toks ++ show p ++ show rst1
         case rst1 of
           [] -> fail "Ran out of input while parsing variable escape"
           tok : rst2
@@ -134,7 +147,7 @@ parseQQ input = do
             | closeParen tok && p > 1 -> parseEscape (tok : toks) (p-1) rst2
             | not (closeParen tok)    -> parseEscape (tok : toks) p     rst2
             | otherwise -> do
-                runIO $ putStrLn $ "parseEscape otherwise: " ++ show toks
+--                runIO $ putStrLn $ "parseEscape otherwise: " ++ show toks
                 case parseFromToks (reverse toks) of
                              Left (ParseFail _ msg) -> fail msg
                              Right parsed           -> pure (parsed, rst2)

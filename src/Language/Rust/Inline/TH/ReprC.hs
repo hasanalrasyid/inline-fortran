@@ -295,7 +295,7 @@ mkMarshalEnumImpls dict
                             ]
               , let safety = if null vars then Normal else Unsafe
               , let body = BlockExpr [] (Block stmts safety ()) ()
-              ] ++ [ mkArm (WildP ()) (void [R.expr| panic!("Unexpected tag!") |]) ]
+              ] ++ [ mkArm (WildP ()) (void $ mkPathExpr "panic!(\"Unexpected tag!\")" ) ]
       body1 = [ Local (StructP (mkPath nTagged) flds False ())
                       Nothing
                       (Just (mkPathExpr "self"))

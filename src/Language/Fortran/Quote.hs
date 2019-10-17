@@ -23,7 +23,8 @@ The examples below assume the following GHCi flag and import:
 
 
 module Language.Fortran.Quote (
---  lit, attr,
+--  lit,
+  attr,
   ty,
 --  pat, stmt, expr, item, sourceFile, implItem, traitItem, tokenTree, block
 ) where
@@ -102,9 +103,9 @@ quoter p = QuasiQuoter
 --h----
 --h---- >>> void [attr| #[no_mangle] |]
 --h---- Attribute Outer (Path False [PathSegment "no_mangle" Nothing ()] ()) (Stream []) ()
---h----
---h--attr :: QuasiQuoter
---h--attr = quoter parseAttr
+--
+attr :: QuasiQuoter
+attr = quoter parseAttr
 
 -- | Quasiquoter for types (see 'Language.Rust.Syntax.Ty')
 --
