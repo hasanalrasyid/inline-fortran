@@ -172,8 +172,9 @@ import qualified Data.List.NonEmpty as N
   if             { Spanned (IdentTok "if") _ }
   impl           { Spanned (IdentTok "impl") _ }
   in             { Spanned (IdentTok "in") _ }
-  out            { Spanned (IdentTok "out") _ }
-  inout          { Spanned (IdentTok "inout") _ }
+--h----additional inout out from fortran
+--h--  out            { Spanned (IdentTok "out") _ }
+--h--  inout          { Spanned (IdentTok "inout") _ }
   let            { Spanned (IdentTok "let") _ }
   loop           { Spanned (IdentTok "loop") _ }
   match          { Spanned (IdentTok "match") _ }
@@ -229,25 +230,13 @@ import qualified Data.List.NonEmpty as N
   '_'            { Spanned (IdentTok "_") _ }
   IDENT          { Spanned IdentTok{} _ }
 
-  -- Lifetimes.
+       -- Lifetimes.
   LIFETIME       { Spanned (LifetimeTok _) _ }
 
-  -- Interpolated
-  ntItem         { Spanned (Interpolated (NtItem $$)) _ }
-  ntBlock        { Spanned (Interpolated (NtBlock $$)) _ }
-  ntStmt         { Spanned (Interpolated (NtStmt $$)) _ }
-  ntPat          { Spanned (Interpolated (NtPat $$)) _ }
-  ntExpr         { Spanned (Interpolated (NtExpr $$)) _ }
   ntTy           { Spanned (Interpolated (NtTy $$)) _ }
   ntIdent        { Spanned (Interpolated (NtIdent _)) _ }
   ntPath         { Spanned (Interpolated (NtPath $$)) _ }
   ntTT           { Spanned (Interpolated (NtTT $$)) _ }
-  ntArm          { Spanned (Interpolated (NtArm $$)) _ }
-  ntImplItem     { Spanned (Interpolated (NtImplItem $$)) _ }
-  ntTraitItem    { Spanned (Interpolated (NtTraitItem $$)) _ }
-  ntGenerics     { Spanned (Interpolated (NtGenerics $$)) _ }
-  ntWhereClause  { Spanned (Interpolated (NtWhereClause $$)) _ }
-  ntArg          { Spanned (Interpolated (NtArg $$)) _ }
   ntLit          { Spanned (Interpolated (NtLit $$)) _ }
 
 -- 'SEG' needs to be lower than '::' for path segments
