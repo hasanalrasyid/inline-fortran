@@ -301,7 +301,7 @@ printLitTok (ByteTok n)         = "b'" <> printName n <> "'"
 printLitTok (CharTok n)         = "'" <> printName n <> "'"
 printLitTok (IntegerTok n)      = printName n
 printLitTok (FloatTok n)        = printName n
-printLitTok (StrTok n)          = "\"" <> string hardline n <> "\""
+printLitTok (StrTok n)          = string hardline n
 printLitTok (StrRawTok n m)     = let pad = pretty (replicate m '#')
                                   in "r" <> pad <> "\"" <> string hardline n <> "\"" <> pad
 printLitTok (ByteStrTok n)      = "b\"" <> string hardline n <> "\""

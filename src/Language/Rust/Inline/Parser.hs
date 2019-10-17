@@ -83,7 +83,7 @@ parseQQ input = do
 --}
 
   -- Parse body of quasiquote
-  (bodyToks, vars) <- parseBody [] [] rest1
+  (bodyToks, vars) <- parseBody 0 [] [] rest1
 
   -- Done!
 --  let dummy = snd $ head vars
@@ -93,20 +93,18 @@ parseQQ input = do
 
   where
     -- Parse the body of the quasiquote
-    parseBody toks vars rest = do
+    parseBody parCount toks vars rest = do
         case rest of
-          [] -> pure (reverse toks, vars)
+          [] -> if parCount /= 0 then fail "Too much Parenthesis"
+                                 else pure (reverse toks, vars)
+          (Spanned t@(OpenDelim Paren) _ : rst2) -> do
+            parseBody (parCount+1) (pure t : toks) vars rst2
+          (Spanned t@TNewLine _ : rst2) -> do
+            if parCount > 0 then parseBody parCount    toks  vars rst2
+                            else parseBody parCount (pure t:toks) vars rst2
+          (Spanned t@(CloseDelim Paren) _ : rst2) -> do
+            parseBody (parCount-1) (pure t : toks) vars rst2
 
-          (t@(Spanned (OpenDelim Paren) _)         :
-           tt@(Spanned t2 _)                          : rst2) -> do
-            runIO $ putStrLn $ "parseBody OpenDelim Paren:" ++ show rst2
-            runIO $ do
-              case t2 of
-                TNewLine -> do
-                  putStrLn $ "parseBody afterthat :"
-                  print t2
-                _ -> putStrLn "unknown token"
-            parseBody (t:tt:toks) vars rst2
           (Spanned Dollar _            :
            Spanned (OpenDelim Paren) _ :
            Spanned (IdentTok i) _      :
@@ -132,9 +130,9 @@ parseQQ input = do
                                      | otherwise -> fail (dupMsg t2)
 
             -- Continue parsing
-            parseBody (pure (IdentTok i) : toks) newVars rst3
+            parseBody parCount (pure (IdentTok i) : toks) newVars rst3
 
-          (tok : rst2) -> parseBody (tok : toks) vars rst2
+          (tok : rst2) -> parseBody parCount (tok : toks) vars rst2
 
     -- Parse the part of escapes like @$(x: i32)@ that comes after the @:@.
     parseEscape :: [SpTok] -> Int -> [SpTok] -> Q (Ty Span, [SpTok])

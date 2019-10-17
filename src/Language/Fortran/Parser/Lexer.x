@@ -964,7 +964,9 @@ $hexit             = [0-9a-fA-F]
 @lit_float         = [0-9][0-9_]* @decimal_suffix? @exponent_suffix?
 @lit_float2        = [0-9][0-9_]* \.
 
-@lit_str           =   \" (\\\n | \\\r\n | \\ @char_escape | [^\\\"] | \n | \r)* \"
+@lit_str
+  =   \" (\\\n | \\\r\n | \\ @char_escape | [^\\\"] | \n | \r)* \"
+  |   \' (\\\n | \\\r\n | \\ @char_escape | [^\\\'] | \n | \r)* \'
 @lit_byte_str      = b \" (\\\n | \\\r\n | \\ @byte_escape | [^\\\"] | \n | \r)* \"
 
 @lit_raw_str       = r \#* \"
@@ -1057,7 +1059,7 @@ $white          { \s -> pure (Space Whitespace s) }
 
 @lit_byte       { \c -> literal (ByteTok    (drop 2 (init c))) }
 @lit_char       { \c -> literal (CharTok    (drop 1 (init c))) }
-@lit_str        { \s -> literal (StrTok     (drop 1 (init s))) }
+@lit_str        { \s -> literal (StrTok     s                ) }
 @lit_byte_str   { \s -> literal (ByteStrTok (drop 2 (init s))) }
 
 @lit_raw_str    { \s -> let n = length s - 2
