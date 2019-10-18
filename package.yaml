@@ -68,6 +68,7 @@ dependencies:
     - GenericPretty
     - fgl
       #needed for fortran
+    - split
 
 library:
   build-tools:

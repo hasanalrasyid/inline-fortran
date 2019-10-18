@@ -15,12 +15,14 @@ import Language.Rust.Inline.Pretty ( renderType )
 
 import Language.Fortran.Syntax        ( Token(..), Delim(..), Ty(..) )
 import Language.Fortran.Parser
-import Language.Rust.Data.Position ( Spanned(..), Position(..), Span(..) )
+import Language.Rust.Data.Position ( Spanned(..), Position(..), Span(..), Located(..) )
 import Language.Rust.Data.Ident    ( Ident(..) )
 
 import Language.Haskell.TH         ( Q, runIO )
 
 import Control.Monad               ( void )
+import Data.List.Split ( wordsBy )
+import Data.List
 
 -- All the tokens we deal with are 'Spanned'...
 type SpTok = Spanned Token
@@ -33,11 +35,11 @@ data RustQuasiquoteParse = QQParse
   -- | leading type (corresponding to the return type of the quasiquote)
   { ty :: Ty Span
 
-  -- | body tokens, with @$(<ident>: <ty>)@ escapes replaced by just @ident@
-  , body :: [SpTok]
-
   -- | escaped arguments
   , variables :: [(String, (Ty Span, String))]
+  , locVar :: Maybe Int
+  -- | body tokens, with @$(<ident>: <ty>)@ escapes replaced by just @ident@
+  , body :: [[SpTok]]
 
   } deriving (Show)
 
@@ -89,9 +91,22 @@ parseQQ input = do
 --  let dummy = snd $ head vars
   let dummy = Never (Span NoPosition NoPosition)
 --  runIO $ putStrLn $ "dummy: " ++ show dummy
-  pure (QQParse dummy bodyToks vars)
-
+--  bodyToks <- fmap (rearrange) $ constructFortran $  takeWhile' bodyToks'
+  (locVars,bodyToks') <- takeWhile' bodyToks
+  pure (QQParse dummy vars locVars bodyToks')
   where
+    takeWhile' as = do
+      let rs = wordsBy f as
+          nl = filter f as
+          z1 = zipWith (\a b -> a ++ [b]) rs nl
+      pure $ (findIndex f4 z1,z1)
+        where
+          f = \(Spanned t _) -> t == TNewLine
+          f2 (Spanned ModSep _) = True
+          f2  _ = False
+          f4 x = case findIndex f2 x of
+                   Just _ -> True
+                   Nothing -> False
     -- Parse the body of the quasiquote
     parseBody parCount toks vars rest = do
         case rest of

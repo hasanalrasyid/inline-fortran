@@ -18,7 +18,16 @@ main = do
   rr <- withPtr_ $ \x -> do
     poke x i
     [rustIO|
+! # C macro dideteksi di level haskell... unexpected... but OK or better
+#if defined (CPP)
+      use module3
+#else
+      use module1
+#endif
+      character :: c
+      integer :: a
       print *, "adalah dianya yang "
+C-Testing for comment  1
 C Testing for comment  1
 ! Testing for comment  2
 c Testing for comment  3

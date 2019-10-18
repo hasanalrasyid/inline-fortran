@@ -187,8 +187,9 @@ cargoFinalizer extraArgs dependencies = do
   runIO $ putStrLn $ "cargoArgs: " ++ show cargoArgs
 
   (ec,_,se) <- runIO $ readProcessWithExitCode inlineFC cargoArgs ""
-  when (ec /= ExitSuccess)
-    (reportError $ unlines [rustcErrMsg, se])
+  when (ec /= ExitSuccess) $ do
+    runIO $ putStrLn se
+    reportError $ unlines [rustcErrMsg, se]
 
   {-
   -- Run Cargo again to get the static library path

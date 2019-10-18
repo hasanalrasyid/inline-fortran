@@ -172,9 +172,6 @@ import qualified Data.List.NonEmpty as N
   if             { Spanned (IdentTok "if") _ }
   impl           { Spanned (IdentTok "impl") _ }
   in             { Spanned (IdentTok "in") _ }
---h----additional inout out from fortran
---h--  out            { Spanned (IdentTok "out") _ }
---h--  inout          { Spanned (IdentTok "inout") _ }
   let            { Spanned (IdentTok "let") _ }
   loop           { Spanned (IdentTok "loop") _ }
   match          { Spanned (IdentTok "match") _ }
@@ -197,6 +194,9 @@ import qualified Data.List.NonEmpty as N
   where          { Spanned (IdentTok "where") _ }
   while          { Spanned (IdentTok "while") _ }
   do             { Spanned (IdentTok "do") _ }
+--h----additional inout out from fortran
+--h--  out            { Spanned (IdentTok "out") _ }
+--h--  inout          { Spanned (IdentTok "inout") _ }
 
   -- Keywords reserved for future use
   abstract       { Spanned (IdentTok "abstract") _ }

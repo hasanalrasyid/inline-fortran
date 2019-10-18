@@ -1,2 +1,3 @@
-gfortran -c kadal.f95
-gfortran kadal.o main.f95
+gfortran -O3 -c kadal.f95
+gfortran -O3 kadal.o main.f95
+gfortran -O3 -c -fno-underscoring module1.f95

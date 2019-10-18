@@ -102,6 +102,9 @@ import Data.List                             ( intercalate )
 import Data.Traversable                      ( for )
 import System.Random                         ( randomIO )
 
+import Language.Rust.Data.Position (Spanned(..), Span(..), Position(..))
+import Language.Fortran.Syntax (Ty(..), Token(..))
+import Data.Maybe
 -- $overview
 --
 -- This module provides the facility for dropping in bits of Rust code into your
@@ -268,7 +271,7 @@ showTy = show . pprParendType
 --       right Haskell arguments.
 --
 processQQ :: Safety -> Bool -> RustQuasiquoteParse -> Q Exp
-processQQ safety isPure (QQParse rustRet rustBody rustNamedArgs) = do
+processQQ safety isPure (QQParse rustRet rustNamedArgs locVars rustBody ) = do
 
   -- Make a name to thread through Haskell/Rust (see Trac #13054)
   q <- runIO randomIO :: Q Int
@@ -389,10 +392,12 @@ processQQ safety isPure (QQParse rustRet rustBody rustNamedArgs) = do
                                 ] ++ retArg) ++
                                 -}
                                 ")"
+    , case locVars of
+        Just l -> renderTokens $ concat $ take l rustBody
+        _ -> ""
     , unlines [ (renderType t) ++ ", intent(" ++ i ++ ") :: " ++ s | (s,t,i) <- zip3 rustArgNames rustArgs' intents]
-    , renderTokens rustBody
+    , renderTokens $ concat $ drop (fromMaybe 0 locVars) rustBody
     , "end subroutine " ++ qqStrName
-
   {-
     , unlines [ "  let " ++ s ++ ": " ++ renderType t ++ " = " ++ marshal s ++ ".marshal();"
               | (s,t,v) <- zip3 rustArgNames rustConvertedArgs argsByVal
@@ -405,6 +410,3 @@ processQQ safety isPure (QQParse rustRet rustBody rustNamedArgs) = do
 
   -- Return the Haskell call to the FFI import
   haskCall
-
-
-
