@@ -78,7 +78,8 @@ library:
     - src
   extra-libraries:  gfortran #    gsl gslcblas m
 
-executables:
+#executables:
+tests:
   i:
     main:                Main.hs
     source-dirs:         app
