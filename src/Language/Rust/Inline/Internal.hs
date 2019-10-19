@@ -139,7 +139,7 @@ cargoFinalizer extraArgs dependencies = do
   (pkg, mods) <- currentFile
 
   let dir = ".inline-fortran" </> pkg
-      thisFile = foldr1 (</>) mods <.> "f95"
+      thisFile = foldr1 (</>) mods <.> "f"
       crate = "q_" ++ pkg
         {-
   -- Make contents of a @Cargo.toml@ file
@@ -184,7 +184,7 @@ cargoFinalizer extraArgs dependencies = do
                                     , dir </> thisFile
                                     ] ++ extraArgs
       msgFormat = [ "--message-format=json" ]
-  runIO $ putStrLn $ "cargoArgs: " ++ show cargoArgs
+  runIO $ putStrLn $ "cargoArgs: " ++ inlineFC ++ show cargoArgs
 
   (ec,_,se) <- runIO $ readProcessWithExitCode inlineFC cargoArgs ""
   when (ec /= ExitSuccess) $ do
@@ -229,7 +229,7 @@ fileFinalizer = do
   (pkg, mods) <- currentFile
 
   let dir = ".inline-fortran" </> pkg
-      thisFile = foldr1 (</>) mods <.> "f95"
+      thisFile = foldr1 (</>) mods <.> "f"
 
   -- Figure out what we are putting into this file
   Just cb <- getQ
