@@ -393,11 +393,12 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs locVars rustBody ) = do
                                 -}
                                 ")"
     , case locVars of
-        Just l -> renderTokens $ concat $ take l rustBody
+        Just l -> (++) "      " $ renderTokens $ concat $ take l rustBody
         _ -> ""
-    , unlines [ (renderType t) ++ ", intent(" ++ i ++ ") :: " ++ s | (s,t,i) <- zip3 rustArgNames rustArgs' intents]
-    , renderTokens $ concat $ drop (fromMaybe 0 locVars) rustBody
+    , unlines [ "      " ++ (renderType t) ++ ", intent(" ++ i ++ ") :: " ++ s | (s,t,i) <- zip3 rustArgNames rustArgs' intents]
+    , (++) "      " $ renderTokens $ concat $ drop (fromMaybe 0 locVars) rustBody
     , "end subroutine " ++ qqStrName
+
   {-
     , unlines [ "  let " ++ s ++ ": " ++ renderType t ++ " = " ++ marshal s ++ ".marshal();"
               | (s,t,v) <- zip3 rustArgNames rustConvertedArgs argsByVal

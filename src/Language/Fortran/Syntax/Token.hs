@@ -336,7 +336,7 @@ instance Show Token where
   show Pound = "#"
   show Dollar = "$"
   show Question = "?"
-  show TNewLine = "\n"
+  show TNewLine = "\n      "
   -- Delimiters, eg. @{@, @]@, @(@
   show (OpenDelim Paren) = "("
   show (OpenDelim Bracket) = "["

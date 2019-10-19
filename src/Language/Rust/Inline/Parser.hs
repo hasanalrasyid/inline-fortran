@@ -92,8 +92,8 @@ parseQQ input = do
   let dummy = Never (Span NoPosition NoPosition)
 --  runIO $ putStrLn $ "dummy: " ++ show dummy
 --  bodyToks <- fmap (rearrange) $ constructFortran $  takeWhile' bodyToks'
-  (locVars,bodyToks') <- takeWhile' bodyToks
-  pure (QQParse dummy vars locVars bodyToks')
+  (locVars,bodyToks) <- takeWhile' bodyToks
+  pure (QQParse dummy vars locVars bodyToks)
   where
     takeWhile' as = do
       let rs = wordsBy f as
