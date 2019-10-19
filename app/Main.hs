@@ -17,7 +17,7 @@ main = do
   r <- return ()
   rr <- withPtr_ $ \x -> do
     poke x i
-    [rustIO|
+    [fort77IO|
 ! # C macro dideteksi di level haskell... unexpected... but OK or better
 #if defined (CPP)
       use module3
@@ -36,7 +36,8 @@ c Testing for comment  3
       # 373 test
       $(x:out:real) = k + 5
 
-      write(*,10001) k,x
+      write(*,10001) k,
+     & x
 10001   FORMAT('IDLING TIME : ',I10,' sec (',F6.2,' %)')
       print *, "adalah ",k
     |]

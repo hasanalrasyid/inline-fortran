@@ -24,6 +24,7 @@ module Language.Rust.Inline (
   -- $safe
   rust,
   rustIO,
+  fort77IO,
   -- ** Unsafe
   --
   -- $unsafe
@@ -102,7 +103,7 @@ import Data.List                             ( intercalate )
 import Data.Traversable                      ( for )
 import System.Random                         ( randomIO )
 
-import Language.Rust.Data.Position (Spanned(..), Span(..), Position(..))
+import Language.Rust.Data.Position as P (Spanned(..), Span(..), Position(..), spanOf)
 import Language.Fortran.Syntax (Ty(..), Token(..))
 import Data.Maybe
 import Data.Int (Int16)
@@ -174,6 +175,8 @@ rust = rustQuasiQuoter Safe True True
 rustIO :: QuasiQuoter
 rustIO = rustQuasiQuoter Safe False True
 
+fort77IO :: QuasiQuoter
+fort77IO  = rustQuasiQuoter Safe False True
 
 -- $unsafe
 --
@@ -383,7 +386,7 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs locVars rustBody ) = do
                        , "unsafe { ::std::ptr::write(ret_" ++ qqStrName ++ ", out.marshal()) }"
                        )
   void . emitCodeBlock . unlines $
-    [ "subroutine " ++ qqStrName ++ "(" ++
+    [ "      subroutine " ++ qqStrName ++ "(" ++
         intercalate ", " rustArgNames ++
       {-
         intercalate ", " ([ s ++ ": " ++ marshal (renderType t)
@@ -393,11 +396,11 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs locVars rustBody ) = do
                                 -}
                                 ")"
     , case locVars of
-        Just l -> (++) "      " $ renderTokens $ concat $ take l rustBody
+        Just l -> unlines $ map renderFortran $ take l rustBody
         _ -> ""
     , unlines [ "      " ++ (renderType t) ++ ", intent(" ++ i ++ ") :: " ++ s | (s,t,i) <- zip3 rustArgNames rustArgs' intents]
-    , (++) "      " $ renderTokens $ concat $ drop (fromMaybe 0 locVars) rustBody
-    , "end subroutine " ++ qqStrName
+    , unlines $ map renderFortran $ drop (fromMaybe 0 locVars) rustBody
+    , "      end subroutine " ++ qqStrName
 
   {-
     , unlines [ "  let " ++ s ++ ": " ++ renderType t ++ " = " ++ marshal s ++ ".marshal();"
@@ -411,3 +414,15 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs locVars rustBody ) = do
 
   -- Return the Haskell call to the FFI import
   haskCall
+    where
+      pad6Blanks p = take (p-1) "      "
+      renderFortran tok@(tt@(Spanned t _):_) =
+        let pn = case (lo $ spanOf tt) of
+                   NoPosition -> 7
+                   Position _ _ a -> a
+            ad = case t of
+                  TNewLine  -> ""
+                  Ampersand -> "     "
+                  _         -> if (7 >= pn) then (pad6Blanks pn)
+                                            else "      "
+         in ad ++ (takeWhile (/= '\n') $ renderTokens tok)

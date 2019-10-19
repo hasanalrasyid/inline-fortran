@@ -267,7 +267,7 @@ printToken Pound = "#"
 printToken Dollar = "$"
 printToken Question = "?"
 -- this printToken for printing in file.f95
-printToken TNewLine = "\n      "
+printToken TNewLine = "\n"
 -- Delimiters, eg. @{@, @]@, @(@
 printToken (OpenDelim Paren) = "("
 printToken (OpenDelim Bracket) = "["
