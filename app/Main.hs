@@ -24,6 +24,7 @@ main = do
 #else
       use module1
 #endif
+      IMPLICIT NONE
       character :: c
       integer :: a
       print *, "adalah dianya yang "
@@ -32,6 +33,7 @@ C Testing for comment  1
 ! Testing for comment  2
 c Testing for comment  3
       k = 1
+      # 373 test
       $(x:out:real) = k + 5
 
       write(*,10001) k,x

@@ -23,6 +23,7 @@ import Language.Haskell.TH         ( Q, runIO )
 import Control.Monad               ( void )
 import Data.List.Split ( wordsBy )
 import Data.List
+import Data.Char
 
 -- All the tokens we deal with are 'Spanned'...
 type SpTok = Spanned Token
@@ -98,12 +99,16 @@ parseQQ input = do
     takeWhile' as = do
       let rs = wordsBy f as
           nl = filter f as
-          z1 = zipWith (\a b -> a ++ [b]) rs nl
-      pure $ (findIndex f4 z1,z1)
+          z1 = filter (not . f3) $ zipWith (\a b -> a ++ [b]) rs nl
+      pure $ (fmap (+1) $ findIndex f4 z1,z1)
         where
-          f = \(Spanned t _) -> t == TNewLine
+          f (Spanned TNewLine _) = True
+          f _                    = False
+          f2 (Spanned (IdentTok s) _) = "implicit" == (map toLower $ name s)
           f2 (Spanned ModSep _) = True
           f2  _ = False
+          f3 ((Spanned Pound _):_) = True
+          f3 _ = False
           f4 x = case findIndex f2 x of
                    Just _ -> True
                    Nothing -> False

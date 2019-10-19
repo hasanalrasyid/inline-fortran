@@ -229,7 +229,7 @@ fileFinalizer = do
   (pkg, mods) <- currentFile
 
   let dir = ".inline-fortran" </> pkg
-      thisFile = foldr1 (</>) mods <.> "f95"
+      thisFile = foldr1 (</>) mods <.> "f"
 
   -- Figure out what we are putting into this file
   Just cb <- getQ
