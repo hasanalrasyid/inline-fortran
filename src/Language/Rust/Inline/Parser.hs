@@ -119,8 +119,11 @@ parseQQ input = do
                                  else pure (reverse toks, vars)
           (Spanned t@(OpenDelim Paren) _ : rst2) -> do
             parseBody (parCount+1) (pure t : toks) vars rst2
+          (Spanned t@TNewLine _ :
+           rst2@(Spanned Ampersand _ : _)) -> do
+            parseBody parCount (pure t:toks) vars rst2
           (Spanned t@TNewLine _ : rst2) -> do
-            if parCount > 0 then parseBody parCount    toks  vars rst2
+            if parCount > 0 then parseBody parCount         toks  vars rst2
                             else parseBody parCount (pure t:toks) vars rst2
           (Spanned t@(CloseDelim Paren) _ : rst2) -> do
             parseBody (parCount-1) (pure t : toks) vars rst2
