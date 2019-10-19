@@ -105,6 +105,7 @@ import System.Random                         ( randomIO )
 import Language.Rust.Data.Position (Spanned(..), Span(..), Position(..))
 import Language.Fortran.Syntax (Ty(..), Token(..))
 import Data.Maybe
+import Data.Int (Int16)
 -- $overview
 --
 -- This module provides the facility for dropping in bits of Rust code into your
@@ -274,9 +275,8 @@ processQQ :: Safety -> Bool -> RustQuasiquoteParse -> Q Exp
 processQQ safety isPure (QQParse rustRet rustNamedArgs locVars rustBody ) = do
 
   -- Make a name to thread through Haskell/Rust (see Trac #13054)
-  q <- runIO randomIO :: Q Int
-  qqName' <- newName $ "qq" ++ show (abs q)
-  qqName <- newName (show qqName')
+  q <- runIO randomIO :: Q Int16
+  qqName <- newName $ "qq" ++ show (abs q)
   let qqStrName = show qqName
 
   -- Find out what the corresponding Haskell representations are for the
