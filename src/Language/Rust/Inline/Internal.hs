@@ -139,7 +139,7 @@ cargoFinalizer extraArgs dependencies = do
   (pkg, mods) <- currentFile
 
   let dir = ".inline-fortran" </> pkg
-      thisFile = foldr1 (</>) mods <.> "f95"
+      thisFile = foldr1 (</>) mods <.> "f"
       crate = "q_" ++ pkg
         {-
   -- Make contents of a @Cargo.toml@ file
