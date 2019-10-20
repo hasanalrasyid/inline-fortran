@@ -178,7 +178,7 @@ cargoFinalizer extraArgs dependencies = do
   inlineFC <- runIO $ fromMaybe "gfortran" <$> lookupEnv "INLINE_FORTRAN_FC"
 
   runIO $ setEnv "RUSTFLAGS" "--print native-static-libs"
-  let cargoArgs = (words . unwords) [ "-c -fpic -fno-underscoring"
+  let cargoArgs = (words . unwords) [ "-c -fpic" --  "-fno-underscoring"
                                     , inlineFFlags
                                     , "-o", dir </> thisFile -<.> "o"
                                     , dir </> thisFile

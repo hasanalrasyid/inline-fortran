@@ -24,7 +24,7 @@ main = do
 #else
       use module1
 #endif
-      IMPLICIT NONE
+      IMPLICIT iNTEGER (K-R)
       character :: c
       integer :: a
       print *, "adalah dianya yang "

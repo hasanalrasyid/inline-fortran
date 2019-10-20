@@ -329,7 +329,7 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs locVars rustBody ) = do
 
   -- Generate the Haskell FFI import declaration and emit it
   haskSig <- foldr (\l r -> [t| Ptr $(pure l) -> $r |]) haskRet' haskArgs'
-  let ffiImport = ForeignD (ImportF CCall safety qqStrName qqName haskSig)
+  let ffiImport = ForeignD (ImportF CCall safety (qqStrName ++ "_") qqName haskSig)
   addTopDecls [ffiImport]
 
   -- Generate the Haskell FFI call
