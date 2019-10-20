@@ -41,10 +41,15 @@ import GHC.Exts                    ( Char#, Int#, Word#, Float#, Double#,
 
 import qualified Control.Monad.Fail as Fail
 import Eigen.Internal -- CComplex
+import qualified Data.Vector.Storable.Mutable as VM
 import qualified Debug.Trace as D
 
 instance Fail.MonadFail First where
   fail = error "MonadFail First error"
+
+--start for Vector Context
+type CArray = Ptr
+
 
 -- Easier on the eyes
 type RType = Ty ()
@@ -207,6 +212,11 @@ libc = mkContext []
 --h--  , ([ty| libc::uint64_t    |], [t| Word64     |], False) -- uint64_t
 --h--  ]
 
+vecCtx :: Q Context
+vecCtx = mkContext
+  [ ([ty| vecptr |], [t| VM.IOVector |], True)
+  , ([ty| veclen |], [t| Int |], True)
+  ]
 -- | Basic numeric (and similar) Haskell and Rust types.
 --
 -- There should be no conversion required here as these should have identical
