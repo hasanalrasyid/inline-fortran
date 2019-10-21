@@ -53,9 +53,9 @@ c Testing for comment  3
   301   continue
   300 continue
       print *, "adalah dianya yang "
-      do 400 i = 1,2
-      do 401 j = 1,3
-          print*,"test v:", v(i,j)
+      do 400 j = 1,3
+      do 401 i = 1,3
+          print*,"test v:",i,j, v(i,j)
   401   continue
   400 continue
 
