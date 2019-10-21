@@ -18,7 +18,7 @@ setCrateRoot []
 main = do
   putStrLn "Haskell: Hello. Enter a number:"
   let i = 55
-  let vInit = V.fromList $ take 6 [0,1 .. ] :: V.Vector Float
+  let vInit = V.fromList $ take 9 [1,2 .. ] :: V.Vector Float
   putStrLn $ "Haskell: says vInit: " ++ (show $ vInit)
   _  <- V.unsafeWith vInit $ \v -> do
         rx <- withPtr_ $ \x -> do
@@ -45,10 +45,11 @@ c Testing for comment  3
      & x
 10001   FORMAT('IDLING TIME : ',I10,' sec (',F6.2,' %)')
       print *, "adalah ",k
-
-      do 300 i = 1,2
-      do 301 j = 1,3
-          $vec(v:inout:real:(2,3))(i,j) = 10*i + j
+      l = 1
+      do 300 j = 1,3
+      do 301 i = 1,3
+          $vec(v:inout:real:(3,3))(i,j) = l
+          l = l + 1
   301   continue
   300 continue
       print *, "adalah dianya yang "
