@@ -77,6 +77,9 @@ library:
   source-dirs:
     - src
   extra-libraries:  gfortran #    gsl gslcblas m
+  ghc-options:
+    - -ddump-splices
+    - -ddump-to-file
 
 #executables:
 tests:
@@ -86,6 +89,8 @@ tests:
     #c-sources:           app/Main.c
     cc-options:           -Wall -O2
     ghc-options:
+    - -ddump-splices
+    - -ddump-to-file
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
