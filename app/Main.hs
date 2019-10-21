@@ -29,7 +29,7 @@ main = do
       IMPLICIT iNTEGER (I-R)
       character :: c
       integer :: a
-      integer :: v(2,3)
+      real :: v(2,3)
       print *, "adalah dianya yang "
 C-Testing for comment  1
 C Testing for comment  1
