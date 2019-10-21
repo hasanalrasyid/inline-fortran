@@ -160,6 +160,7 @@ parseQQ input = do
 
       -- Add it to 'vars' if it isn't a duplicate
       let i' = name i
+      runIO $ putStrLn $ "parseVars t1:" ++ show t1
       let dupMsg t2 = concat [ "Variable `", i', ": ", renderType t1
                               , "' has already been given type `"
                               , renderType t2, "'"

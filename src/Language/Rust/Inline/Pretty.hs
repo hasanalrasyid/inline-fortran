@@ -10,13 +10,14 @@ Portability : GHC
 
 module Language.Rust.Inline.Pretty (
   renderType,
+  renderExpr,
   renderItem,
   renderTokens,
 ) where
 
 import Language.Fortran.Pretty                    ( Pretty(..) )
 import Language.Rust.Data.Position             ( Spanned(..) )
-import Language.Fortran.Syntax                    ( Ty, Token(..), TokenTree(..), TokenStream(..), Item )
+import Language.Fortran.Syntax                    ( Ty, Token(..), TokenTree(..), TokenStream(..), Item, Expr(..) )
 
 import Data.Text.Prettyprint.Doc               ( layoutPretty, defaultLayoutOptions )
 import Data.Text.Prettyprint.Doc.Render.String ( renderString )
@@ -28,6 +29,9 @@ render = renderString . layoutPretty defaultLayoutOptions . prettyUnresolved
 -- | Render a Rust type into a 'String'.
 renderType :: Ty a -> String
 renderType = render
+
+renderExpr :: Expr a -> String
+renderExpr = render
 
 -- | Render a Rust item into a 'String'.
 renderItem :: Item a -> String

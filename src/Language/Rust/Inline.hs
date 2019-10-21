@@ -285,7 +285,8 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs locVars rustBody ) = do
   -- Find out what the corresponding Haskell representations are for the
   -- argument and return types
   let (rustArgNames, rustArgs_intents) = unzip rustNamedArgs
-  let (rustArgs, intents) = unzip rustArgs_intents
+  let (rustArgs1, intents) = unzip rustArgs_intents
+  let rustArgs = map takeBase rustArgs1
     {-
   (haskRet, reprCRet) <- getRType (void rustRet)
   -}
@@ -398,7 +399,13 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs locVars rustBody ) = do
     , case locVars of
         Just l -> unlines $ map renderFortran $ take l rustBody
         _ -> ""
-    , unlines [ "      " ++ (renderType t) ++ ", intent(" ++ i ++ ") :: " ++ s | (s,t,i) <- zip3 rustArgNames rustArgs' intents]
+    , unlines [ "      " ++ (renderType t) ++ "," ++ intent ++ " :: " ++ s ++ dim
+        | (s,t,(i,r)) <- zip3 rustArgNames rustArgs' $ zip intents rustArgs1
+              , let intent = "intent(" ++ i ++ ")"
+              , let (t0,dim) = case r of
+                                 (Array _ s _) -> (t, renderExpr s)
+                                 _ -> (r,"")
+              ]
     , unlines $ map renderFortran $ drop (fromMaybe 0 locVars) rustBody
     , "      end subroutine " ++ qqStrName
 
@@ -415,6 +422,8 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs locVars rustBody ) = do
   -- Return the Haskell call to the FFI import
   haskCall
     where
+      takeBase (Array b _ _) = b
+      takeBase r = r
       pad6Blanks p = take (p-1) "      "
       renderFortran tok@(tt@(Spanned t _):_) =
         let pn = case (lo $ spanOf tt) of
