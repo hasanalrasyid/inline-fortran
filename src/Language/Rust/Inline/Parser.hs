@@ -173,22 +173,21 @@ parseQQ input = do
 
             -- Continue parsing
     -- Parse the part of escapes like @$(x: i32)@ that comes after the @:@.
-    parseEscapeLit :: [SpTok] -> Int -> [SpTok] -> Q (Lit Span, [SpTok])
-    parseEscapeLit toks p rst1 = do
-
     parseEscape :: [SpTok] -> Int -> [SpTok] -> Q (Ty Span, [SpTok])
     parseEscape toks p rst1 = do
 --        runIO $ putStrLn $ "parseEscape toks p rst1: " ++ show toks ++ show p ++ show rst1
         case rst1 of
           [] -> fail "Ran out of input while parsing variable escape"
           tok : rst2
-            | isColon tok -> do
+            | isColon tok           -> parseEscape (tok : toks) (p) rst2
+              {-
               let parsedTy = parseFromToks (reverse toks)
-              (tupTy,rst3) <- parseEscapeLit [] p rst2
+              (tupTy,rst3) <- parseEscapeExpr [] p rst2
               runIO $ putStrLn $ "tupTy: " ++ show tupTy
               case parsedTy of
                 Left (ParseFail _ msg) -> fail $ "parseEscape parsedTy: " ++ msg
                 Right ty -> pure(ty, rst3)
+                -}
 
             | openParen tok           -> parseEscape (tok : toks) (p+1) rst2
             | closeParen tok && p > 1 -> parseEscape (tok : toks) (p-1) rst2
