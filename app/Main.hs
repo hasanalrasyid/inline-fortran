@@ -13,14 +13,15 @@ extendContext basic
 
 setCrateRoot []
 
+
+
 main = do
   putStrLn "Haskell: Hello. Enter a number:"
   let i = 55
-  let vInit = V.fromList [1,2,3,4,5,6] :: V.Vector Float
-  vi <- V.thaw vInit
-  rr <- VM.unsafeWith vi $ \v -> do
+  let vInit = V.fromList $ take 6 [0,1 .. ] :: V.Vector Float
+  putStrLn $ "Haskell: says vInit: " ++ (show $ vInit)
+  _  <- V.unsafeWith vInit $ \v -> do
         rx <- withPtr_ $ \x -> do
-
                 poke x i
                 [fort77IO|
 ! # C macro dideteksi di level haskell... unexpected... but OK or better
@@ -63,7 +64,7 @@ c Testing for comment  3
                 xContent <- peek x
                 putStrLn $ "Haskell: Rust says in withPtr x=" ++ show xContent
         putStrLn $ "test vector: " ++ show rx
-  putStrLn $ "Haskell: Rust says number plus 1 is " ++ show rr
+  putStrLn $ "Haskell: Rust says number plus 1 is " ++ (show $ vInit)
 
 -- Utils
 
