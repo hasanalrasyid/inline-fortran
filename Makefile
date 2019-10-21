@@ -4,5 +4,5 @@ default:
 	stack build
 	stack test
 clean:
-	stack clean
+	stack clean inline-fortran
 r: clean default
