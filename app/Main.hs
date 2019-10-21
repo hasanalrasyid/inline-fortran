@@ -45,7 +45,7 @@ c Testing for comment  3
 
       do 300 i = 1,2
       do 301 j = 1,3
-          v(i,j) = 10*i + j
+          $vec(v:inout:real:(2,3))(i,j) = 10*i + j
   301   continue
   300 continue
       print *, "adalah dianya yang "

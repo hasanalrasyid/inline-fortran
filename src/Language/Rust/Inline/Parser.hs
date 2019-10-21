@@ -129,48 +129,74 @@ parseQQ input = do
             parseBody (parCount-1) (pure t : toks) vars rst2
 
           (Spanned Dollar _            :
+           Spanned (IdentTok v) _      :
            Spanned (OpenDelim Paren) _ :
            Spanned (IdentTok i) _      :
            Spanned Colon _             :
            Spanned (IdentTok intent) _ :
            Spanned Colon _             : rst2) -> do
-            -- Parse the rest of the escape
-            (t1, rst3) <- parseEscape [] 1 rst2
---            runIO $ putStrLn $ "parseBody $(i) rst2: " ++ show rst2
---            runIO $ putStrLn $ "parseBody $(i)   t1: " ++ show t1
---            runIO $ putStrLn $ "parseBody $(i) rst3: " ++ show rst3
+             let vec = name v
+             case vec of
+               "vec" -> do
+                 (newVars,rst3) <- parseVars vars i intent rst2
+                 parseBody parCount (pure (IdentTok i) : toks) newVars rst3
+               _ -> fail $ "error $" ++ vec ++ " is not yet implemented"
 
-            -- Add it to 'vars' if it isn't a duplicate
-            let i' = name i
-            let dupMsg t2 = concat [ "Variable `", i', ": ", renderType t1
-                                    , "' has already been given type `"
-                                    , renderType t2, "'"
-                                    ]
-            let intent' = name intent
-            newVars <- case lookup i' vars of
-                         Nothing -> pure ((i', (t1,intent')) : vars)
-                         Just (t2,_) | void t1 == void t2 -> pure vars
-                                     | otherwise -> fail (dupMsg t2)
 
-            -- Continue parsing
-            parseBody parCount (pure (IdentTok i) : toks) newVars rst3
+          (Spanned Dollar _            :
+           Spanned (OpenDelim Paren) _ :
+           Spanned (IdentTok i) _      :
+           Spanned Colon _             :
+           Spanned (IdentTok intent) _ :
+           Spanned Colon _             : rst2) -> do
+             (newVars,rst3) <- parseVars vars i intent rst2
+             parseBody parCount (pure (IdentTok i) : toks) newVars rst3
 
           (tok : rst2) -> parseBody parCount (tok : toks) vars rst2
 
+    parseVars vars i intent rst2 = do
+      -- Parse the rest of the escape
+      (t1, rst3) <- parseEscape [] 1 rst2
+
+      -- Add it to 'vars' if it isn't a duplicate
+      let i' = name i
+      let dupMsg t2 = concat [ "Variable `", i', ": ", renderType t1
+                              , "' has already been given type `"
+                              , renderType t2, "'"
+                              ]
+      let intent' = name intent
+      newVars <- case lookup i' vars of
+                   Nothing -> pure ((i', (t1,intent')) : vars)
+                   Just (t2,_) | void t1 == void t2 -> pure vars
+                               | otherwise -> fail (dupMsg t2)
+      pure (newVars,rst3)
+
+            -- Continue parsing
     -- Parse the part of escapes like @$(x: i32)@ that comes after the @:@.
+    parseEscapeLit :: [SpTok] -> Int -> [SpTok] -> Q (Lit Span, [SpTok])
+    parseEscapeLit toks p rst1 = do
+
     parseEscape :: [SpTok] -> Int -> [SpTok] -> Q (Ty Span, [SpTok])
     parseEscape toks p rst1 = do
 --        runIO $ putStrLn $ "parseEscape toks p rst1: " ++ show toks ++ show p ++ show rst1
         case rst1 of
           [] -> fail "Ran out of input while parsing variable escape"
           tok : rst2
+            | isColon tok -> do
+              let parsedTy = parseFromToks (reverse toks)
+              (tupTy,rst3) <- parseEscapeLit [] p rst2
+              runIO $ putStrLn $ "tupTy: " ++ show tupTy
+              case parsedTy of
+                Left (ParseFail _ msg) -> fail $ "parseEscape parsedTy: " ++ msg
+                Right ty -> pure(ty, rst3)
+
             | openParen tok           -> parseEscape (tok : toks) (p+1) rst2
             | closeParen tok && p > 1 -> parseEscape (tok : toks) (p-1) rst2
             | not (closeParen tok)    -> parseEscape (tok : toks) p     rst2
             | otherwise -> do
 --                runIO $ putStrLn $ "parseEscape otherwise: " ++ show toks
                 case parseFromToks (reverse toks) of
-                             Left (ParseFail _ msg) -> fail msg
+                             Left (ParseFail _ msg) -> fail $ "parseEscape: " ++ msg
                              Right parsed           -> pure (parsed, rst2)
 
 
@@ -193,3 +219,6 @@ closeParen :: SpTok -> Bool
 closeParen (Spanned (CloseDelim Paren) _) = True
 closeParen _ = False
 
+isColon :: SpTok -> Bool
+isColon (Spanned Colon _) = True
+isColon _ = False
