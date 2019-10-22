@@ -23,7 +23,7 @@ main = do
 --  v <- V.thaw vm
   putStrLn $ "Haskell: says vInit: " ++ (show v)
   putStrLn $ "Haskell: says x: " ++ (show ix)
-  withPtr_ $ \x -> do
+  xp <- withPtr $ \x -> do
     [fort77IO|
 ! # C macro dideteksi di level haskell... unexpected... but OK or better
 #if defined (CPP)
@@ -74,6 +74,7 @@ c Testing for comment  3
     putStrLn $ "Haskell: Rust says in withPtr x=" ++ show xContent
     putStrLn $ "test vector: " ++ show x
   putStrLn $ "Haskell: says v unchanged: " ++ (show v)
+  putStrLn $ "Haskell: says v unchanged: " ++ (show xp)
 
 -- Utils
 
