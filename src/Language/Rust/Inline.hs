@@ -364,7 +364,6 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs locVars rustBody ) = do
         case arg of
           Nothing -> fail ("Could not find Haskell variable ‘" ++ argStr ++ "’")
           Just argName -> do
-            runIO $ putStrLn $ "goArgs rustArg:" ++ argStr ++":"++ show rustArg
             withVar goArgs argName acc args (HaskVar rustArg)
             {-
             | byVal -> goArgs (varE argName : acc) args
@@ -434,14 +433,6 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs locVars rustBody ) = do
   -- Return the Haskell call to the FFI import
   haskCall
     where
-          {-
-      withVar f argName acc args (HaskVar a@(Ptr _ _ _)) =
-        f (varE argName : acc) args
-      withVar f argName acc args (HaskVar a@(V.Vector _)) = do
-        v <- newName "v"
-        [e| with $(varE argName) (\( $(varP x) ) ->
-              $(goArgs (varE v : acc) args)) |]
-              -}
       withVar f argName acc args (HaskVar a) = do
         x <- newName "xx"
         case a of
