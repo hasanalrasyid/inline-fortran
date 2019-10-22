@@ -18,11 +18,11 @@ setCrateRoot []
 
 main = do
   putStrLn "Haskell: Hello. Enter a number:"
-  let i = 2
-  let vm = V.fromList $ take 9 [0,0 .. ] :: V.Vector Float
-  v <- V.thaw vm
+  let x = 2
+  let v = V.fromList $ take 9 [0,0 .. ] :: V.Vector Float
+--  v <- V.thaw vm
   putStrLn $ "Haskell: says vInit: " ++ (show v)
-  putStrLn $ "Haskell: says x: " ++ (show i)
+  putStrLn $ "Haskell: says x: " ++ (show x)
 --  _  <- V.unsafeWith vInit $ \v -> do
 --    rx <- withPtr_ $ \x -> do
   [fort77IO|
