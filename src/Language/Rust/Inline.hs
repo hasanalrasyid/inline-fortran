@@ -315,6 +315,7 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs locVars rustBody ) = do
   -- Convert the Haskell arguments to marshallable FFI types
   (argsByVal, haskArgs') <- fmap unzip $
     for haskArgs $ \haskArg -> do
+      {-
       marshalForm <- ghcMarshallable haskArg
       case marshalForm of
         BoxedIndirect
@@ -325,20 +326,23 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs locVars rustBody ) = do
                        " indirectly when returning an unlifted type " ++
                        "‘" ++ retTy ++ "’")
 
-          | otherwise -> do
+          | otherwise -> do -- in app/Main.hs, this is for v
               ptr <- [t| Ptr $(pure haskArg) |]
               pure (True, ptr)
 
-        _ -> pure (False, haskArg)
+        _ -> do -- in app/Main.hs, this is for x
+        -} -- cause everything is passed as pointer
+              ptr <- [t| Ptr $(pure haskArg) |]
+              pure (True, ptr)
 
   -- Generate the Haskell FFI import declaration and emit it
-  haskSig <- foldr (\l r -> [t| Ptr $(pure l) -> $r |]) haskRet' haskArgs'
+  haskSig <- foldr (\l r -> [t| $(pure l) -> $r |]) haskRet' haskArgs'
   let ffiImport = ForeignD (ImportF CCall safety (qqStrName ++ "_") qqName haskSig)
   addTopDecls [ffiImport]
 
   -- Generate the Haskell FFI call
   let goArgs :: [Q Exp]           -- ^ arguments accumulated so far (reversed)
-             -> [(String, Bool, Type )]  -- ^ remaining arguments to process
+             -> [(String, Bool, Ty Span)]  -- ^ remaining arguments to process
              -> Q Exp             -- ^ FFI call
 
       -- Once we run out of arguments we call the quasiquote function with all the
@@ -355,13 +359,13 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs locVars rustBody ) = do
 
       -- If an argument is by value, we just stack it into the accumulated arguments.
       -- Otherwise, we use 'with' to get a pointer to its stack position.
-      goArgs acc ((argStr, byVal,haskArg) : args) = do
+      goArgs acc ((argStr, byVal,rustArg) : args) = do
         arg <- lookupValueName argStr
         case arg of
           Nothing -> fail ("Could not find Haskell variable ‘" ++ argStr ++ "’")
           Just argName -> do
-            runIO $ putStrLn $ "goArgs haskArg:" ++ argStr ++":"++ showTy haskArg
-            withVar goArgs argName acc args (HaskVar haskArg)
+            runIO $ putStrLn $ "goArgs rustArg:" ++ argStr ++":"++ show rustArg
+            withVar goArgs argName acc args (HaskVar rustArg)
             {-
             | byVal -> goArgs (varE argName : acc) args
             | otherwise -> do
@@ -370,7 +374,7 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs locVars rustBody ) = do
                           [e| with $(varE argName) (\( $(varP x) ) ->
                                 $(goArgs (varE x : acc) args)) |]
                                 -}
-  let haskCall' = goArgs [] (zip3 rustArgNames argsByVal haskArgs')
+  let haskCall' = goArgs [] (zip3 rustArgNames argsByVal rustArgs1)
       haskCall = if isPure && returnFfi /= UnboxedDirect
                    then [e| unsafeLocalState $haskCall' |]
                    else haskCall'
@@ -439,10 +443,14 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs locVars rustBody ) = do
               $(goArgs (varE v : acc) args)) |]
               -}
       withVar f argName acc args (HaskVar a) = do
-        runIO $ putStrLn $ "withVar HaskVar a:" ++ show a
         x <- newName "xx"
-        [e| with $(varE argName) (\( $(varP x) ) ->
-              $(f (varE x : acc) args)) |]
+        case a of
+          Array _ _ _ -> do
+              [e| V.unsafeWith $(varE argName) (\( $(varP x) ) ->
+                  $(f (varE x : acc) args)) |]
+          _ -> do
+              [e| with $(varE argName) (\( $(varP x) ) ->
+                  $(f (varE x : acc) args)) |]
       takeBase (Array b _ _) = b
       takeBase r = r
       pad6Blanks p = take (p-1) "      "

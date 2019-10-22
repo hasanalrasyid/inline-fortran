@@ -19,12 +19,12 @@ setCrateRoot []
 main = do
   putStrLn "Haskell: Hello. Enter a number:"
   let x = 2
-  let vInit = V.fromList $ take 9 [0,0 .. ] :: V.Vector Float
-  putStrLn $ "Haskell: says vInit: " ++ (show $ vInit)
-  let v = vInit
+  let v = V.fromList $ take 9 [0,0 .. ] :: V.Vector Float
+  putStrLn $ "Haskell: says vInit: " ++ (show v)
+  putStrLn $ "Haskell: says x: " ++ (show x)
 --  _  <- V.unsafeWith vInit $ \v -> do
 --    rx <- withPtr_ $ \x -> do
-        [fort77IO|
+  [fort77IO|
 ! # C macro dideteksi di level haskell... unexpected... but OK or better
 #if defined (CPP)
       use module3
@@ -65,14 +65,14 @@ c Testing for comment  3
   401   continue
   400 continue
 
-        |]
+  |]
       -- k = 5 + $(x : i32) # anehnya, ini error
 --      putStrLn $ "Haskell: Rust says in withPtr x=" ++ show x
 --      xContent <- peek x
 --      putStrLn $ "Haskell: Rust says in withPtr x=" ++ show xContent
---        putStrLn $ "test vector: " ++ show x
+  putStrLn $ "test vector: " ++ show x
 --  putStrLn $ "test vector: " ++ show rx
-  putStrLn $ "Haskell: Rust says number plus 1 is " ++ (show $ vInit)
+  putStrLn $ "Haskell: Rust says number plus 1 is " ++ (show v)
 
 -- Utils
 

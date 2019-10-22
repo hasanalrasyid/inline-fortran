@@ -298,7 +298,7 @@ vectors = do
     Array t _ _  <- pure vec
 --    V.MVector t _  <- pure vec
     (t', Nothing) <- lookupRTypeInContext t context
-    pure ([t| V.Vector $t' |], Nothing)
+    pure ([t| $t' |], Nothing)
 
   rev vecConT pt context = do
     AppT vecCon t <- pure pt
