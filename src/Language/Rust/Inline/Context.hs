@@ -19,7 +19,7 @@ module Language.Rust.Inline.Context where
 import Language.Rust.Inline.Pretty ( renderType )
 
 import Language.Fortran.Quote         ( ty )
-import Language.Fortran.Syntax        ( Ty(BareFn, Ptr), Abi(..), FnDecl(..),
+import Language.Fortran.Syntax        ( Ty(..), Abi(..), FnDecl(..),
                                      Arg(..), Mutability(..), Unsafety(..) )
 
 import Language.Haskell.TH
@@ -42,6 +42,7 @@ import GHC.Exts                    ( Char#, Int#, Word#, Float#, Double#,
 import qualified Control.Monad.Fail as Fail
 import Eigen.Internal -- CComplex
 import qualified Data.Vector.Storable.Mutable as VM
+import qualified Data.Vector.Storable as V
 import qualified Debug.Trace as D
 
 instance Fail.MonadFail First where
@@ -288,6 +289,26 @@ ghcUnboxed = do
 --
 -- NOTE: pointers will not support pointed types that require an intermediate
 --       Rust type.
+vectors :: Q Context
+vectors = do
+  vecConT <- [t| V.MVector |]
+  pure (Context ([rule], [rev vecConT], []))
+  where
+  rule vec context = do
+    Array t _ _  <- pure vec
+--    V.MVector t _  <- pure vec
+    (t', Nothing) <- lookupRTypeInContext t context
+    pure ([t| Ptr $t' |], Nothing)
+
+  rev ptrConT pt context = do
+    AppT ptrCon t <- pure pt
+    if ptrCon /= ptrConT
+      then mempty
+      else do
+        t' <- lookupHTypeInContext t context
+        pure (Ptr Mutable <$> t' <*> pure ())
+
+
 pointers :: Q Context
 pointers = do
     ptrConT <- [t| Ptr |]

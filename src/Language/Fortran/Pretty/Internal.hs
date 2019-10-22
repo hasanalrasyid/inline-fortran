@@ -131,7 +131,7 @@ printIdent (Ident s True _) = "r#" <> pretty s
 -- Types are expected to always be only one line
 printType :: Ty a -> Doc a
 printType (Slice ty x)          = annotate x ("[" <> printType ty <> "]")
-printType (Array ty v x)        = annotate x ("[" <> printType ty <> ";" <+> printExpr v <> "]")
+printType (Array ty _ x)        = annotate x ( printType ty )
 printType (Ptr mut ty x)        = annotate x ("*" <> printFullMutability mut <+> printType ty)
 printType (Rptr lt mut ty x)    = annotate x ("&" <> perhaps printLifetime lt <+> printMutability mut <+> printType ty)
 printType (Never x)             = annotate x "!"

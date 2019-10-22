@@ -52,6 +52,7 @@ module Language.Rust.Inline (
   getHTypeInContext,
   -- ** Built-in contexts
   basic,
+  vectors,
   libc,
   ghcUnboxed,
   functions,
@@ -107,6 +108,8 @@ import Language.Rust.Data.Position as P (Spanned(..), Span(..), Position(..), sp
 import Language.Fortran.Syntax (Ty(..), Token(..))
 import Data.Maybe
 import Data.Int (Int16)
+import qualified Data.Vector.Storable as V
+
 -- $overview
 --
 -- This module provides the facility for dropping in bits of Rust code into your
@@ -286,7 +289,7 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs locVars rustBody ) = do
   -- argument and return types
   let (rustArgNames, rustArgs_intents) = unzip rustNamedArgs
   let (rustArgs1, intents) = unzip rustArgs_intents
-  let rustArgs = map takeBase rustArgs1
+  let rustArgs = rustArgs1
     {-
   (haskRet, reprCRet) <- getRType (void rustRet)
   -}
@@ -324,9 +327,9 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs locVars rustBody ) = do
 
           | otherwise -> do
               ptr <- [t| Ptr $(pure haskArg) |]
-              pure (False, ptr)
+              pure (True, ptr)
 
-        _ -> pure (True, haskArg)
+        _ -> pure (False, haskArg)
 
   -- Generate the Haskell FFI import declaration and emit it
   haskSig <- foldr (\l r -> [t| Ptr $(pure l) -> $r |]) haskRet' haskArgs'
@@ -335,7 +338,7 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs locVars rustBody ) = do
 
   -- Generate the Haskell FFI call
   let goArgs :: [Q Exp]           -- ^ arguments accumulated so far (reversed)
-             -> [(String, Bool)]  -- ^ remaining arguments to process
+             -> [(String, Bool, Type )]  -- ^ remaining arguments to process
              -> Q Exp             -- ^ FFI call
 
       -- Once we run out of arguments we call the quasiquote function with all the
@@ -352,17 +355,22 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs locVars rustBody ) = do
 
       -- If an argument is by value, we just stack it into the accumulated arguments.
       -- Otherwise, we use 'with' to get a pointer to its stack position.
-      goArgs acc ((argStr, byVal) : args) = do
+      goArgs acc ((argStr, byVal,haskArg) : args) = do
         arg <- lookupValueName argStr
         case arg of
           Nothing -> fail ("Could not find Haskell variable ‘" ++ argStr ++ "’")
-          Just argName | byVal -> goArgs (varE argName : acc) args
-                       | otherwise -> do
+          Just argName -> do
+            runIO $ putStrLn $ "goArgs haskArg:" ++ argStr ++":"++ showTy haskArg
+            withVar goArgs argName acc args (HaskVar haskArg)
+            {-
+            | byVal -> goArgs (varE argName : acc) args
+            | otherwise -> do
                           x <- newName "x"
+                          runIO $ putStrLn $ "goArgs argName:" ++ argStr
                           [e| with $(varE argName) (\( $(varP x) ) ->
                                 $(goArgs (varE x : acc) args)) |]
-
-  let haskCall' = goArgs [] (rustArgNames `zip` argsByVal)
+                                -}
+  let haskCall' = goArgs [] (zip3 rustArgNames argsByVal haskArgs')
       haskCall = if isPure && returnFfi /= UnboxedDirect
                    then [e| unsafeLocalState $haskCall' |]
                    else haskCall'
@@ -422,6 +430,19 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs locVars rustBody ) = do
   -- Return the Haskell call to the FFI import
   haskCall
     where
+          {-
+      withVar f argName acc args (HaskVar a@(Ptr _ _ _)) =
+        f (varE argName : acc) args
+      withVar f argName acc args (HaskVar a@(V.Vector _)) = do
+        v <- newName "v"
+        [e| with $(varE argName) (\( $(varP x) ) ->
+              $(goArgs (varE v : acc) args)) |]
+              -}
+      withVar f argName acc args (HaskVar a) = do
+        runIO $ putStrLn $ "withVar HaskVar a:" ++ show a
+        x <- newName "xx"
+        [e| with $(varE argName) (\( $(varP x) ) ->
+              $(f (varE x : acc) args)) |]
       takeBase (Array b _ _) = b
       takeBase r = r
       pad6Blanks p = take (p-1) "      "
@@ -435,3 +456,5 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs locVars rustBody ) = do
                   _         -> if (7 >= pn) then (pad6Blanks pn)
                                             else "      "
          in ad ++ (takeWhile (/= '\n') $ renderTokens tok)
+
+newtype HaskVar a = HaskVar a
