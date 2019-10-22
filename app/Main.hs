@@ -71,7 +71,7 @@ c Testing for comment  3
     xContent <- peek x
     putStrLn $ "Haskell: Rust says in withPtr x=" ++ show xContent
     putStrLn $ "test vector: " ++ show x
-  putStrLn $ "Haskell: Rust says number plus 1 is " ++ (show v)
+  putStrLn $ "Haskell: says v unchanged: " ++ (show v)
 
 -- Utils
 
