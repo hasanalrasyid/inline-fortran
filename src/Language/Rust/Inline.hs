@@ -434,14 +434,17 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs locVars rustBody ) = do
   haskCall
     where
       withVar f argName acc args (HaskVar a) = do
-        x <- newName "xx"
+        x <- newName "x"
         case a of
           Array _ _ _ -> do
               [e| V.unsafeWith $(varE argName) (\( $(varP x) ) ->
                   $(f (varE x : acc) args)) |]
           _ -> do
+              f (varE argName : acc) args
+            {-
               [e| with $(varE argName) (\( $(varP x) ) ->
                   $(f (varE x : acc) args)) |]
+                  -}
       takeBase (Array b _ _) = b
       takeBase r = r
       pad6Blanks p = take (p-1) "      "

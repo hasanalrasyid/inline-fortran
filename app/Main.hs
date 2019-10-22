@@ -18,14 +18,13 @@ setCrateRoot []
 
 main = do
   putStrLn "Haskell: Hello. Enter a number:"
-  let x = 2
+  let ix = 2
   let v = V.fromList $ take 9 [0,0 .. ] :: V.Vector Float
 --  v <- V.thaw vm
   putStrLn $ "Haskell: says vInit: " ++ (show v)
-  putStrLn $ "Haskell: says x: " ++ (show x)
---  _  <- V.unsafeWith vInit $ \v -> do
---    rx <- withPtr_ $ \x -> do
-  [fort77IO|
+  putStrLn $ "Haskell: says x: " ++ (show ix)
+  withPtr_ $ \x -> do
+    [fort77IO|
 ! # C macro dideteksi di level haskell... unexpected... but OK or better
 #if defined (CPP)
       use module3
@@ -47,9 +46,6 @@ c Testing for comment  3
       end do
       k = 1
       # 373 test
-      $(x:out:real) = x + 5
-      write(*,10001) k,
-     & x
 10001   FORMAT('IDLING TIME : ',I10,' sec (',F6.2,' %)')
       print *, "adalah ",k
       l = 1
@@ -60,19 +56,21 @@ c Testing for comment  3
   301   continue
   300 continue
       print *, "adalah dianya yang "
+      $(x:out:real) = x + 5
+      write(*,10001) k,
+     & x
       do 400 j = 1,3
       do 401 i = 1,3
           print*,"test v:",i,j, v(i,j)
   401   continue
   400 continue
 
-  |]
+    |]
       -- k = 5 + $(x : i32) # anehnya, ini error
---      putStrLn $ "Haskell: Rust says in withPtr x=" ++ show x
---      xContent <- peek x
---      putStrLn $ "Haskell: Rust says in withPtr x=" ++ show xContent
-  putStrLn $ "test vector: " ++ show x
---  putStrLn $ "test vector: " ++ show rx
+    putStrLn $ "Haskell: Rust says in withPtr x=" ++ show v
+    xContent <- peek x
+    putStrLn $ "Haskell: Rust says in withPtr x=" ++ show xContent
+    putStrLn $ "test vector: " ++ show x
   putStrLn $ "Haskell: Rust says number plus 1 is " ++ (show v)
 
 -- Utils
