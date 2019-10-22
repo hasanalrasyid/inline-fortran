@@ -13,7 +13,7 @@ module Language.Rust.Inline.Parser where
 
 import Language.Rust.Inline.Pretty ( renderType )
 
-import Language.Fortran.Syntax        ( Token(..), Delim(..), Ty(..) )
+import Language.Fortran.Syntax        ( Token(..), Delim(..), Ty(..), LitTok(..) )
 import Language.Fortran.Parser
 import Language.Rust.Data.Position ( Spanned(..), Position(..), Span(..), Located(..) )
 import Language.Rust.Data.Ident    ( Ident(..) )
@@ -193,11 +193,23 @@ parseQQ input = do
             | closeParen tok && p > 1 -> parseEscape (tok : toks) (p-1) rst2
             | not (closeParen tok)    -> parseEscape (tok : toks) p     rst2
             | otherwise -> do
---                runIO $ putStrLn $ "parseEscape otherwise: " ++ show toks
-                case parseFromToks (reverse toks) of
+                let rtoks = case reverse toks of
+                              [t] -> [t]
+                              (t:c:rt) -> t:c:(makeLiteral [] rt)
+--                runIO $ putStrLn $ "parseEscape rtoks:" ++ show rtoks
+                case parseFromToks rtoks of
                              Left (ParseFail _ msg) -> fail $ "parseEscape: " ++ msg
                              Right parsed           -> pure (parsed, rst2)
 
+
+makeLiteral :: [SpTok] -> [SpTok] -> [SpTok]
+makeLiteral r [] = r
+makeLiteral [] ((Spanned t s):rs) =
+  makeLiteral
+    [(Spanned (LiteralTok (ByteStrTok $ show t) Nothing) s)] rs
+makeLiteral (r:_) ((Spanned t s):rs) =
+  makeLiteral
+    [(Spanned (LiteralTok (ByteStrTok $ show r ++ show t) Nothing) s)] rs
 
 -- | Utility function for parsing AST structures from listf of spanned tokens
 parseFromToks :: Parse a => [SpTok] -> Either ParseFail a

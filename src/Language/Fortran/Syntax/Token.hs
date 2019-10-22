@@ -353,7 +353,7 @@ instance Show Token where
   show (LiteralTok (FloatTok n) s) = n ++ fromMaybe "" s
   show (LiteralTok (StrTok n) s) = "\"" ++ n ++ "\"" ++ fromMaybe "" s
   show (LiteralTok (StrRawTok n i) s) = "r" ++ replicate i '#' ++ "\"" ++ n ++ "\"" ++ replicate i '#' ++ fromMaybe "" s
-  show (LiteralTok (ByteStrTok n) s) = "b\"" ++ n ++ "\"" ++ fromMaybe "" s
+  show (LiteralTok (ByteStrTok n) s) = n ++ fromMaybe "" s
   show (LiteralTok (ByteStrRawTok n i) s) = "br" ++ replicate i '#' ++ "\"" ++ n ++ "\"" ++ replicate i '#' ++ fromMaybe "" s
   -- Name components
   show (IdentTok i) = name i

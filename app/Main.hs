@@ -33,12 +33,13 @@ main = do
 #endif
       IMPLICIT iNTEGER (I-R)
       character :: c
-      integer :: a
+      integer :: a,NAX
       print *, "adalah dianya yang "
 C-Testing for comment  1
 C Testing for comment  1
 ! Testing for comment  2
 c Testing for comment  3
+      NAX = 3
       do j = 1,3
       do i = 1,3
           print*,"test v:",i,j, v(i,j)
@@ -49,6 +50,7 @@ c Testing for comment  3
 10001   FORMAT('IDLING TIME : ',I10,' sec (',F6.2,' %)')
       print *, "adalah ",k
       l = 1
+
       do 300 j = 1,3
       do 301 i = 1,3
           $vec(v:inout:real:(3,3))(i,j) = l

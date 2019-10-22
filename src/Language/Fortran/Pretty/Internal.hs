@@ -278,7 +278,7 @@ printToken (CloseDelim Bracket) = "]"
 printToken (CloseDelim Brace) = "}"
 printToken (CloseDelim NoDelim) = ""
 -- Literals
-printToken (LiteralTok l s) = noIndent $ printLitTok l <> perhaps printName s
+printToken (LiteralTok l _) = noIndent $ printLitTok l
 -- Name components
 printToken (IdentTok i) = printIdent i
 printToken (LifetimeTok i) = "'" <> printIdent i
@@ -304,7 +304,7 @@ printLitTok (FloatTok n)        = printName n
 printLitTok (StrTok n)          = string hardline n
 printLitTok (StrRawTok n m)     = let pad = pretty (replicate m '#')
                                   in "r" <> pad <> "\"" <> string hardline n <> "\"" <> pad
-printLitTok (ByteStrTok n)      = "b\"" <> string hardline n <> "\""
+printLitTok (ByteStrTok n)      = string hardline n
 printLitTok (ByteStrRawTok n m) = let pad = pretty (replicate m '#') in "br" <> pad <> "\"" <> string hardline n <> "\"" <> pad
 
 -- | Print a nonterminal

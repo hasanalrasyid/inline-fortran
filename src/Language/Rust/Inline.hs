@@ -410,11 +410,11 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs locVars rustBody ) = do
     , case locVars of
         Just l -> unlines $ map renderFortran $ take l rustBody
         _ -> ""
-    , unlines [ "      " ++ (renderType t) ++ "," ++ intent ++ " :: " ++ s ++ dim
+    , unlines [ "      " ++ (renderType t) ++ "," ++ intent ++ dim ++ " :: " ++ s
         | (s,t,(i,r)) <- zip3 rustArgNames rustArgs' $ zip intents rustArgs1
               , let intent = "intent(" ++ i ++ ")"
               , let (t0,dim) = case r of
-                                 (Array _ s _) -> (t, renderExpr s)
+                                 (Array _ s _) -> (t, ",dimension" ++ renderExpr s)
                                  _ -> (r,"")
               ]
     , unlines $ map renderFortran $ drop (fromMaybe 0 locVars) rustBody
