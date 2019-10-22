@@ -298,11 +298,11 @@ vectors = do
     Array t _ _  <- pure vec
 --    V.MVector t _  <- pure vec
     (t', Nothing) <- lookupRTypeInContext t context
-    pure ([t| Ptr $t' |], Nothing)
+    pure ([t| V.Vector $t' |], Nothing)
 
-  rev ptrConT pt context = do
-    AppT ptrCon t <- pure pt
-    if ptrCon /= ptrConT
+  rev vecConT pt context = do
+    AppT vecCon t <- pure pt
+    if vecCon /= vecConT
       then mempty
       else do
         t' <- lookupHTypeInContext t context
