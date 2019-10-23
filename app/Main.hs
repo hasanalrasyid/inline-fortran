@@ -19,12 +19,13 @@ setCrateRoot []
 main = do
   putStrLn "Haskell: Hello. Enter a number:"
   let ix = 2
-  let v = V.fromList $ take 9 [0,0 .. ] :: V.Vector Float
+  let vInit = V.fromList $ take 9 [0,0 .. ] :: V.Vector Float
 --  v <- V.thaw vm
-  putStrLn $ "Haskell: says vInit: " ++ (show v)
+  putStrLn $ "Haskell: says vInit: " ++ (show vInit)
   putStrLn $ "Haskell: says x: " ++ (show ix)
-  xp <- withPtr $ \x -> do
-    [fort77IO|
+  V.unsafeWith vInit $ \v -> do
+    xp <- withPtr $ \x -> do
+      [fort77IO|
 ! # C macro dideteksi di level haskell... unexpected... but OK or better
 #if defined (CPP)
       use module3
@@ -67,14 +68,13 @@ c Testing for comment  3
   401   continue
   400 continue
 
-    |]
-      -- k = 5 + $(x : i32) # anehnya, ini error
-    putStrLn $ "Haskell: Rust says in withPtr x=" ++ show v
-    xContent <- peek x
-    putStrLn $ "Haskell: Rust says in withPtr x=" ++ show xContent
-    putStrLn $ "test vector: " ++ show x
-  putStrLn $ "Haskell: says v unchanged: " ++ (show v)
-  putStrLn $ "Haskell: says v unchanged: " ++ (show xp)
+      |]
+        -- k = 5 + $(x : i32) # anehnya, ini error
+      putStrLn $ "Haskell: Rust says in withPtr x=" ++ show v
+      xContent <- peek x
+      putStrLn $ "Haskell: Rust says in withPtr x=" ++ show xContent
+    putStrLn $ "Haskell: says v unchanged: " ++ (show xp)
+  putStrLn $ "Haskell: says v unchanged: " ++ (show vInit)
 
 -- Utils
 
