@@ -445,7 +445,6 @@ lifetime :: { Lifetime Span }
 -- All types, including trait types with plus
 ty :: { Ty Span }
   : ty_no_plus                                                    { $1 }
-  | ty ':' expr                      { Array $1 $3 ($1 # $>) }
 --  | poly_trait_ref_mod_bound '+' sep_by1T(ty_param_bound_mod,'+') { TraitObject ($1 <| toNonEmpty $3) ($1 # $3) }
 
 -- parse_ty_no_plus()
@@ -466,9 +465,9 @@ no_for_ty :: { Ty Span }
 no_for_ty_prim :: { Ty Span }
   : ty_path               %prec PATH { PathTy Nothing $1 ($1 # $>) }
 
-expr :: { Expr Span }
-  : lit                                   { Lit [] $1 (spanOf $1) }
-  | '(' expr ',' sep_by1T(expr,',') ')'   { TupExpr [] ($2:toList $4) ($1 # $>) }
+--expr :: { Expr Span }
+--  : lit                                   { Lit [] $1 (spanOf $1) }
+--  | '(' expr ',' sep_by1T(expr,',') ')'   { TupExpr [] ($2:toList $4) ($1 # $>) }
 
 token_stream :: { TokenStream }
   : {- empty -}                                { Stream [] }
