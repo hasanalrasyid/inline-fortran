@@ -67,7 +67,8 @@ c Testing for comment  3
           print*,"test v:",i,j, v(i,j)
   401   continue
   400 continue
-
+ 3610         FORMAT(' NFI=',I6,4(1X,F9.4))
+ 5640     FORMAT(3F15.9)
       |]
         -- k = 5 + $(x : i32) # anehnya, ini error
       putStrLn $ "Haskell: Rust says in withPtr x=" ++ show v
