@@ -73,6 +73,7 @@ import qualified Data.List.NonEmpty as N
 %name parseTy ty
 %name parseLit lit
 %name parseAttr export_attribute
+--h-- %name parseExpr expr
 
 %tokentype { Spanned Token }
 %lexer { lexNonSpace >>= } { Spanned Eof _ }
@@ -439,6 +440,10 @@ self_or_ident :: { Spanned Ident }
 
 lifetime :: { Lifetime Span }
   : LIFETIME                         { let Spanned (LifetimeTok (Ident l _ _)) s = $1 in Lifetime l s }
+
+--expr :: { Expr Span }
+--  : lit                                   { Lit [] $1 (spanOf $1) }
+--  | '(' expr ',' sep_by1T(expr,',') ')'   { TupExpr [] ($2:toList $4) ($1 # $>) }
 
 -- parse_ty()
 -- See https://github.com/rust-lang/rfcs/blob/master/text/0438-precedence-of-plus.md

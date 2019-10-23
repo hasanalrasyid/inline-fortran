@@ -28,7 +28,7 @@ import Data.Word                 ( Word8 )
 printLit :: Lit a -> Doc a
 printLit lit = noIndent $ case lit of
     Str     str Cooked  s x -> annotate x (hcat [ "\"", group (foldMap (escapeChar True) str), "\"", suf s ])
-    Str     str (Raw m) s x -> annotate x (hcat [ "r", pad m, "\"", string hardline str, "\"", pad m, suf s ])
+    Str     str (Raw m) s x -> annotate x (hcat [ string hardline str, suf s ])
     ByteStr str Cooked  s x -> annotate x (hcat [ group (foldMap (escapeByte True) str), suf s ])
     ByteStr str (Raw m) s x -> annotate x (hcat [ "br", pad m, "\"", string hardline (map byte2Char str), "\"", pad m, suf s ])
     Char c s x              -> annotate x (hcat [ "'",  escapeChar False c, "'", suf s ])

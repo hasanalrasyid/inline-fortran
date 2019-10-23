@@ -13,9 +13,9 @@ module Language.Rust.Inline.Parser where
 
 import Language.Rust.Inline.Pretty ( renderType )
 
-import Language.Fortran.Syntax        ( Token(..), Delim(..), Ty(..), LitTok(..) )
+import Language.Fortran.Syntax        ( Token(..), Delim(..), Ty(..), LitTok(..), Expr(..), Lit(..), Suffix(..), StrStyle(..) )
 import Language.Fortran.Parser
-import Language.Rust.Data.Position ( Spanned(..), Position(..), Span(..), Located(..) )
+import Language.Rust.Data.Position ( Spanned(..), Position(..), Span(..), Located(..), unspan )
 import Language.Rust.Data.Ident    ( Ident(..) )
 
 import Language.Haskell.TH         ( Q, runIO )
@@ -193,17 +193,19 @@ parseQQ input = do
             | closeParen tok && p > 1 -> parseEscape (tok : toks) (p-1) rst2
             | not (closeParen tok)    -> parseEscape (tok : toks) p     rst2
             | otherwise -> do
-                let rtoks = case reverse toks of
-                              [t] -> [t]
-                              (t:c:rt) -> t:c:(makeLiteral [] rt)
---                runIO $ putStrLn $ "parseEscape rtoks:" ++ show rtoks
-                case parseFromToks rtoks of
-                             Left (ParseFail _ msg) -> fail $ "parseEscape: " ++ msg
-                             Right parsed           -> pure (parsed, rst2)
+              case reverse toks of
+                (t:rt) -> case parseFromToks [t] of
+                            Left (ParseFail _ msg) -> fail $ "parseEscape: " ++ msg
+                            Right p                -> do
+                              case rt of
+                                [] -> pure (p, rst2)
+                                (Spanned Colon s : rt1) ->
+                                  pure (Array p (makeLiteral [] rt1) s, rst2)
 
+                                _ -> fail $ "parseEscape: unknown pattern"
 
-makeLiteral :: [SpTok] -> [SpTok] -> [SpTok]
-makeLiteral r [] = r
+makeLiteral :: [SpTok] -> [SpTok] -> Expr Span
+makeLiteral (Spanned r s:_) [] = Lit [] (Str (show r) (Raw 0) Unsuffixed s) s
 makeLiteral [] ((Spanned t s):rs) =
   makeLiteral
     [(Spanned (LiteralTok (ByteStrTok $ show t) Nothing) s)] rs
