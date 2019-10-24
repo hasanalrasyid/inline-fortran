@@ -431,8 +431,14 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs locVars rustBody ) = do
     ]
 
   -- Return the Haskell call to the FFI import
+  cekLitTok rustBody
+  runIO $ writeFile "testLog" (unlines $ map renderFortran rustBody)
   haskCall
     where
+      cekLitTok [] = pure ()
+      cekLitTok (r:rs) = do
+        runIO $ putStrLn $ "cekLitTok:" ++ show r
+        cekLitTok rs
       withVar f argName acc args (HaskVar a) = do
               f (varE argName : acc) args
                 {-

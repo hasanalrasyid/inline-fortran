@@ -278,7 +278,7 @@ printToken (CloseDelim Bracket) = "]"
 printToken (CloseDelim Brace) = "}"
 printToken (CloseDelim NoDelim) = ""
 -- Literals
-printToken (LiteralTok (IntegerTok n) _)   = "abcdef" <> printName n <> "ghijk"
+--printToken (LiteralTok l@(IntegerTok n) _)   = "abcdef" <>  <> "ghijk"
 printToken (LiteralTok l _) = noIndent $ printLitTok l
 -- Name components
 printToken (IdentTok i) = printIdent i

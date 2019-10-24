@@ -349,7 +349,7 @@ instance Show Token where
   -- Literals                                        terals
   show (LiteralTok (ByteTok n) s)                 = "(LiteralTok (ByteTok n) s)b'" ++ n ++ "'" ++ fromMaybe "" s
   show (LiteralTok (CharTok n) s)                 = "(LiteralTok (CharTok n) s)'"  ++ n ++ "'" ++ fromMaybe "" s
-  show (LiteralTok (IntegerTok n) s)              = "(LiteralTok (IntegerTok n) s)" ++ n       ++ fromMaybe "" s
+  show (LiteralTok (IntegerTok n) s)              = n       ++ fromMaybe "" s
   show (LiteralTok (FloatTok n) s)                = "(LiteralTok (FloatTok n) s)" ++ n         ++ fromMaybe "" s
   show (LiteralTok (StrTok n) s)                  = "(LiteralTok (StrTok n) s)          \"" ++ n ++ "\"" ++ fromMaybe "" s
   show (LiteralTok (StrRawTok n i) s)             = "(LiteralTok (StrRawTok n i) s)     r" ++ replicate i '#' ++ "\"" ++ n ++ "\"" ++ replicate i '#' ++ fromMaybe "" s
