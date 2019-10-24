@@ -149,7 +149,7 @@ import qualified Data.List.NonEmpty as N
   -- Literals.
   byte           { Spanned (LiteralTok ByteTok{} _) _ }
   char           { Spanned (LiteralTok CharTok{} _) _ }
-  int            { Spanned (LiteralTok IntegerTok{} _) _ }
+  int            { Spanned (LiteralTok StrTok{} _) _ }
   float          { Spanned (LiteralTok FloatTok{} _) _ }
   str            { Spanned (LiteralTok StrTok{} _) _ }
   byteStr        { Spanned (LiteralTok ByteStrTok{} _) _ }
@@ -197,6 +197,7 @@ import qualified Data.List.NonEmpty as N
 --h----additional inout out from fortran
 --h--  out            { Spanned (IdentTok "out") _ }
 --h--  inout          { Spanned (IdentTok "inout") _ }
+  format         { Spanned (IdentTok "format") _ }
 
   -- Keywords reserved for future use
   abstract       { Spanned (IdentTok "abstract") _ }
@@ -704,7 +705,7 @@ toIdent (Spanned (IdentTok i) s) = Spanned i s
 lit :: Spanned Token -> Lit Span
 lit (Spanned (IdentTok (Ident "true" False _)) s) = Bool True Unsuffixed s
 lit (Spanned (IdentTok (Ident "false" False _)) s) = Bool False Unsuffixed s
-lit (Spanned (LiteralTok litTok suffix_m) s) = translateLit litTok suffix s
+lit (Spanned (LiteralTok litTok suffix_m) s) = translateLit litTok Unsuffixed s
   where
     suffix = case suffix_m of
                Nothing -> Unsuffixed

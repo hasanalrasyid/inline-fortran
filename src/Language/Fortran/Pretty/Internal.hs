@@ -278,6 +278,7 @@ printToken (CloseDelim Bracket) = "]"
 printToken (CloseDelim Brace) = "}"
 printToken (CloseDelim NoDelim) = ""
 -- Literals
+printToken (LiteralTok (IntegerTok n) _)   = "abcdef" <> printName n <> "ghijk"
 printToken (LiteralTok l _) = noIndent $ printLitTok l
 -- Name components
 printToken (IdentTok i) = printIdent i
@@ -299,7 +300,7 @@ printToken t = error $ "printToken: " ++ show t
 printLitTok :: LitTok -> Doc a
 printLitTok (ByteTok n)         = "b'" <> printName n <> "'"
 printLitTok (CharTok n)         = "'" <> printName n <> "'"
-printLitTok (IntegerTok n)      = printName n
+printLitTok (IntegerTok n)      = "xxxxx" <> printName n
 printLitTok (FloatTok n)        = printName n
 printLitTok (StrTok n)          = string hardline n
 printLitTok (StrRawTok n m)     = let pad = pretty (replicate m '#')

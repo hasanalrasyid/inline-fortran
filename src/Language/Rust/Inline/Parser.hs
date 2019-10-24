@@ -91,9 +91,9 @@ parseQQ input = do
   -- Done!
 --  let dummy = snd $ head vars
   let dummy = Never (Span NoPosition NoPosition)
---  runIO $ putStrLn $ "dummy: " ++ show dummy
 --  bodyToks <- fmap (rearrange) $ constructFortran $  takeWhile' bodyToks'
   (locVars,bodyToks) <- takeWhile' bodyToks
+  runIO $ putStrLn $ "dummy: " ++ show  bodyToks
   pure (QQParse dummy vars locVars bodyToks)
   where
     takeWhile' as = do

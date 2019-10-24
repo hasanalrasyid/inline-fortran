@@ -385,7 +385,6 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs locVars rustBody ) = do
      -- mergeArgs :: Ty Span -> Maybe RType -> (Ty Span, Ty Span)
       mergeArgs t Nothing       = (t, t)
       mergeArgs t (Just tInter) = (fmap (const mempty) tInter, t)
-
   -- Generate the Rust function.
   let retByVal = returnFfi /= BoxedIndirect
       (retArg, retTy, ret)
@@ -397,6 +396,7 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs locVars rustBody ) = do
                        , "()"
                        , "unsafe { ::std::ptr::write(ret_" ++ qqStrName ++ ", out.marshal()) }"
                        )
+  runIO $ putStrLn $ "inline: " ++ show rustBody
   void . emitCodeBlock . unlines $
     [ "      subroutine " ++ qqStrName ++ "(" ++
         intercalate ", " rustArgNames ++

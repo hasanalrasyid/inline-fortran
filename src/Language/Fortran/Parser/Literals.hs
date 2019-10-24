@@ -34,11 +34,7 @@ translateLit (StrTok s)          = Str (unfoldr (unescapeChar True) s) Cooked
 translateLit (StrRawTok s n)     = Str s (Raw n)
 translateLit (ByteStrTok s)      = ByteStr (unfoldr (unescapeByte True) s) Cooked
 translateLit (ByteStrRawTok s n) = ByteStr (map (fromIntegral . ord) s) (Raw n)
-translateLit (IntegerTok s)      = \suf -> case (suf, unescapeInteger s) of
-                                             (F32, (Dec, n)) -> Float (fromInteger n) F32
-                                             (F64, (Dec, n)) -> Float (fromInteger n) F64
-                                             (_,   (rep, n)) -> Int rep n suf
-
+translateLit (IntegerTok s)      = Str ("ssss"++s) (Raw 128)
 -- | Given a string of characters read from a Rust source, extract the next underlying char taking
 -- into account escapes and unicode.
 unescapeChar :: Bool                    -- ^ multi-line strings allowed
