@@ -94,19 +94,8 @@ parseQQ input = do
 --  bodyToks <- fmap (rearrange) $ constructFortran $  takeWhile' bodyToks'
   (locVars,bodyToks) <- takeWhile' bodyToks
 --  runIO $ putStrLn $ "dummy: " ++ show  bodyToks
-  bodyToks' <- cekLitTok [] bodyToks
-  pure (QQParse dummy vars locVars bodyToks')
+  pure (QQParse dummy vars locVars bodyToks)
   where
-    cekLitTok r [] = pure $ reverse r
-    cekLitTok r (t:ts) = do
---      runIO $ putStrLn $ "cekLitTok: " ++ show t
-      let tt = (flip map) t $ \t1 ->  case t1 of
-                                l@(Spanned (LiteralTok IntegerTok{} _) _) ->
-                                  case (reads (show l) :: [(Float,String)]) of
-                                    (_,""):_ -> t1
-                                    otherwise -> head $ makeLiteral [] [l]
-                                _ -> t1
-      cekLitTok (tt:r) ts
     takeWhile' as = do
       let rs = wordsBy f as
           nl = filter f as
