@@ -146,7 +146,7 @@ printType (ParenTy ty x)        = annotate x ("(" <> printType ty <> ")")
 printType (Typeof e x)          = annotate x ("typeof" <> block Paren True mempty mempty [ printExpr e ])
 printType (Infer x)             = annotate x "_"
 printType (MacTy m x)           = annotate x (printMac Bracket m)
-printType (FType ty _ x)           = annotate x (printIdent ty )
+printType (FType ty k x)           = annotate x (printIdent ty <> printExpr k )
 printType (BareFn u a l d x)    = annotate x (printFormalLifetimeList l
                                                <+> printFnHeaderInfo u NotConst a InheritedV
                                                <> printFnArgsAndRet d)
@@ -369,7 +369,8 @@ printExprOuterAttrStyle expr isInline = glue (printEitherAttrs (expressionAttrs 
     Call _ func [arg] x         -> annotate x (printExpr func <> parens (printExpr arg))
     Call _ func args x          -> annotate x (printExpr func <> block Paren True "," mempty (printExpr <$> args))
     MethodCall{}                -> chainedMethodCalls expr False id
-    TupExpr as [e] x            -> annotate x (block Paren True ""  (printInnerAttrs as) [ printExpr e <> "," ])
+    TupExpr _ [] x            -> annotate x ("")
+    TupExpr as [e] x            -> annotate x (block Paren True ""  (printInnerAttrs as) [ printExpr e ])
     TupExpr as es x             -> annotate x (block Paren True "," (printInnerAttrs as) (printExpr <$> es))
     Binary _ op lhs rhs x       -> annotate x (hsep [ printExpr lhs, printBinOp op, printExpr rhs ])
     Unary _ op e x              -> annotate x (printUnOp op <> printExpr e)

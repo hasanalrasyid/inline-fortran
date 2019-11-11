@@ -452,7 +452,7 @@ no_for_ty_prim :: { Ty Span }
 ty :: { Ty Span }
   : ty ':' expr       { Array $1 $3 ($1 # $>) }
   | self_or_ident     { FType (unspan $1) (TupExpr [] [] ($1 # $>)) ($1 # $>) }
-  | self_or_ident '(' expr ')'     { FType (unspan $1) $3 ($1 # $>) }
+  | self_or_ident expr     { FType (unspan $1) $2 ($1 # $>) }
   | '(' ')'                        { TupTy [] ($1 # $>) }
 --  | ty_no_plus                                                    { $1 }
 --  | poly_trait_ref_mod_bound '+' sep_by1T(ty_param_bound_mod,'+') { TraitObject ($1 <| toNonEmpty $3) ($1 # $3) }
@@ -475,6 +475,7 @@ no_for_ty :: { Ty Span }
 expr :: { Expr Span }
   : lit                                   { Lit [] $1 (spanOf $1) }
   | expr '=' expr  { Assign [] $1 $3 ($1 # $>) }
+  | '(' expr ')'   { TupExpr [] [$2] ($1 # $>) }
   | '(' expr ',' sep_by1T(expr,',') ')'   { TupExpr [] ($2:toList $4) ($1 # $>) }
 
 token_stream :: { TokenStream }
@@ -709,7 +710,7 @@ toIdent (Spanned (IdentTok i) s) = Spanned i s
 -- | Given a 'LitTok' token that is expected to result in a valid literal, construct the associated
 -- literal. Note that this should _never_ fail on a token produced by the lexer.
 lit :: Spanned Token -> Lit Span
-lit (Spanned (IdentTok (Ident i _ _)) s) = translateLit (StrTok i) Unsuffixed s
+lit (Spanned (IdentTok (Ident i _ _)) s) = translateLit (StrRawTok i $ length i) Unsuffixed s
 lit (Spanned (IdentTok (Ident "true" False _)) s) = Bool True Unsuffixed s
 lit (Spanned (IdentTok (Ident "false" False _)) s) = Bool False Unsuffixed s
 lit (Spanned (LiteralTok litTok suffix_m) s) = translateLit litTok Unsuffixed s
