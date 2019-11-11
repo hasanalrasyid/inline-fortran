@@ -25,7 +25,7 @@ main = do
   putStrLn $ "Haskell: says x: " ++ (show ix)
   V.unsafeWith vInit $ \v -> do
     xp <- withPtr $ \x -> do -- this is for output
-      [fort77IO|
+      [fortIO|
 ! # C macro dideteksi di level haskell... unexpected... but OK or better
 #if defined (CPP)
       use module3
