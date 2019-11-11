@@ -24,7 +24,7 @@ main = do
   putStrLn $ "Haskell: says vInit: " ++ (show vInit)
   putStrLn $ "Haskell: says x: " ++ (show ix)
   V.unsafeWith vInit $ \v -> do
-    xp <- withPtr $ \x -> do
+    xp <- withPtr $ \x -> do -- this is for output
       [fort77IO|
 ! # C macro dideteksi di level haskell... unexpected... but OK or better
 #if defined (CPP)
@@ -51,6 +51,11 @@ c Testing for comment  3
 10001   FORMAT('IDLING TIME : ',I10,' sec (',F6.2,' %)')
       print *, "adalah ",k
       l = 1
+      k = 1 + $(ix:value:real)
+      print *, "adalah lagi ",k
+      ix = 54
+      print *, "adalah lagi ix ",ix
+
 
       do 300 j = 1,3
       do 301 i = 1,3
@@ -71,11 +76,12 @@ c Testing for comment  3
  5640     FORMAT(3F15.9)
       |]
         -- k = 5 + $(x : i32) # anehnya, ini error
-      putStrLn $ "Haskell: Rust says in withPtr x=" ++ show v
+      putStrLn $ "Haskell: Rust says in withPtr v=" ++ show v
       xContent <- peek x
       putStrLn $ "Haskell: Rust says in withPtr x=" ++ show xContent
-    putStrLn $ "Haskell: says v unchanged: " ++ (show xp)
-  putStrLn $ "Haskell: says v unchanged: " ++ (show vInit)
+    putStrLn $ "Haskell: says v changed   : " ++ (show xp)
+  putStrLn $ "Haskell: says v changed    : " ++ (show vInit)
+  putStrLn $ "Haskell: says ix unchanged : " ++ (show ix)
 
 -- Utils
 

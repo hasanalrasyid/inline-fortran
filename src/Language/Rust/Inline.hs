@@ -314,7 +314,7 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs locVars rustBody ) = do
 
   -- Convert the Haskell arguments to marshallable FFI types
   (argsByVal, haskArgs') <- fmap unzip $
-    for haskArgs $ \haskArg -> do
+    for (zip haskArgs intents) $ \(haskArg,intent) -> do
       {-
       marshalForm <- ghcMarshallable haskArg
       case marshalForm of
@@ -332,7 +332,9 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs locVars rustBody ) = do
 
         _ -> do -- in app/Main.hs, this is for x
         -} -- cause everything is passed as pointer
-              ptr <- [t| Ptr $(pure haskArg) |]
+              ptr <- case intent of
+                       "value" -> [t| $(pure haskArg) |]
+                       _ -> [t| Ptr $(pure haskArg) |]
               pure (True, ptr)
 
   -- Generate the Haskell FFI import declaration and emit it
@@ -412,7 +414,11 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs locVars rustBody ) = do
         _ -> ""
     , unlines [ "      " ++ (renderType t) ++ "," ++ intent ++ dim ++ " :: " ++ s
         | (s,t,(i,r)) <- zip3 rustArgNames rustArgs' $ zip intents rustArgs1
-              , let intent = "intent(" ++ i ++ ")"
+              , let intent = case i of
+                               "in" -> "intent(" ++ i ++ ")"
+                               "out" -> "intent(" ++ i ++ ")"
+                               "inout" -> "intent(" ++ i ++ ")"
+                               _ -> i
               , let (t0,dim) = case r of
                                  (Array _ s _) -> (t, ",dimension" ++ renderExpr s)
                                  _ -> (r,"")
