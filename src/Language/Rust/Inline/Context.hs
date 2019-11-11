@@ -243,11 +243,11 @@ basic = do
     , ([ty| ()    |], [t| ()      |], True)
 --   Fortran
     , ([ty| integer   |], [t| Int32           |], True )
-    , ([ty| real      |], [t| Float           |], True )
     , ([ty| logical   |], [t| Int8            |], True )
     , ([ty| real      |], [t| Float           |], True )
     , ([ty| complex   |], [t| CComplex Float  |], True )
     , ([ty| character |], [t| CChar           |], True )
+    , ([ty| real(kind=8)    |], [t| Double          |], True)
     {-
     , ([ty| logical(kind=1) |], [t| Int8            |])
     , ([ty| character(len=1)|], [t| CChar           |])
@@ -263,7 +263,6 @@ basic = do
     , ([ty| integer(kind=4) |], [t| Int32           |])
     , ([ty| integer(kind=8) |], [t| Int64           |])
     , ([ty| real(kind=4)    |], [t| Float           |])
-    , ([ty| real(kind=8)    |], [t| Double          |])
     , ([ty| complex(kind=4) |], [t| CComplex Float  |])
     , ([ty| complex(kind=8) |], [t| CComplex Double |])
     -}

@@ -204,13 +204,10 @@ parseQQ input = do
             | closeParen tok && p > 1 -> parseEscape (tok : toks) (p-1) rst2
             | not (closeParen tok)    -> parseEscape (tok : toks) p     rst2
             | otherwise -> do
-                let rtoks = case reverse toks of
-                              [t] -> [t]
-                              (t:c:rt) -> t:c:(makeLiteral [] rt)
---                runIO $ putStrLn $ "parseEscape rtoks:" ++ show rtoks
-                case parseFromToks rtoks of
+                case (parseFromToks $ reverse toks) of
                              Left (ParseFail _ msg) -> fail $ "parseEscape: " ++ msg
-                             Right parsed           -> pure (parsed, rst2)
+                             Right parsed           -> do
+                               pure (parsed, rst2)
 
 
 makeLiteral :: [SpTok] -> [SpTok] -> [SpTok]

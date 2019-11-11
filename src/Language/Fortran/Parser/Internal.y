@@ -149,7 +149,7 @@ import qualified Data.List.NonEmpty as N
   -- Literals.
   byte           { Spanned (LiteralTok ByteTok{} _) _ }
   char           { Spanned (LiteralTok CharTok{} _) _ }
-  int            { Spanned (LiteralTok StrTok{} _) _ }
+  int            { Spanned (LiteralTok IntegerTok{} _) _ }
   float          { Spanned (LiteralTok FloatTok{} _) _ }
   str            { Spanned (LiteralTok StrTok{} _) _ }
   byteStr        { Spanned (LiteralTok ByteStrTok{} _) _ }
@@ -198,6 +198,7 @@ import qualified Data.List.NonEmpty as N
 --h--  out            { Spanned (IdentTok "out") _ }
 --h--  inout          { Spanned (IdentTok "inout") _ }
   format         { Spanned (IdentTok "format") _ }
+  kind         { Spanned (IdentTok "kind") _ }
 
   -- Keywords reserved for future use
   abstract       { Spanned (IdentTok "abstract") _ }
@@ -376,6 +377,7 @@ lit :: { Lit Span }
   | float             { lit $1 }
   | true              { lit $1 }
   | false             { lit $1 }
+  | kind             { lit $1 }
   | string            { $1 }
 
 string :: { Lit Span }
@@ -441,12 +443,18 @@ self_or_ident :: { Spanned Ident }
 lifetime :: { Lifetime Span }
   : LIFETIME                         { let Spanned (LifetimeTok (Ident l _ _)) s = $1 in Lifetime l s }
 
+no_for_ty_prim :: { Ty Span }
+  : ty_path               %prec PATH { PathTy Nothing $1 ($1 # $>) }
+
 -- parse_ty()
 -- See https://github.com/rust-lang/rfcs/blob/master/text/0438-precedence-of-plus.md
 -- All types, including trait types with plus
 ty :: { Ty Span }
-  : ty_no_plus                                                    { $1 }
-  | ty ':' expr                      { Array $1 $3 ($1 # $>) }
+  : ty ':' expr       { Array $1 $3 ($1 # $>) }
+  | self_or_ident     { FType (unspan $1) (TupExpr [] [] ($1 # $>)) ($1 # $>) }
+  | self_or_ident '(' expr ')'     { FType (unspan $1) $3 ($1 # $>) }
+  | '(' ')'                        { TupTy [] ($1 # $>) }
+--  | ty_no_plus                                                    { $1 }
 --  | poly_trait_ref_mod_bound '+' sep_by1T(ty_param_bound_mod,'+') { TraitObject ($1 <| toNonEmpty $3) ($1 # $3) }
 
 -- parse_ty_no_plus()
@@ -457,18 +465,16 @@ ty_no_plus :: { Ty Span }
 
 -- All (non-sum) types not starting with a 'for'
 no_for_ty :: { Ty Span }
-  : no_for_ty_prim                   { $1 }
-  | '(' ')'                          { TupTy [] ($1 # $>) }
+  : '(' ')'                          { TupTy [] ($1 # $>) }
   | '(' ty ')'                       { ParenTy $2 ($1 # $3) }
   | '(' ty ',' ')'                   { TupTy [$2] ($1 # $4) }
   | '(' ty ',' sep_by1T(ty,',') ')'  { TupTy ($2 : toList $4) ($1 # $5) }
   | ty_qual_path                     { PathTy (Just (fst (unspan $1))) (snd (unspan $1)) (spanOf $1) }
-
-no_for_ty_prim :: { Ty Span }
-  : ty_path               %prec PATH { PathTy Nothing $1 ($1 # $>) }
+  | no_for_ty_prim                   { $1 }
 
 expr :: { Expr Span }
   : lit                                   { Lit [] $1 (spanOf $1) }
+  | expr '=' expr  { Assign [] $1 $3 ($1 # $>) }
   | '(' expr ',' sep_by1T(expr,',') ')'   { TupExpr [] ($2:toList $4) ($1 # $>) }
 
 token_stream :: { TokenStream }
@@ -703,6 +709,7 @@ toIdent (Spanned (IdentTok i) s) = Spanned i s
 -- | Given a 'LitTok' token that is expected to result in a valid literal, construct the associated
 -- literal. Note that this should _never_ fail on a token produced by the lexer.
 lit :: Spanned Token -> Lit Span
+lit (Spanned (IdentTok (Ident i _ _)) s) = translateLit (StrTok i) Unsuffixed s
 lit (Spanned (IdentTok (Ident "true" False _)) s) = Bool True Unsuffixed s
 lit (Spanned (IdentTok (Ident "false" False _)) s) = Bool False Unsuffixed s
 lit (Spanned (LiteralTok litTok suffix_m) s) = translateLit litTok Unsuffixed s

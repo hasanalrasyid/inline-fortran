@@ -51,11 +51,10 @@ c Testing for comment  3
 10001   FORMAT('IDLING TIME : ',I10,' sec (',F6.2,' %)')
       print *, "adalah ",k
       l = 1
-      k = 1 + $(ix:value:real)
+      k = 1 + $(ix:value:real(kind=8))
       print *, "adalah lagi ",k
       ix = 54
       print *, "adalah lagi ix ",ix
-
 
       do 300 j = 1,3
       do 301 i = 1,3
