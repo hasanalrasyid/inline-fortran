@@ -18,6 +18,18 @@ setCrateRoot []
 
 main = do
   putStrLn "Haskell: Hello. Enter a number:"
+  let angstr  = 1/0.5291769
+  let celvin  = 1/(2*13.606*11605)
+  let second  = 1.0+17/2.4189
+  let eV      = 1/27.212
+  let rY      = 0.5
+  let tera    = 1.0e+12
+  let pico    = 1.0e-12
+  let scMass  = 1822.89
+  let factem  = 2*13.606*11605
+  let gpa     = 1/29.4215e3
+  let fpi     = 4*pi
+
   let ix = 2
   let vInit = V.fromList $ take 9 [0,0 .. ] :: V.Vector Float
 --  v <- V.thaw vm
@@ -36,6 +48,20 @@ main = do
       character :: c
       integer :: a,NAX
       print *, "adalah dianya yang "
+
+      $(angstr :value:real(kind=8)) = angstr *1
+      $(celvin :value:real(kind=8)) = celvin *1
+      $(second :value:real(kind=8)) = second *1
+      $(eV     :value:real(kind=8)) = eV *1
+      $(rY     :value:real(kind=8)) = rY *1
+      $(tera   :value:real(kind=8)) = tera *1
+      $(pico   :value:real(kind=8)) = pico *1
+      $(scMass :value:real(kind=8)) = scMass *1
+      $(factem :value:real(kind=8)) = factem *1
+      $(gpa    :value:real(kind=8)) = gpa *1
+      $(pi     :value:real(kind=8)) = pi *1
+      $(fpi    :value:real(kind=8)) = fpi *1
+
 C-Testing for comment  1
 C Testing for comment  1
 ! Testing for comment  2

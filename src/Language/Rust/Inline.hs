@@ -79,6 +79,7 @@ module Language.Rust.Inline (
  -- externCrate,
 ) where
 
+import Data.List.Split (chunksOf)
 import Language.Rust.Inline.Context
 import Language.Rust.Inline.Context.Prelude  ( prelude )
 import Language.Rust.Inline.Internal
@@ -399,16 +400,19 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs locVars rustBody ) = do
                        , "()"
                        , "unsafe { ::std::ptr::write(ret_" ++ qqStrName ++ ", out.marshal()) }"
                        )
+  let headSubroutine' =  "      subroutine " ++ qqStrName ++
+                          "(" ++ intercalate ", " rustArgNames ++ ")"
+  let (h1:h1s) = chunksOf 60 headSubroutine'
+  let headSubroutine = unlines $ h1:(map ("     c" ++) h1s)
+
   void . emitCodeBlock . unlines $
-    [ "      subroutine " ++ qqStrName ++ "(" ++
-        intercalate ", " rustArgNames ++
-      {-
+    [ headSubroutine
+    {-
         intercalate ", " ([ s ++ ": " ++ marshal (renderType t)
                                 | (s,t,v) <- zip3 rustArgNames rustArgs' argsByVal
                                 , let marshal x = if v then x else "*const " ++ x
                                 ] ++ retArg) ++
                                 -}
-                                ")"
     , case locVars of
         Just l -> unlines $ map renderFortran $ take l rustBody
         _ -> ""
