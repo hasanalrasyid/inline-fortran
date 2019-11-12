@@ -184,7 +184,7 @@ cargoFinalizer extraArgs dependencies = do
                                     , dir </> thisFile
                                     ] ++ extraArgs
       msgFormat = [ "--message-format=json" ]
-  runIO $ putStrLn $ "cargoArgs: " ++ inlineFC ++ show cargoArgs
+  runIO $ putStrLn $ "cargoArgs: " ++ inlineFC ++ unwords cargoArgs
 
   (ec,_,se) <- runIO $ readProcessWithExitCode inlineFC cargoArgs ""
   when (ec /= ExitSuccess) $ do
