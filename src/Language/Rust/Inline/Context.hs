@@ -242,7 +242,7 @@ basic = do
     , ([ty| bool  |], [t| Word8   |], True)
     , ([ty| ()    |], [t| ()      |], True)
 --   Fortran
-    , ([ty| integer   |], [t| Int32           |], True )
+    , ([ty| integer   |], [t| CInt            |], True )
     , ([ty| logical   |], [t| Int8            |], True )
     , ([ty| real      |], [t| Float           |], True )
     , ([ty| complex   |], [t| CComplex Float  |], True )

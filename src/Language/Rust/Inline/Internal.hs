@@ -246,6 +246,7 @@ fileFinalizer = do
            -}
 
   -- Write out the file
+  runIO $ putStrLn $ "creating directory: " ++ dir
   runIO $ createDirectoryIfMissing True dir
   runIO $ writeFile (dir </> thisFile) code
 
