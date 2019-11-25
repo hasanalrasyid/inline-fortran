@@ -147,6 +147,7 @@ printType (Typeof e x)          = annotate x ("typeof" <> block Paren True mempt
 printType (Infer x)             = annotate x "_"
 printType (MacTy m x)           = annotate x (printMac Bracket m)
 printType (FType ty k x)           = annotate x (printIdent ty <> printExpr k )
+printType (FString x)           = annotate x ( "StringType" )
 printType (BareFn u a l d x)    = annotate x (printFormalLifetimeList l
                                                <+> printFnHeaderInfo u NotConst a InheritedV
                                                <> printFnArgsAndRet d)

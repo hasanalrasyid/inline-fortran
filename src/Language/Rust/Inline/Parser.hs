@@ -13,10 +13,10 @@ module Language.Rust.Inline.Parser where
 
 import Language.Rust.Inline.Pretty ( renderType )
 
-import Language.Fortran.Syntax        ( Token(..), Delim(..), Ty(..), LitTok(..) )
+import Language.Fortran.Syntax        ( Token(..), Delim(..), Ty(..), LitTok(..), Expr(..))
 import Language.Fortran.Parser
 import Language.Rust.Data.Position ( Spanned(..), Position(..), Span(..), Located(..) )
-import Language.Rust.Data.Ident    ( Ident(..) )
+import Language.Rust.Data.Ident    ( Ident(..), mkIdent )
 
 import Language.Haskell.TH         ( Q, runIO )
 
@@ -142,6 +142,15 @@ parseQQ input = do
             parseBody (parCount-1) (pure t : toks) vars rst2
 
           (Spanned Dollar _            :
+           s@(Spanned (IdentTok (Ident "str" _ _)) _)      :
+           Spanned (OpenDelim Paren) _ :
+           Spanned (IdentTok i) _      :
+           Spanned Colon _             :
+           Spanned (IdentTok intent) _ : rst2) -> do
+             (newVars,rst3) <- parseVars (Just ("str",s)) vars i intent rst2
+             parseBody parCount (pure (IdentTok i) : toks) newVars rst3
+
+          (Spanned Dollar _            :
            Spanned (IdentTok v) _      :
            Spanned (OpenDelim Paren) _ :
            Spanned (IdentTok i) _      :
@@ -151,10 +160,9 @@ parseQQ input = do
              let vec = name v
              case vec of
                "vec" -> do
-                 (newVars,rst3) <- parseVars vars i intent rst2
+                 (newVars,rst3) <- parseVars Nothing vars i intent rst2
                  parseBody parCount (pure (IdentTok i) : toks) newVars rst3
                _ -> fail $ "error $" ++ vec ++ " is not yet implemented"
-
 
           (Spanned Dollar _            :
            Spanned (OpenDelim Paren) _ :
@@ -162,15 +170,18 @@ parseQQ input = do
            Spanned Colon _             :
            Spanned (IdentTok intent) _ :
            Spanned Colon _             : rst2) -> do
-             (newVars,rst3) <- parseVars vars i intent rst2
+             (newVars,rst3) <- parseVars Nothing vars i intent rst2
              parseBody parCount (pure (IdentTok i) : toks) newVars rst3
 
           (tok : rst2) -> parseBody parCount (tok : toks) vars rst2
 
-    parseVars vars i intent rst2 = do
+    parseVars strStat vars i intent rst2@(_:r2) = do
       -- Parse the rest of the escape
-      (t1, rst3) <- parseEscape [] 1 rst2
-
+      (t1, rst3) <- case strStat of
+                      Nothing -> parseEscape [] 1 rst2
+                      Just ("str",s) -> pure (strFType,r2)
+                      Just (s,_) -> fail $ "Not implemented " ++ s
+      runIO $ putStrLn $ "parseVars:t1: " ++ show t1
       -- Add it to 'vars' if it isn't a duplicate
       let i' = name i
       let dupMsg t2 = concat [ "Variable `", i', ": ", renderType t1
@@ -212,6 +223,9 @@ parseQQ input = do
                                pure (parsed, rst2)
 
 
+--strFType = FType (mkIdent "character") (TupExpr [] [] (Span (Position 1 227 54) (Position 10 227 63))) (Span (Position 1 227 54) (Position 10 227 63))
+strFType = FString nullSpan
+
 makeLiteral :: [SpTok] -> [SpTok] -> [SpTok]
 makeLiteral r [] = r
 makeLiteral [] ((Spanned t s):rs) =
@@ -229,6 +243,8 @@ parseFromToks toks = execParserTokens parser toks initPos
 openBrace :: SpTok -> Bool
 openBrace (Spanned (OpenDelim Brace) _) = True
 openBrace _ = False
+
+nullSpan = Span NoPosition NoPosition
 
 -- | Identifies an open paren token
 openParen :: SpTok -> Bool

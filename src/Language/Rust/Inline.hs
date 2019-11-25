@@ -416,17 +416,7 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs locVars rustBody ) = do
     , case locVars of
         Just l -> unlines $ map renderFortran $ take l rustBody
         _ -> ""
-    , unlines [ "      " ++ (renderType t) ++ "," ++ intent ++ dim ++ " :: " ++ s
-        | (s,t,(i,r)) <- zip3 rustArgNames rustArgs' $ zip intents rustArgs1
-              , let intent = case i of
-                               "in" -> "intent(" ++ i ++ ")"
-                               "out" -> "intent(" ++ i ++ ")"
-                               "inout" -> "intent(" ++ i ++ ")"
-                               _ -> i
-              , let (t0,dim) = case r of
-                                 (Array _ s _) -> (t, ",dimension" ++ renderExpr s)
-                                 _ -> (r,"")
-              ]
+    , unlines $ map renderVarStatement $ zip3 rustArgNames rustArgs' $ zip intents rustArgs1
     , unlines $ map renderFortran $ drop (fromMaybe 0 locVars) rustBody
     , "      end subroutine " ++ qqStrName
 
@@ -443,6 +433,18 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs locVars rustBody ) = do
   -- Return the Haskell call to the FFI import
   haskCall
     where
+      renderVarStatement (s,(FString _),(_,_)) = "c     " ++ s ++ " needs manual declaration"
+      renderVarStatement (s,t,(i,r)) =
+        let intent = case i of
+                       "in" -> "intent(" ++ i ++ ")"
+                       "out" -> "intent(" ++ i ++ ")"
+                       "inout" -> "intent(" ++ i ++ ")"
+                       _ -> i
+            (t0,dim) = case r of
+                         (Array _ s _) -> (t, ",dimension" ++ renderExpr s)
+                         _ -> (r,"")
+         in "      " ++ (renderType t) ++ "," ++ intent ++ dim ++ " :: " ++ s
+
       withVar f argName acc args (HaskVar a) = do
               f (varE argName : acc) args
                 {-

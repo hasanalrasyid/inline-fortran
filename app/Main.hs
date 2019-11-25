@@ -1,4 +1,5 @@
 {-# LANGUAGE TemplateHaskell, QuasiQuotes #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Main where
 
@@ -8,13 +9,13 @@ import Language.C.Inline
 import Foreign
 import qualified Data.Vector.Storable as V
 import qualified Data.Vector.Storable.Mutable as VM
+import qualified Data.Text.Foreign as T
+import qualified Data.Text as T
 
 extendContext basic
 extendContext vectors
 
 setCrateRoot []
-
-
 
 main = do
   putStrLn "Haskell: Hello. Enter a number:"
@@ -31,6 +32,8 @@ main = do
   let fpi     = 4*pi
 
   let ix = 2
+  let sInit' = "this is the string"
+  let sInit = T.append sInit' $ T.replicate (256 - T.length sInit') "X"
   let vInit = V.fromList $ take 9 [0,0 .. ] :: V.Vector Float
   let vInit1 = V.fromList $ take 9 [0,0 .. ] :: V.Vector Float
 --  v <- V.thaw vm
@@ -39,7 +42,8 @@ main = do
   V.unsafeWith vInit $ \v -> do
     xp <- withPtr $ \x -> do -- this is for output
       V.unsafeWith vInit1 $ \v1 -> do
-        [fortIO|
+        T.withCStringLen sInit $ \(sInit,_) -> do
+          [fortIO|
 ! # C macro dideteksi di level haskell... unexpected... but OK or better
 #if defined (CPP)
       use module3
@@ -49,9 +53,11 @@ main = do
       IMPLICIT iNTEGER (I-R)
       character :: c
       integer :: a,NAX
+      character*256 :: sInit
 
       dimension v1(9)
 
+      print *, "sInit ", $str(sInit:in)
       print *, "adalah dianya yang "
 
       $(angstr :value:real(kind=8)) = angstr *1
@@ -104,7 +110,7 @@ c Testing for comment  3
   400 continue
  3610         FORMAT(' NFI=',I6,4(1X,F9.4))
  5640     FORMAT(3F15.9)
-        |]
+          |]
           -- k = 5 + $(x : i32) # anehnya, ini error
       putStrLn $ "Haskell: Rust says in withPtr v=" ++ show v
       xContent <- peek x

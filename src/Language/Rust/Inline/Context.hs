@@ -45,6 +45,9 @@ import qualified Data.Vector.Storable.Mutable as VM
 import qualified Data.Vector.Storable as V
 import qualified Debug.Trace as D
 
+import Language.Rust.Data.Position
+
+
 instance Fail.MonadFail First where
   fail = error "MonadFail First error"
 
@@ -224,7 +227,7 @@ vecCtx = mkContext
 -- memory layouts.
 basic :: Q Context
 basic = do
---  runIO $ putStrLn $  "==========debug" ++ show [ty| i32 |]
+  runIO $ putStrLn $  "=====debug:" ++ show [ty| character |]
   mkContext
     [ ([ty| char  |], [t| Char    |], True) -- 4 bytes
     , ([ty| i8    |], [t| Int8    |], True)
@@ -248,6 +251,7 @@ basic = do
     , ([ty| complex   |], [t| CComplex Float  |], True )
     , ([ty| character |], [t| CChar           |], True )
     , ([ty| real(kind=8)    |], [t| Double          |], True)
+    , ((FString (Span NoPosition NoPosition)), [t|CChar |], True)
     {-
     , ([ty| logical(kind=1) |], [t| Int8            |])
     , ([ty| character(len=1)|], [t| CChar           |])
