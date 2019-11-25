@@ -32,12 +32,14 @@ main = do
 
   let ix = 2
   let vInit = V.fromList $ take 9 [0,0 .. ] :: V.Vector Float
+  let vInit1 = V.fromList $ take 9 [0,0 .. ] :: V.Vector Float
 --  v <- V.thaw vm
   putStrLn $ "Haskell: says vInit: " ++ (show vInit)
   putStrLn $ "Haskell: says x: " ++ (show ix)
   V.unsafeWith vInit $ \v -> do
     xp <- withPtr $ \x -> do -- this is for output
-      [fortIO|
+      V.unsafeWith vInit1 $ \v1 -> do
+        [fortIO|
 ! # C macro dideteksi di level haskell... unexpected... but OK or better
 #if defined (CPP)
       use module3
@@ -47,6 +49,9 @@ main = do
       IMPLICIT iNTEGER (I-R)
       character :: c
       integer :: a,NAX
+
+      dimension v1(9)
+
       print *, "adalah dianya yang "
 
       $(angstr :value:real(kind=8)) = angstr *1
@@ -78,10 +83,10 @@ c Testing for comment  3
       print *, "adalah ",k
       l = 1
       k = 1 + $(ix:value:real(kind=8))
+      print *, "test v1",$vec(v1:inout:real)(1)
       print *, "adalah lagi ",k
       ix = 54
       print *, "adalah lagi ix ",ix
-
       do 300 j = 1,3
       do 301 i = 1,3
           $vec(v:inout:real:(3,3))(i,j) = l
@@ -99,8 +104,8 @@ c Testing for comment  3
   400 continue
  3610         FORMAT(' NFI=',I6,4(1X,F9.4))
  5640     FORMAT(3F15.9)
-      |]
-        -- k = 5 + $(x : i32) # anehnya, ini error
+        |]
+          -- k = 5 + $(x : i32) # anehnya, ini error
       putStrLn $ "Haskell: Rust says in withPtr v=" ++ show v
       xContent <- peek x
       putStrLn $ "Haskell: Rust says in withPtr x=" ++ show xContent
