@@ -61,6 +61,7 @@ module Language.Rust.Inline (
   -- ** Marshalling
   unsafeWithVectors,
   withPtr,
+  withPtrs,
   with,
   alloca,
   free,
@@ -191,7 +192,6 @@ unsafeWithVectors [] io = io mempty
 unsafeWithVectors (v:vs) io =
   VM.unsafeWith v $ \p -> unsafeWithVectors vs $ \sv -> io (p:sv)
 
-
 withPtrs :: (V.Storable a) => ([Ptr a] -> IO ()) -> IO [a]
 withPtrs f = do
   alloca $ \p1 -> do
@@ -307,7 +307,7 @@ showTy = show . pprParendType
 --       right Haskell arguments.
 --
 processQQ :: Safety -> Bool -> RustQuasiquoteParse -> Q Exp
-processQQ safety isPure (QQParse rustRet rustNamedArgs locVars rustBody ) = do
+processQQ safety isPure (QQParse _ rustNamedArgs locVars rustBody ) = do
 
   -- Make a name to thread through Haskell/Rust (see Trac #13054)
   q <- runIO randomIO :: Q Int16
@@ -321,8 +321,8 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs locVars rustBody ) = do
   let rustArgs = rustArgs1
     {-
   (haskRet, reprCRet) <- getRType (void rustRet)
-  -}
   reprCRet <- pure Nothing
+  -}
   haskRet <- [t| () |]  -- this means haskRet will be always void in C
 --  runIO $ putStrLn $ "rustArgs:" ++ show rustArgs
 --  runIO $ putStrLn $ "intents:" ++ show intents
@@ -390,7 +390,8 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs locVars rustBody ) = do
 
       -- If an argument is by value, we just stack it into the accumulated arguments.
       -- Otherwise, we use 'with' to get a pointer to its stack position.
-      goArgs acc ((argStr, byVal,rustArg) : args) = do
+      -- goArgs acc ((argStr, byVal,rustArg) : args) = do
+      goArgs acc ((argStr,_ ,rustArg) : args) = do
         arg <- lookupValueName argStr
         case arg of
           Nothing -> fail ("Could not find Haskell variable ‘" ++ argStr ++ "’")
@@ -410,16 +411,17 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs locVars rustBody ) = do
                    else haskCall'
 
   -- Generate the Rust function arguments and the converted arguments
-  let (rustArgs', rustConvertedArgs) = unzip $ zipWith mergeArgs rustArgs reprCArgs
-      (rustRet', rustConvertedRet) = mergeArgs rustRet reprCRet
+  let (rustArgs', _) = unzip $ zipWith mergeArgs rustArgs reprCArgs
 
      -- mergeArgs :: Ty Span -> Maybe RType -> (Ty Span, Ty Span)
       mergeArgs t Nothing       = (t, t)
       mergeArgs t (Just tInter) = (fmap (const mempty) tInter, t)
 
   -- Generate the Rust function.
+    {-
   let retByVal = returnFfi /= BoxedIndirect
-      (retArg, retTy, ret)
+      --(retArg, retTy, ret)
+      (_ , _ , _ )
          | retByVal  = ( []
                        , renderType rustRet'
                        , "out.marshal()"
@@ -428,6 +430,7 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs locVars rustBody ) = do
                        , "()"
                        , "unsafe { ::std::ptr::write(ret_" ++ qqStrName ++ ", out.marshal()) }"
                        )
+         -}
   let headSubroutine' =  "      subroutine " ++ qqStrName ++
                           "(" ++ intercalate ", " rustArgNames ++ ")"
   let (h1:h1s) = chunksOf 60 headSubroutine'
@@ -468,12 +471,12 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs locVars rustBody ) = do
                        "out" -> "intent(" ++ i ++ ")"
                        "inout" -> "intent(" ++ i ++ ")"
                        _ -> i
-            (t0,dim) = case r of
-                         (Array _ s _) -> (t, ",dimension" ++ renderExpr s)
+            (_,dim) = case r of
+                         (Array _ st _) -> (t, ",dimension" ++ renderExpr st)
                          _ -> (r,"")
          in "      " ++ (renderType t) ++ "," ++ intent ++ dim ++ " :: " ++ s
 
-      withVar f argName acc args (HaskVar a) = do
+      withVar f argName acc args (HaskVar _) = do
               f (varE argName : acc) args
                 {-
         x <- newName "x"
@@ -487,10 +490,11 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs locVars rustBody ) = do
             {-
               [e| with $(varE argName) (\( $(varP x) ) ->
                   $(f (varE x : acc) args)) |]
-                  -}
       takeBase (Array b _ _) = b
       takeBase r = r
+                  -}
       pad6Blanks p = take (p-1) "      "
+      renderFortran [] = ""
       renderFortran tok@(tt@(Spanned t _):_) =
         let pn = case (lo $ spanOf tt) of
                    NoPosition -> 7
