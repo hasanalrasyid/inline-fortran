@@ -61,7 +61,8 @@ module Language.Rust.Inline (
   -- ** Marshalling
   unsafeWithVectors,
   withPtr,
-  withPtrs,
+  withPtrsN,
+  genWithPtrs,
   with,
   alloca,
   free,
@@ -103,7 +104,7 @@ import Foreign.Marshal.Array                 ( withArrayLen, newArray )
 import Foreign.Marshal.Unsafe                ( unsafeLocalState )
 import Foreign.Ptr                           ( freeHaskellFunPtr, Ptr )
 
-import Control.Monad                         ( void )
+import Control.Monad                         ( void, replicateM, forM )
 import Data.List                             ( intercalate )
 import Data.Traversable                      ( for )
 import System.Random                         ( randomIO )
@@ -192,15 +193,46 @@ unsafeWithVectors [] io = io mempty
 unsafeWithVectors (v:vs) io =
   VM.unsafeWith v $ \p -> unsafeWithVectors vs $ \sv -> io (p:sv)
 
+  {-
 withPtrs :: (V.Storable a) => ([Ptr a] -> IO ()) -> IO [a]
 withPtrs f = do
-  alloca $ \p1 -> do
-    alloca $ \p2 -> do
+  alloca $ \p1 ->
+    alloca $ \p2 ->
       alloca $ \p3 -> do
-        let ptr = (p1:p2:p3:[])
+        let ptr = p1:p2:p3:[]
         f ptr
-        y <- mapM peek ptr
-        return y
+        mapM peek ptr
+        -}
+
+withPtrsN :: Int -> Q Exp
+withPtrsN n = do
+  io <- newName "io"
+  xs <- replicateM n (newName "x")
+  let lxs  = ListE (map VarE xs)
+  [e| \ ($(varP io)) -> $(genAlloca io lxs xs) |]
+    where
+      genAlloca io lxs []     =
+        [e| do
+              let p = $(pure lxs)
+              $(varE io) p
+              mapM peek p
+          |]
+      genAlloca io lxs (x:xs) = [e| alloca (\( $(varP x) ) -> $(genAlloca io lxs xs) ) |]
+
+genWithPtrs :: Int -> Q [Dec]
+genWithPtrs n = fmap concat $ forM [1..n] mkWithPtrs
+  where mkWithPtrs i = do
+          wP <- withPtrsN i
+          wT <- withPtrsNTy
+          let name = mkName $ "withPtrs" ++ show i
+          return $ [ SigD name wT
+                   , FunD name [ Clause [] (NormalB wP) [] ]
+                   ]
+
+withPtrsNTy :: TypeQ
+withPtrsNTy = do
+  let a = mkName "a"
+  [t| (VM.Storable $(varT a)) => ([Ptr $(varT a)] -> IO ()) -> IO [$(varT a)] |]
 
 withPtr :: (V.Storable a) => (Ptr a -> IO b) -> IO (a, b)
 withPtr f = do

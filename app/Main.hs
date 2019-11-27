@@ -12,6 +12,8 @@ import qualified Data.Vector.Storable.Mutable as VM
 import qualified Data.Text.Foreign as T
 import qualified Data.Text as T
 
+$(genWithPtrs 20)
+
 extendContext basic
 extendContext vectors
 
@@ -131,7 +133,7 @@ c Testing for comment  3
       putStrLn $ show tt
   a <- mapM V.unsafeFreeze [u1,u2,u3,u4]
   putStrLn $ show a
-  b <- withPtrs $ \l@(a1:a2:a3:[]) -> do
+  b <- withPtrs3 $ \l@(a1:a2:a3:[]) -> do
     (flip mapM_) l $ \p -> do
       t <- peek p
       poke p $ 2
@@ -139,6 +141,9 @@ c Testing for comment  3
       putStrLn $ show tt
   putStrLn $ show b
 -- Utils
+
+--withPtrs3 :: (V.Storable a) => ([Ptr a] -> IO ()) -> IO [a]
+--withPtrs3 = $(withPtrsN 3)
 
 hSep s = putStrLn $ take 70 $ "===" ++ s ++ (repeat '=')
 
