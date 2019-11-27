@@ -80,6 +80,7 @@ library:
   ghc-options:
     - -ddump-splices
     - -ddump-to-file
+    - -Wall
 
 #executables:
 tests:

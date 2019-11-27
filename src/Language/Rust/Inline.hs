@@ -59,6 +59,8 @@ module Language.Rust.Inline (
   pointers,
   prelude,
   -- ** Marshalling
+  unsafeWithVectors,
+  withPtr,
   with,
   alloca,
   free,
@@ -110,6 +112,8 @@ import Language.Fortran.Syntax (Ty(..), Token(..))
 import Data.Maybe
 import Data.Int (Int16)
 import qualified Data.Vector.Storable as V
+import qualified Data.Vector.Storable.Mutable as VM
+import Foreign (peek)
 
 -- $overview
 --
@@ -181,6 +185,30 @@ rustIO = rustQuasiQuoter Safe False True
 
 fortIO :: QuasiQuoter
 fortIO  = rustQuasiQuoter Safe False True
+
+unsafeWithVectors :: (V.Storable a) => [VM.IOVector a] -> ([Ptr a] -> IO b) -> IO b
+unsafeWithVectors [] io = io mempty
+unsafeWithVectors (v:vs) io =
+  VM.unsafeWith v $ \p -> unsafeWithVectors vs $ \sv -> io (p:sv)
+
+
+withPtrs :: (V.Storable a) => ([Ptr a] -> IO ()) -> IO [a]
+withPtrs f = do
+  alloca $ \p1 -> do
+    alloca $ \p2 -> do
+      alloca $ \p3 -> do
+        let ptr = (p1:p2:p3:[])
+        f ptr
+        y <- mapM peek ptr
+        return y
+
+withPtr :: (V.Storable a) => (Ptr a -> IO b) -> IO (a, b)
+withPtr f = do
+  alloca $ \ptr -> do
+    x <- f ptr
+    y <- peek ptr
+    return (y, x)
+
 
 -- $unsafe
 --

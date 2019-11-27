@@ -5,7 +5,7 @@ module Main where
 
 import Language.Rust.Inline
 import Data.Int
-import Language.C.Inline
+--import Language.C.Inline
 import Foreign
 import qualified Data.Vector.Storable as V
 import qualified Data.Vector.Storable.Mutable as VM
@@ -118,8 +118,23 @@ c Testing for comment  3
     putStrLn $ "Haskell: says v changed   : " ++ (show xp)
   putStrLn $ "Haskell: says v changed    : " ++ (show vInit)
   putStrLn $ "Haskell: says ix unchanged : " ++ (show ix)
+  hSep ""
+  u1 <- VM.replicate 1 1
+  u2 <- VM.replicate 1 2
+  u3 <- VM.replicate 1 3
+  u4 <- VM.replicate 1 4
+  unsafeWithVectors [u1,u2,u3,u4] $ \l@(u1:u2:u3:u4:_) -> do
+    (flip mapM_) l $ \p -> do
+      t <- peek p
+      poke p $ t*t
+      tt <- peek p :: IO Int
+      putStrLn $ show tt
+  a <- mapM V.unsafeFreeze [u1,u2,u3,u4]
+  putStrLn $ show a
 
 -- Utils
+
+hSep s = putStrLn $ take 70 $ "===" ++ s ++ (repeat '=')
 
 vectorFromC :: Storable a => Int -> Ptr a -> IO (V.Vector a)
 vectorFromC len ptr = do
