@@ -129,7 +129,7 @@ parseQQ input = do
           [] -> if parCount /= 0 then fail $ "Too much Parenthesis==" -- ++ show parCount ++ "==toks==" ++ (show $ reverse toks) ++ "==vars==" ++ show vars
                                  else pure (reverse toks, vars)
           (Spanned t@(OpenDelim Paren) _ : rst2) -> do
-            runIO $ putStrLn $ "Paren132:" ++ show t ++ "==" ++ show parCount ++ "==" ++ (show $ head rst2)
+--            runIO $ putStrLn $ "Paren132:" ++ show t ++ "==" ++ show parCount ++ "==" ++ (show $ head rst2)
             parseBody (parCount+1) (pure t : toks) vars rst2
           (Spanned t@TNewLine _ :
            rst2@(Spanned Ampersand _ : _)) -> do
@@ -138,7 +138,7 @@ parseQQ input = do
             if parCount > 0 then parseBody parCount         toks  vars rst2
                             else parseBody parCount (pure t:toks) vars rst2
           (Spanned t@(CloseDelim Paren) _ : rst2) -> do
-            runIO $ putStrLn $ "Paren141:" ++ show t ++ "==" ++ (show $ head rst2)
+--            runIO $ putStrLn $ "Paren141:" ++ show t ++ "==" ++ (show $ head rst2)
             parseBody (parCount-1) (pure t : toks) vars rst2
 
           (Spanned Dollar _            :

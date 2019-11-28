@@ -59,6 +59,7 @@ module Language.Rust.Inline (
   pointers,
   prelude,
   -- ** Marshalling
+  readOnlyVectors,
   unsafeWithVectors,
   withPtr,
   withPtrsN,
@@ -187,6 +188,11 @@ rustIO = rustQuasiQuoter Safe False True
 
 fortIO :: QuasiQuoter
 fortIO  = rustQuasiQuoter Safe False True
+
+readOnlyVectors :: (V.Storable a) => [V.Vector a] -> ([Ptr a] -> IO b) -> IO b
+readOnlyVectors [] io = io mempty
+readOnlyVectors (v:vs) io =
+  V.unsafeWith v $ \p -> readOnlyVectors vs $ \sv -> io (p:sv)
 
 unsafeWithVectors :: (V.Storable a) => [VM.IOVector a] -> ([Ptr a] -> IO b) -> IO b
 unsafeWithVectors [] io = io mempty
