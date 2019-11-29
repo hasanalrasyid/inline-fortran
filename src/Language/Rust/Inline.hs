@@ -52,6 +52,7 @@ module Language.Rust.Inline (
   getHTypeInContext,
   -- ** Built-in contexts
   basic,
+  fVectors,
   vectors,
   libc,
   ghcUnboxed,
@@ -502,7 +503,7 @@ processQQ safety isPure (QQParse _ rustNamedArgs locVars rustBody ) = do
   -- Return the Haskell call to the FFI import
   haskCall
     where
-      renderVarStatement (s,(FString _),(_,_)) = "c     " ++ s ++ " needs manual declaration"
+      renderVarStatement (s,(FString _),(_,_)) = "c     " ++ s ++ " needs manual declaration for its length"
       renderVarStatement (s,t,(i,r)) =
         let intent = case i of
                        "in" -> "intent(" ++ i ++ ")"

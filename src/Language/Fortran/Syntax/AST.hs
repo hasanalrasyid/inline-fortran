@@ -1023,6 +1023,7 @@ data Ty a
   -- | generated from a call to a macro (example: @HList![i32,(),u8]@)
   | MacTy (Mac a) a
   | FType Ident (Expr a) a
+  | FArray Int (Ty a) a
   | FString a
   deriving (Eq, Ord, Functor, Show, Typeable, Data, Generic, Generic1, NFData)
 
@@ -1042,6 +1043,7 @@ instance Located a => Located (Ty a) where
   spanOf (Infer s) = spanOf s
   spanOf (MacTy _ s) = spanOf s
   spanOf (FType _ _ s) = spanOf s
+  spanOf (FArray _ _ s) = spanOf s
   spanOf (FString s) = spanOf s
 
 -- | Type parameter definition used in 'Generics' (@syntax::ast::TyParam@). Note that each

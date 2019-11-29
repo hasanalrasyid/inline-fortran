@@ -7,6 +7,7 @@ import Language.Rust.Inline
 import Data.Int
 --import Language.C.Inline
 import Foreign
+import Foreign.C.Types
 import qualified Data.Vector.Storable as V
 import qualified Data.Vector.Storable.Mutable as VM
 import qualified Data.Text.Foreign as T
@@ -15,7 +16,8 @@ import qualified Data.Text as T
 $(genWithPtrs 20)
 
 extendContext basic
-extendContext vectors
+--extendContext vectors
+extendContext fVectors
 
 setCrateRoot []
 
@@ -33,6 +35,7 @@ main = do
   let gpa     = 1/29.4215e3
   let fpi     = 4*pi
 
+  let nax = 3
   let ix = 2
   let sInit' = "this is the string"
   let sInit = T.append sInit' $ T.replicate (256 - T.length sInit') "X"
@@ -54,14 +57,16 @@ main = do
 #endif
       IMPLICIT iNTEGER (I-R)
       character :: c
-      integer :: a,NAX
+      integer :: a
       character*256 :: sInit
 
       dimension v1(9)
+      dimension v(nax,nax)
 
       print *, "sInit ", $str(sInit:in:18)
       print *, "adalah dianya yang "
 
+      $(nax :value:integer) = 3
       $(angstr :value:real(kind=8)) = angstr *1
       $(celvin :value:real(kind=8)) = celvin *1
       $(second :value:real(kind=8)) = second *1
@@ -91,7 +96,7 @@ c Testing for comment  3
       print *, "adalah ",k
       l = 1
       k = 1 + $(ix:value:real(kind=8))
-      print *, "test v1",$vec(v1:inout:real:1)(1)
+c     print *, "test v1",$vec(v1:inout:real:1)(1)
       print *, "adalah lagi ",k
       ix = 54
       print *, "adalah lagi ix ",ix

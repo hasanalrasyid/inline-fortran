@@ -130,7 +130,7 @@ parseQQ input = do
       (rst3, iD@(v,i,r)) <- takeDollar Nothing [] rst2
       runIO $ putStrLn $ "inDollar:" ++ show iD
       newVars <- parseV vars v i r
-      parseBody toks newVars rst3
+      parseBody (v:toks) newVars rst3
     parseBody toks vars (r:rst2) = do
       parseBody (r:toks) vars rst2
 
@@ -146,8 +146,10 @@ parseQQ input = do
       t1 <- case rst2 of
               FVarBase t -> parseFType t
               FVarString d -> pure $ (FString nullSpan)
-              FVarArray t _ -> do
-                parseFType t
+              FVarArray t (Spanned (LiteralTok (IntegerTok n) _) _) -> do
+                ty <- parseFType t
+                let dim = read n
+                pure $ FArray dim ty nullSpan
       runIO $ putStrLn $ "parseV: t1: " ++ show t1
       -- Add it to 'vars' if it isn't a duplicate
       let i' = name i
