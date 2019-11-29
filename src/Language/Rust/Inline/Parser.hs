@@ -15,7 +15,7 @@ import Language.Rust.Inline.Pretty ( renderType )
 
 import Language.Fortran.Syntax        ( Token(..), Delim(..), Ty(..), LitTok(..), Expr(..))
 import Language.Fortran.Parser
-import Language.Rust.Data.Position ( Spanned(..), Position(..), Span(..), Located(..) )
+import Language.Rust.Data.Position ( Spanned(..), Position(..), Span(..), Located(..), unspan )
 import Language.Rust.Data.Ident    ( Ident(..), mkIdent )
 
 import Language.Haskell.TH         ( Q, runIO )
@@ -86,7 +86,7 @@ parseQQ input = do
 --}
 
   -- Parse body of quasiquote
-  (bodyToks, vars) <- parseBody 0 [] [] rest1
+  (bodyToks, vars) <- parseBody [] [] rest1
 
   -- Done!
 --  let dummy = snd $ head vars
@@ -124,7 +124,84 @@ parseQQ input = do
                    Just _ -> True
                    Nothing -> False
     -- Parse the body of the quasiquote
-    parseBody parCount toks vars rest = do
+    parseBody toks vars [] =pure (reverse toks, vars)
+    parseBody toks vars (Spanned Dollar _  : rst2) = do
+      runIO $ putStrLn "parseBody: Dollar"
+      (rst3, iD@(v,i,r)) <- takeDollar Nothing [] rst2
+      runIO $ putStrLn $ "inDollar:" ++ show iD
+      newVars <- parseV vars v i r
+      parseBody toks newVars rst3
+    parseBody toks vars (r:rst2) = do
+      parseBody (r:toks) vars rst2
+
+    parseFType toks =
+      case (parseFromToks toks) of
+        Left (ParseFail _ msg) -> fail $ "parseFType: " ++ msg ++ " " ++ show toks
+        Right parsed           -> do
+                                     pure parsed
+
+    parseV vars (Spanned (IdentTok i) _) (Spanned (IdentTok intent) _) rst2 = do
+      -- Parse the rest of the escape
+      runIO $ putStrLn $ "parseV: rst2: " ++ show rst2
+      t1 <- case rst2 of
+              FVarBase t -> parseFType t
+              FVarString d -> pure $ (FString nullSpan)
+              FVarArray t _ -> do
+                parseFType t
+      runIO $ putStrLn $ "parseV: t1: " ++ show t1
+      -- Add it to 'vars' if it isn't a duplicate
+      let i' = name i
+      let dupMsg t2 = concat [ "Variable `", i', ": ", renderType t1
+                              , "' has already been given type `"
+                              , renderType t2, "'"
+                              ]
+      let intent' = name intent
+      newVars <- case lookup i' vars of
+                   Nothing -> pure ((i', (t1,intent')) : vars)
+                   Just (t2,_) | void t1 == void t2 -> pure vars
+                               | otherwise -> fail (dupMsg t2)
+      pure newVars
+
+    processVITDP (_:vs) = do
+      let rs@(v:tIntent:res) = wordsBy isColon $ init vs
+      r <- go res
+      runIO $ putStrLn $ "processVITDP: r: " ++ show r
+      return (head v, head tIntent,r)
+        where go [] = pure Nothing
+              go (t:[]) = pure $ Just (t,Nothing)
+              go (t:di:_) = pure $ Just (t,Just $ head di)
+              go _ = fail $ "error processVITDP"
+
+
+    takeDollar (Just 0) cs rs = do
+      runIO $ putStrLn $ "takeDollar Just 0" ++ show cs
+      fVar <- case reverse cs of
+               vitP@((Spanned (OpenDelim Paren) _):_) -> do
+                  runIO $ putStrLn $ "!takeDollar: OpenDelim rs" ++ show vitP
+                  (v,i, Just (t,_)) <- processVITDP vitP
+                  return $ (v,i,FVarBase t)
+               ((Spanned (IdentTok (Ident "str" _ _)) _):vidP) -> do
+                  runIO $ putStrLn $ "!takeDollar: str si: " ++ show vidP
+                  si@(v,i, Just (d,_)) <- processVITDP vidP
+                  return $ (v,i,FVarString $ head d)
+               ((Spanned (IdentTok (Ident "vec" _ _)) _):vitdP) -> do
+                  runIO $ putStrLn $ "!takeDollar: vec rs" ++ show vitdP
+                  (v,i, Just (t,Just d)) <- processVITDP vitdP
+                  return $ (v,i,FVarArray t d)
+               _ -> do
+                 runIO $ putStrLn $ "!takeDollar: ERROR " ++ show rs
+                 return $ (Spanned Eof nullSpan, Spanned Eof nullSpan, ErrFVar)
+      return (rs,fVar)
+
+    takeDollar Nothing cs (r:rs)
+      | openParen r = takeDollar (Just 1) (r:cs) rs
+      | otherwise = takeDollar Nothing (r:cs) rs
+    takeDollar j@(Just i) cs (r:rs)
+      | openParen r = takeDollar (Just $ 1 + i) (r:cs) rs
+      | closeParen r = takeDollar (Just $ i - 1) (r:cs) rs
+      | otherwise = takeDollar j (r:cs) rs
+  {-
+    parseBody' parCount toks vars rest = do
         case rest of
           [] -> if parCount /= 0 then fail $ "Too much Parenthesis==" -- ++ show parCount ++ "==toks==" ++ (show $ reverse toks) ++ "==vars==" ++ show vars
                                  else pure (reverse toks, vars)
@@ -133,10 +210,10 @@ parseQQ input = do
             parseBody (parCount+1) (pure t : toks) vars rst2
           (Spanned t@TNewLine _ :
            rst2@(Spanned Ampersand _ : _)) -> do
-            parseBody parCount (pure t:toks) vars rst2
+            parseBody' parCount (pure t:toks) vars rst2
           (Spanned t@TNewLine _ : rst2) -> do
-            if parCount > 0 then parseBody parCount         toks  vars rst2
-                            else parseBody parCount (pure t:toks) vars rst2
+            if parCount > 0 then parseBody' parCount         toks  vars rst2
+                            else parseBody' parCount (pure t:toks) vars rst2
           (Spanned t@(CloseDelim Paren) _ : rst2) -> do
 --            runIO $ putStrLn $ "Paren141:" ++ show t ++ "==" ++ (show $ head rst2)
             parseBody (parCount-1) (pure t : toks) vars rst2
@@ -148,7 +225,7 @@ parseQQ input = do
            Spanned Colon _             :
            Spanned (IdentTok intent) _ : rst2) -> do
              (newVars,rst3) <- parseVars (Just ("str",s)) vars i intent rst2
-             parseBody parCount (pure (IdentTok i) : toks) newVars rst3
+             parseBody' parCount (pure (IdentTok i) : toks) newVars rst3
 
           (Spanned Dollar _            :
            Spanned (IdentTok v) _      :
@@ -161,7 +238,7 @@ parseQQ input = do
              case vec of
                "vec" -> do
                  (newVars,rst3) <- parseVars Nothing vars i intent rst2
-                 parseBody parCount (pure (IdentTok i) : toks) newVars rst3
+                 parseBody' parCount (pure (IdentTok i) : toks) newVars rst3
                _ -> fail $ "error $" ++ vec ++ " is not yet implemented"
 
           (Spanned Dollar _            :
@@ -171,10 +248,10 @@ parseQQ input = do
            Spanned (IdentTok intent) _ :
            Spanned Colon _             : rst2) -> do
              (newVars,rst3) <- parseVars Nothing vars i intent rst2
-             parseBody parCount (pure (IdentTok i) : toks) newVars rst3
+             parseBody' parCount (pure (IdentTok i) : toks) newVars rst3
 
-          (tok : rst2) -> parseBody parCount (tok : toks) vars rst2
-
+          (tok : rst2) -> parseBody' parCount (tok : toks) vars rst2
+    -}
     parseVars strStat vars i intent rst2@(_:r2) = do
       -- Parse the rest of the escape
       (t1, rst3) <- case strStat of
@@ -199,24 +276,16 @@ parseQQ input = do
     -- Parse the part of escapes like @$(x: i32)@ that comes after the @:@.
     parseEscape :: [SpTok] -> Int -> [SpTok] -> Q (Ty Span, [SpTok])
     parseEscape toks p rst1 = do
---        runIO $ putStrLn $ "parseEscape toks p rst1: " ++ show toks ++ show p ++ show rst1
         case rst1 of
           [] -> fail "Ran out of input while parsing variable escape"
           tok : rst2
             | isColon tok           -> parseEscape (tok : toks) (p) rst2
-              {-
-              let parsedTy = parseFromToks (reverse toks)
-              (tupTy,rst3) <- parseEscapeExpr [] p rst2
-              runIO $ putStrLn $ "tupTy: " ++ show tupTy
-              case parsedTy of
-                Left (ParseFail _ msg) -> fail $ "parseEscape parsedTy: " ++ msg
-                Right ty -> pure(ty, rst3)
-                -}
-
             | openParen tok           -> parseEscape (tok : toks) (p+1) rst2
             | closeParen tok && p > 1 -> parseEscape (tok : toks) (p-1) rst2
             | not (closeParen tok)    -> parseEscape (tok : toks) p     rst2
             | otherwise -> do
+                runIO $ putStrLn $ unwords
+                  ["parseEscape toks p rst1: ",show $ reverse toks]
                 case (parseFromToks $ reverse toks) of
                              Left (ParseFail _ msg) -> fail $ "parseEscape: " ++ msg
                              Right parsed           -> do
@@ -259,3 +328,9 @@ closeParen _ = False
 isColon :: SpTok -> Bool
 isColon (Spanned Colon _) = True
 isColon _ = False
+
+data FVar = ErrFVar
+          | FVarString SpTok -- length
+          | FVarBase [SpTok] -- type
+          | FVarArray [SpTok] SpTok -- type dimLength
+          deriving Show

@@ -377,7 +377,7 @@ lit :: { Lit Span }
   | float             { lit $1 }
   | true              { lit $1 }
   | false             { lit $1 }
-  | kind             { lit $1 }
+  | kind              { lit $1 }
   | string            { $1 }
 
 string :: { Lit Span }

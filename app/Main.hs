@@ -59,7 +59,7 @@ main = do
 
       dimension v1(9)
 
-      print *, "sInit ", $str(sInit:in)
+      print *, "sInit ", $str(sInit:in:18)
       print *, "adalah dianya yang "
 
       $(angstr :value:real(kind=8)) = angstr *1
@@ -91,13 +91,13 @@ c Testing for comment  3
       print *, "adalah ",k
       l = 1
       k = 1 + $(ix:value:real(kind=8))
-      print *, "test v1",$vec(v1:inout:real)(1)
+      print *, "test v1",$vec(v1:inout:real:1)(1)
       print *, "adalah lagi ",k
       ix = 54
       print *, "adalah lagi ix ",ix
       do 300 j = 1,3
       do 301 i = 1,3
-          $vec(v:inout:real:(3,3))(i,j) = l
+          $vec(v:inout:real:2)(i,j) = l
           l = l + 1
   301   continue
   300 continue
