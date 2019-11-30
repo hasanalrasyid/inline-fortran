@@ -293,6 +293,25 @@ ghcUnboxed = do
 -- NOTE: pointers will not support pointed types that require an intermediate
 --       Rust type.
 
+fImmutableVectors :: Q Context
+fImmutableVectors = do
+  vecConT <- [t| V.Vector |]
+  pure (Context ([rule], [rev vecConT], []))
+  where
+  rule vec context = do
+    FArray _ t _  <- pure vec
+    (t', Nothing) <- lookupRTypeInContext t context
+    pure ([t| $t' |], Nothing)
+
+  rev vecConT pt context = do
+    AppT vecCon t <- pure pt
+    if vecCon /= vecConT
+      then mempty
+      else do
+        t' <- lookupHTypeInContext t context
+        pure (FArray (-1) <$> t' <*> pure ())
+        --pure (Ptr Mutable <$> t' <*> pure ())
+
 fVectors :: Q Context
 fVectors = do
   vecConT <- [t| VM.MVector |]

@@ -504,6 +504,12 @@ processQQ safety isPure (QQParse _ rustNamedArgs locVars rustBody ) = do
   haskCall
     where
       renderVarStatement (s,(FString _),(_,_)) = "c     " ++ s ++ " needs manual declaration for its length"
+      renderVarStatement (s,(FArray d t _),(i,_)) =
+        let intent = "intent(" ++ i ++ ")"
+            dim = case d of
+                    0 -> ""
+                    _ -> "(" ++ ( intercalate "," $ replicate d ":") ++ ")"
+         in "      " ++ (renderType t) ++ "," ++ intent ++  " :: " ++ s ++ dim
       renderVarStatement (s,t,(i,r)) =
         let intent = case i of
                        "in" -> "intent(" ++ i ++ ")"
