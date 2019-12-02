@@ -12,31 +12,10 @@ Portability : GHC
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes #-}
 
-module Language.Fortran.Inline.Utils
+module Language.Fortran.Inline.TH.Strings
   where
 
 import Text.RawString.QQ
-import qualified Language.C.Inline as C
-import Data.ByteString.Internal (ByteString(..))
-import Language.Fortran.Inline.TH.Strings
-C.context (C.baseCtx <> C.bsCtx)
-
-C.include "<ctype.h>"
-C.include "<stdbool.h>"
-C.include "<stdio.h>"
-C.include "<stdlib.h>"
-C.include "<string.h>"
-C.include "<unistd.h>"
-
-C.verbatim sourceC
-
-splitF90 :: ByteString -> IO ()
-splitF90 filename = do
-  [C.block| void {
-      main_f90split($bs-cstr:filename);
-                         } |]
-  putStrLn "====!splitF90"
-
 
 sourceC :: String
 sourceC = [r|

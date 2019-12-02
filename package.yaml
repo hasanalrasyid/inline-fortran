@@ -69,6 +69,7 @@ dependencies:
     - fgl
       #needed for fortran
     - split
+    - raw-strings-qq
 
 library:
   build-tools:

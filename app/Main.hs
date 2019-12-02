@@ -147,7 +147,7 @@ c     print *, "test v1",$vec(v1:inout:real:1)(1)
       putStrLn $ show tt
   putStrLn $ show b
 -- Utils
---  splitF90 "test/f90split_test.f90"
+  splitF90 "test/f90split_test.f90"
   test2
 
 --withPtrs3 :: (V.Storable a) => ([Ptr a] -> IO ()) -> IO [a]
