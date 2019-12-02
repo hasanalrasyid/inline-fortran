@@ -141,39 +141,8 @@ cargoFinalizer extraArgs dependencies = do
   let dir = ".inline-fortran" </> pkg
       thisFile = foldr1 (</>) mods <.> "f"
       crate = "q_" ++ pkg
-        {-
-  -- Make contents of a @Cargo.toml@ file
-  let cargoToml = dir </> "Cargo" <.> "toml"
-      cargoSrc = unlines [ "[package]"
-                         , "name = \"" ++ crate ++ "\""
-                         , "version = \"0.0.0\""
-
-                         , "[dependencies]"
-                         , unlines [ name ++ " = \"" ++ version ++ "\""
-                                   | (name, version) <- dependencies
-                                   ]
-
-                         , "[lib]"
-                         , "path = \"" ++ thisFile ++ "\""
-                         , "crate-type = [\"staticlib\"]"
-                         ]
-                         -}
   runIO $ createDirectoryIfMissing True dir
---  runIO $ writeFile cargoToml cargoSrc
 
-  -- Run Cargo to compile the project
-  --
-  -- NOTE: We set `--print native-static-libs` to inform the user these are the
-  --       libraries they should be specifying in `ghc-options`. It would be
-  --       much better if:
-  --
-  --         * We could parse the `stdout` and print out a `ghc-options` related
-  --           message. _However_ the message only gets printed if cargo ended
-  --           up doing work, and I don't know how to detect that.
-  --
-  --         * We could automatically link in these libraries, if GHC supported
-  --           specifying libraries to pass to the final linker call.
-  --
   inlineFFlags <- runIO $ fromMaybe "" <$> lookupEnv "INLINE_FORTRAN_FFLAGS"
   inlineFC <- runIO $ fromMaybe "gfortran" <$> lookupEnv "INLINE_FORTRAN_FC"
 

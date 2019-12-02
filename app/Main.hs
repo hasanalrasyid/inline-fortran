@@ -147,7 +147,8 @@ c     print *, "test v1",$vec(v1:inout:real:1)(1)
       putStrLn $ show tt
   putStrLn $ show b
 -- Utils
-  splitF90 "test/f90split_test.f90"
+--  splitF90 "test/f90split_test.f90"
+  test2
 
 --withPtrs3 :: (V.Storable a) => ([Ptr a] -> IO ()) -> IO [a]
 --withPtrs3 = $(withPtrsN 3)
@@ -164,3 +165,15 @@ vectorToC vec len ptr = do
   ptr' <- newForeignPtr_ ptr
   V.copy (VM.unsafeFromForeignPtr0 ptr' len) vec
 
+
+test2 = do
+  putStrLn "====test2"
+  nax <- withPtr $ \nax -> do
+    poke nax 888
+    [fortIO|
+      print *,'this is testing'
+      print *,'nax :',$(nax:inout:integer)
+      nax = 777
+
+    |]
+  putStrLn "===!test2"
