@@ -4,6 +4,7 @@
 module Main where
 
 import Language.Fortran.Inline
+import Language.Fortran.Inline.Utils
 import Data.Int
 --import Language.C.Inline
 import Foreign
@@ -146,6 +147,7 @@ c     print *, "test v1",$vec(v1:inout:real:1)(1)
       putStrLn $ show tt
   putStrLn $ show b
 -- Utils
+  splitF90 "test/f90split_test.f90"
 
 --withPtrs3 :: (V.Storable a) => ([Ptr a] -> IO ()) -> IO [a]
 --withPtrs3 = $(withPtrsN 3)

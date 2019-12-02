@@ -6,11 +6,11 @@
 # include <unistd.h>
 
 # define BIG 4096
- 
+
 # ifndef TRUE
 #   define TRUE 1
 # endif
- 
+
 # ifndef FALSE
 #   define FALSE 0
 # endif
@@ -19,7 +19,7 @@
 
 int blkdatano = 0;
 
-int main ( int argc, char **argv );
+int main_f90split ( char *argv );
 int compare ( char **s0, char *t );
 int endcard ( char *s );
 void get_name ( char *s, char *f );
@@ -27,7 +27,7 @@ void split_file ( FILE *file_input );
 
 /******************************************************************************/
 
-int main ( int argc, char **argv )
+int main_f90split ( char *argv )
 
 /******************************************************************************/
 /*
@@ -37,7 +37,7 @@ int main ( int argc, char **argv )
 
   Discussion:
 
-    F90SPLIT splits a file of FORTRAN90 modules into individual files. 
+    F90SPLIT splits a file of FORTRAN90 modules into individual files.
 
   Invocation:
 
@@ -47,7 +47,7 @@ int main ( int argc, char **argv )
 
     Procedure X is put in file X.f90.
 
-    Comments preceding a procedure, and not associated with a 
+    Comments preceding a procedure, and not associated with a
     preceding procedure, are included with that procedure.
 
   Concerns:
@@ -62,26 +62,22 @@ int main ( int argc, char **argv )
 */
 {
   FILE *file_input;
-  int i;
 
-  for ( i = 1; i < argc; ++i ) 
-  {    
-    printf ( "Splitting %s.\n", argv[i] );
+    printf ( "Splitting %s.\n", argv );
 
-    file_input = fopen ( argv[i], "r" );
+    file_input = fopen ( argv, "r" );
 
-    if ( file_input == NULL ) 
+    if ( file_input == NULL )
     {
       fprintf ( stderr, "\n" );
       fprintf ( stderr, "FSPLIT90: Error!\n" );
-      fprintf ( stderr, "  Cannot open %s\n", argv[i] );
-      continue;
+      fprintf ( stderr, "  Cannot open %s\n", argv );
+      exit;
     }
 
     split_file ( file_input );
 
     fclose ( file_input );
-  }
 
   return 0;
 }
@@ -90,15 +86,15 @@ int main ( int argc, char **argv )
 int compare ( char **s0, char *t )
 
 /******************************************************************************/
-/* 
+/*
   Purpose:
 
-    COMPARE compares two strings for equality.  
+    COMPARE compares two strings for equality.
 
   Discussion:
 
-    Assume that t is all lower case.  
-    Ignore blanks and decase s during comparison. 
+    Assume that t is all lower case.
+    Ignore blanks and decase s during comparison.
 
   Modified:
 
@@ -111,23 +107,23 @@ int compare ( char **s0, char *t )
 {
   char *s;
   int s1;
-  
+
   s = *s0;
-  
-  while ( *t ) 
+
+  while ( *t )
   {
-    while ( isspace ( *s ) ) 
+    while ( isspace ( *s ) )
     {
       ++s;
     }
     s1 = *s++;
 
-    if ( isupper ( s1 ) ) 
+    if ( isupper ( s1 ) )
     {
       s1 = tolower ( s1 );
     }
 
-    if ( s1 != *t++ ) 
+    if ( s1 != *t++ )
     {
       return ( FALSE );
     }
@@ -137,7 +133,7 @@ int compare ( char **s0, char *t )
   return ( TRUE );
 }
 /******************************************************************************/
- 
+
 int endcard ( char *s )
 
 /******************************************************************************/
@@ -151,19 +147,19 @@ int endcard ( char *s )
     05 December 2007
 */
 {
-/*  
-  column 1 of card image              
+/*
+  column 1 of card image
 */
-  char *s0 = s;                
- 
-  if ( *s==0 ) 
+  char *s0 = s;
+
+  if ( *s==0 )
   {
     return ( TRUE );
-  } 
+  }
 /*
   Search for "end" statement somewhere in the card image
 */
-  while ( isspace ( *s ) ) 
+  while ( isspace ( *s ) )
   {
     ++s;
   }
@@ -173,7 +169,7 @@ int endcard ( char *s )
     return ( FALSE );
   }
 
-  s++; 
+  s++;
 
   while ( isspace(*s) )
   {
@@ -185,32 +181,32 @@ int endcard ( char *s )
     return ( FALSE );
   }
 
-  s++; 
-  while ( isspace(*s) )  
+  s++;
+  while ( isspace(*s) )
   {
     ++s;
   }
 
-  if ( *s != 'd' && *s != 'D' ) 
+  if ( *s != 'd' && *s != 'D' )
   {
     return(FALSE);
   }
 
-  s++; 
-  while ( isspace(*s) ) 
+  s++;
+  while ( isspace(*s) )
   {
     ++s;
   }
- 
-/*      
+
+/*
   Legitimate ending to "END" card?
   This must be modified to handle lines like "END FUNCTION".
 */
-  if ( *s == '\0' || *s == '!' || *s == '\n' || (s - s0) >= 80 ) 
+  if ( *s == '\0' || *s == '!' || *s == '\n' || (s - s0) >= 80 )
   {
     return(TRUE);
   }
-  else 
+  else
   {
     return(FALSE);
   }
@@ -239,59 +235,59 @@ void get_name ( char *s, char *f )
 
   loop:
 
-    if      ( compare ( &s, "function" ) ) 
+    if      ( compare ( &s, "function" ) )
     {
       goto bot;
     }
-    else if ( compare ( &s, "module" ) ) 
+    else if ( compare ( &s, "module" ) )
     {
       goto bot;
     }
-    else if ( compare ( &s, "procedure" ) ) 
+    else if ( compare ( &s, "procedure" ) )
     {
       goto bot;
     }
-    else if ( compare ( &s, "program" ) ) 
+    else if ( compare ( &s, "program" ) )
     {
       goto bot;
     }
-    else if ( compare ( &s, "subroutine" ) ) 
+    else if ( compare ( &s, "subroutine" ) )
     {
       goto bot;
     }
-    else if ( compare ( &s, "character" ) ) 
+    else if ( compare ( &s, "character" ) )
     {
       goto loop;
     }
-    else if ( compare ( &s, "complex" ) ) 
+    else if ( compare ( &s, "complex" ) )
     {
       goto loop;
     }
-    else if ( compare ( &s, "double" ) ) 
+    else if ( compare ( &s, "double" ) )
     {
       goto loop;
     }
-    else if ( compare ( &s, "integer" ) ) 
+    else if ( compare ( &s, "integer" ) )
     {
       goto loop;
     }
-    else if ( compare ( &s, "logical" ) ) 
+    else if ( compare ( &s, "logical" ) )
     {
       goto loop;
     }
-    else if ( compare ( &s, "precision" ) ) 
+    else if ( compare ( &s, "precision" ) )
     {
       goto loop;
     }
-    else if ( compare ( &s, "real" ) ) 
+    else if ( compare ( &s, "real" ) )
     {
       goto loop;
     }
-    else if ( compare ( &s, "recursive" ) ) 
+    else if ( compare ( &s, "recursive" ) )
     {
       goto loop;
     }
-/* 
+/*
   Handle size complications like "complex *16" or "character *12".
 */
     else if ( compare ( &s, "*") )
@@ -300,10 +296,10 @@ void get_name ( char *s, char *f )
         ;
         goto loop;
       }
-    else if ( compare ( &s, "blockdata" ) ) 
+    else if ( compare ( &s, "blockdata" ) )
     {
       while ( isspace ( *s ) ) ++s;
-/* 
+/*
   No block data name given.  Use "BLOCKDATA".
 */
       if (*s == '\0')
@@ -317,19 +313,19 @@ void get_name ( char *s, char *f )
     {
       s = "";
     }
- 
+
   bot:
 
-  while ( isspace ( *s ) ) 
+  while ( isspace ( *s ) )
   {
     ++s;
   }
 /*
   Extract the module name.
 */
-  for ( i = 0; isalpha ( *s ) || isdigit ( *s ) || *s == '_' ; i++ ) 
+  for ( i = 0; isalpha ( *s ) || isdigit ( *s ) || *s == '_' ; i++ )
   {
-    if ( i >= NAMELENGTH || ( s - s0 ) >= 80 ) 
+    if ( i >= NAMELENGTH || ( s - s0 ) >= 80 )
     {
       break;
     }
@@ -342,8 +338,8 @@ void get_name ( char *s, char *f )
 
 /*
   Tack on the period and suffix to form the filename.
-*/ 
-  if ( i > 0) 
+*/
+  if ( i > 0)
   {
     f[i++] = '.';
     f[i++] = 'f';
@@ -394,7 +390,7 @@ void split_file ( FILE *file_input )
 */
   file_temp = fopen ( file_temp_name, "w" );
 
-  if ( file_temp == NULL ) 
+  if ( file_temp == NULL )
   {
     fprintf ( stderr, "\n" );
     fprintf ( stderr, "FSPLIT90: Error!\n" );
@@ -406,34 +402,34 @@ void split_file ( FILE *file_input )
 */
   nline = 0;
 
-  while ( fgets ( in, BIG, file_input ) != NULL ) 
-  {  
+  while ( fgets ( in, BIG, file_input ) != NULL )
+  {
     nline = nline + 1;
 /*
   If the line is a comment line, output it, and get the next line.
   We're really hoping to see a module name.
 */
-    if ( *in=='c' || *in=='C' || *in=='*' || *in=='!' ) 
+    if ( *in=='c' || *in=='C' || *in=='*' || *in=='!' )
     {
       fputs ( in, file_temp );
       continue;
     }
-    
-    for ( i = 0; i < 80; i++ ) 
+
+    for ( i = 0; i < 80; i++ )
     {
       if ( in[i] == '\0' || in[i] == '\n')
       {
         i = 80;
         break;
       }
-      
-      if (in[i] != ' ' && in[i] != '\t')  
+
+      if (in[i] != ' ' && in[i] != '\t')
       {
         break;
-      }      
+      }
     }
-    
-    if ( i == 80 ) 
+
+    if ( i == 80 )
     {
       fputs ( in, file_temp );
       continue;
@@ -441,8 +437,8 @@ void split_file ( FILE *file_input )
 
     get_name ( in, file_out_name );
 
-    if ( unlink(file_out_name),link(file_temp_name, file_out_name) == -1 || 
-         unlink(file_temp_name) == -1) 
+    if ( unlink(file_out_name),link(file_temp_name, file_out_name) == -1 ||
+         unlink(file_temp_name) == -1)
     {
       fprintf ( stderr, "\n" );
       fprintf ( stderr, "FSPLIT90: Error!\n" );
@@ -451,13 +447,13 @@ void split_file ( FILE *file_input )
     }
 
     printf ( "%s\n", file_out_name );
-      
+
     fputs ( in, file_temp );
 /*
   Write all subsequent lines to this file until an END statement is encountered.
 */
-    while ( !endcard(in) && fgets(in, BIG, file_input) ) 
-    {    
+    while ( !endcard(in) && fgets(in, BIG, file_input) )
+    {
       fputs ( in, file_temp );
     }
 /*
@@ -467,7 +463,7 @@ void split_file ( FILE *file_input )
 
     file_temp = fopen ( file_temp_name, "w" );
 
-    if ( file_temp == NULL )  
+    if ( file_temp == NULL )
     {
       fprintf ( stderr, "\n" );
       fprintf ( stderr, "FSPLIT90: Error:\n" );
@@ -476,7 +472,7 @@ void split_file ( FILE *file_input )
     }
 
   }
-    
+
   if ( unlink ( file_temp_name ) == -1)
   {
     fprintf ( stderr, "\n" );

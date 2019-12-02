@@ -16,19 +16,15 @@ module Language.Fortran.Inline.Utils
   where
 
 import qualified Language.C.Inline as C
-import Foreign.C.String
+import Data.ByteString.Internal (ByteString(..))
 
-C.context (C.baseCtx <> C.funCtx)
+C.context (C.baseCtx <> C.bsCtx)
 
 C.include "f90split.c"
 
-splitF90 :: IO ()
-splitF90 = do
-  let reverseIO :: CString -> IO CString
-      reverseIO cs = peekCString cs >>= return. reverse >>= newCString
-  {-
+splitF90 :: ByteString -> IO ()
+splitF90 filename = do
   [C.block| void {
-      pageturnerui($fun:(char* (*reverseIO)(char *)));
+      main_f90split($bs-cstr:filename);
                          } |]
-                         -}
   putStrLn "====!splitF90"
