@@ -76,6 +76,7 @@ library:
     - happy
   source-dirs:
     - src
+    - lang
   extra-libraries:  gfortran #    gsl gslcblas m
   ghc-options:
     - -ddump-splices

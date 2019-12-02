@@ -1,5 +1,5 @@
 {-|
-Module      : Language.Rust.Inline.TH.ReprC
+Module      : Language.Fortran.Inline.TH.ReprC
 Description : Generate #[repr(C)] Rust types
 Copyright   : (c) Alec Theriault, 2018
 License     : BSD-style
@@ -10,7 +10,7 @@ Portability : GHC
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Language.Rust.Inline.TH.ReprC (
+module Language.Fortran.Inline.TH.ReprC (
   mkReprC,
   mkGenPathTy,
 ) where
@@ -18,8 +18,8 @@ module Language.Rust.Inline.TH.ReprC (
 -- TODO: Map haskell records to Rust records
 -- TODO: Way for users to specify the attributes they want on generated data types
 
-import Language.Rust.Inline.TH.Utilities
-import Language.Rust.Inline.Context
+import Language.Fortran.Inline.TH.Utilities
+import Language.Fortran.Inline.Context
 
 import Language.Haskell.TH hiding (Stmt, Match, WildP, Unsafe, LitP, Pat)
 import Language.Fortran.Syntax

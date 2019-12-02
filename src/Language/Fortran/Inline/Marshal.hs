@@ -1,5 +1,5 @@
 {-|
-Module      : Language.Rust.Inline.Marshal
+Module      : Language.Fortran.Inline.Marshal
 Description : Utilities for marshalling HAskell values
 Copyright   : (c) Alec Theriault, 2017
 License     : BSD-style
@@ -11,12 +11,12 @@ Portability : GHC
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE MagicHash #-}
 
-module Language.Rust.Inline.Marshal where
+module Language.Fortran.Inline.Marshal where
 
-import Language.Rust.Inline.Context
+import Language.Fortran.Inline.Context
 
-import Language.Haskell.TH 
-import Language.Haskell.TH.Syntax  ( addTopDecls ) 
+import Language.Haskell.TH
+import Language.Haskell.TH.Syntax  ( addTopDecls )
 
 import Data.Word
 import Data.Int
@@ -73,17 +73,17 @@ ghcMarshallable ty = do
                    , [t| MutableByteArray# |]
                    ]
 
-  qSimpleBoxed   = [ [t| Char   |] 
+  qSimpleBoxed   = [ [t| Char   |]
                    , [t| Int    |]
                    , [t| Word   |]
                    , [t| Double |]
                    , [t| Float  |]
-                   
+
                    , [t| Bool |], [t| () |] -- TODO: let through `IO ()` but not `()`
-                   
+
                    , [t| Int8  |], [t| Int16  |], [t| Int32  |], [t| Int64  |]
                    , [t| Word8 |], [t| Word16 |], [t| Word32 |], [t| Word64 |]
-                  
+
                    ]
 
   qTyconsBoxed   = [ [t| Ptr |]
@@ -113,7 +113,7 @@ newFunPtr hTy = do
   mkFun <- newName . show =<< newName "to_fun_ptr" -- Make a name to thread through Haskell/Rust (see Trac #13054)
   dec <- forImpD CCall Safe "wrapper" mkFun [t| $hTy -> IO (FunPtr $hTy) |]
   addTopDecls [dec]
-  
+
   -- Call FFI
   pure (VarE mkFun)
 
@@ -141,7 +141,7 @@ withFunPtr hTy = do
                     }
     |]
 
--- | TH utility for converting function pointers back into Haskell functions. 
+-- | TH utility for converting function pointers back into Haskell functions.
 -- Remember to use the 'functions' context. Note that the function is only
 -- valid as long as the function pointer.
 --
@@ -154,7 +154,7 @@ unFunPtr hTy = do
   unFun <- newName . show =<< newName "dyn" -- Make a name to thread through Haskell/Rust (see Trac #13054)
   dec <- forImpD CCall Safe "dynamic" unFun [t| FunPtr $hTy -> $hTy |]
   addTopDecls [dec]
-  
+
   -- Call FFI
   pure (VarE unFun)
 

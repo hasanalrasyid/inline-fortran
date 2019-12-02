@@ -1,5 +1,5 @@
 {-|
-Module      : Language.Rust.Inline.TH.Utilities
+Module      : Language.Fortran.Inline.TH.Utilities
 Description : Generate Storable instances
 Copyright   : (c) Alec Theriault, 2018
 License     : BSD-style
@@ -9,7 +9,7 @@ Portability : GHC
 -}
 {-# LANGUAGE RankNTypes #-}
 
-module Language.Rust.Inline.TH.Utilities (
+module Language.Fortran.Inline.TH.Utilities (
   getConstructors,
   varName,
   getAllVars,
@@ -77,7 +77,7 @@ getTyConOpt = fmap (\(n, argsRev) -> (n, reverse argsRev)) . go
     go (AppT t1 t2) = fmap (\(n, args) -> (n, t2 : args)) (go t1)
     go (InfixT t1 n t2) = pure (n, [t1, t2])
     go (ParensT t) = go t
-    go _ = Nothing 
+    go _ = Nothing
 
 
 -- | Extract the fields from a constructor, applying a substitution along the
@@ -90,7 +90,7 @@ getSubCon _    _ = fail "processCon: unsupported constructor type"
 
 -- | Extract all of the type variables from a type
 getAllVars :: Type -> [Name]
-getAllVars = collect getVar 
+getAllVars = collect getVar
   where
   getVar :: Typeable a => a -> [Name]
   getVar x = case cast x of

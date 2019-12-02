@@ -14,9 +14,9 @@ Portability : GHC
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MagicHash #-}
 
-module Language.Rust.Inline.Context where
+module Language.Fortran.Inline.Context where
 
-import Language.Rust.Inline.Pretty ( renderType )
+import Language.Fortran.Inline.Pretty ( renderType )
 
 import Language.Fortran.Quote         ( ty )
 import Language.Fortran.Syntax        ( Ty(..), Abi(..), FnDecl(..),

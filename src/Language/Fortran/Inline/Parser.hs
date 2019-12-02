@@ -9,9 +9,9 @@ Portability : GHC
 -}
 {-# LANGUAGE FlexibleContexts #-}
 
-module Language.Rust.Inline.Parser where
+module Language.Fortran.Inline.Parser where
 
-import Language.Rust.Inline.Pretty ( renderType )
+import Language.Fortran.Inline.Pretty ( renderType )
 
 import Language.Fortran.Syntax        ( Token(..), Delim(..), Ty(..), LitTok(..), Expr(..))
 import Language.Fortran.Parser

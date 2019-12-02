@@ -8,7 +8,7 @@ Stability   : experimental
 Portability : GHC
 -}
 
-module Language.Rust.Inline.Pretty (
+module Language.Fortran.Inline.Pretty (
   renderType,
   renderExpr,
   renderItem,

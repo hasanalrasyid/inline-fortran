@@ -1,5 +1,5 @@
 {-|
-Module      : Language.Rust.Inline.Internal
+Module      : Language.Fortran.Inline.Internal
 Description : Manages the module-level state
 Copyright   : (c) Alec Theriault, 2017
 License     : BSD-style
@@ -9,7 +9,7 @@ Portability : GHC
 -}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Language.Rust.Inline.Internal (
+module Language.Fortran.Inline.Internal (
   emitCodeBlock,
   getRType,
   getHType,
@@ -20,7 +20,7 @@ module Language.Rust.Inline.Internal (
   setCrateModule,
 ) where
 
-import Language.Rust.Inline.Context
+import Language.Fortran.Inline.Context
 
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax

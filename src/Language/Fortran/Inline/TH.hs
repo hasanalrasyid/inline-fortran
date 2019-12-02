@@ -1,12 +1,12 @@
 
-module Language.Rust.Inline.TH ( adtCtx, rustTyCtx, mkStorable, mkTupleStorable ) where
+module Language.Fortran.Inline.TH ( adtCtx, rustTyCtx, mkStorable, mkTupleStorable ) where
 
-import Language.Rust.Inline.TH.Utilities  ( getTyConOpt, getTyCon )
-import Language.Rust.Inline.TH.ReprC
-import Language.Rust.Inline.TH.Storable ( mkStorable, mkTupleStorable )
-import Language.Rust.Inline.Context
-import Language.Rust.Inline.Internal
-import Language.Rust.Inline.Pretty
+import Language.Fortran.Inline.TH.Utilities  ( getTyConOpt, getTyCon )
+import Language.Fortran.Inline.TH.ReprC
+import Language.Fortran.Inline.TH.Storable ( mkStorable, mkTupleStorable )
+import Language.Fortran.Inline.Context
+import Language.Fortran.Inline.Internal
+import Language.Fortran.Inline.Pretty
 
 import Language.Haskell.TH ( Name, Q, TypeQ, Type(ForallT) )
 import Language.Haskell.TH.Lib ( appT, conT )

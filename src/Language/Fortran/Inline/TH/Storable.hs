@@ -1,5 +1,5 @@
 {-|
-Module      : Language.Rust.Inline.TH.Storable
+Module      : Language.Fortran.Inline.TH.Storable
 Description : Generate Storable instances
 Copyright   : (c) Alec Theriault, 2018
 License     : BSD-style
@@ -13,12 +13,12 @@ Portability : GHC
 {-# LANGUAGE FlexibleInstances #-}
 {-# OPTIONS_GHC -Wwarn #-}         -- TODO: GHC bug around "unused pattern binds" in splices
                                    -- TODO: GHC feature around setting extensions from within TH
-module Language.Rust.Inline.TH.Storable (
+module Language.Fortran.Inline.TH.Storable (
   mkStorable,
   mkTupleStorable,
 ) where
 
-import Language.Rust.Inline.TH.Utilities
+import Language.Fortran.Inline.TH.Utilities
 
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax hiding (lift)
@@ -43,7 +43,7 @@ mkStorable :: TypeQ    -- ^ a type representing the desired instance head
            -> Q [Dec]  -- ^ the instance declaration
 mkStorable tyq = do
   pseudoInstHead <- tyq
-  
+
   -- Extract the context
   storable <- [t| Storable |]
   (ctx, ty') <-
@@ -56,7 +56,7 @@ mkStorable tyq = do
   (_,cons') <- getConstructors ty'
 
   -- Produce the instance
-  methods <- processADT [ (nameCon n, tyArgs) | (n,tyArgs) <- cons' ] 
+  methods <- processADT [ (nameCon n, tyArgs) | (n,tyArgs) <- cons' ]
   dec <- instanceD (pure ctx) (pure (AppT storable ty')) (map pure methods)
   pure [dec]
 
@@ -85,7 +85,7 @@ nameCon :: Name -> Constructor
 nameCon n = Constructor (ConP n) (foldl AppE (ConE n))
 
 tupCon :: Constructor
-tupCon = Constructor TupP TupE 
+tupCon = Constructor TupP TupE
 
 
 -- * Alignment
@@ -95,10 +95,10 @@ tupCon = Constructor TupP TupE
 data Alignment = Alignment
   { decs        :: [Dec]
   -- ^ declarations for variables relied on by offset and align
-  
+
   , offsetSoFar :: TExp Int
   -- ^ total bytes occupied so far by fields
-  
+
   , alignSoFar  :: TExp Int
   -- ^ size (in bytes) of the largest member in the struct
   }
@@ -110,7 +110,7 @@ instance Semigroup (Q Alignment) where
     newDecs <- (++) <$> fmap decs a1 <*> fmap decs a2
     newOff  <- [|| $$(offsetSoFar <$> a1) `max` $$(offsetSoFar <$> a2) ||]
     newAln  <- [|| $$(alignSoFar  <$> a1) `max` $$(alignSoFar  <$> a2) ||]
-    pure $ Alignment newDecs newOff newAln 
+    pure $ Alignment newDecs newOff newAln
 
 -- | The 'mconcat' method calls 'maximum'
 instance Monoid (Q Alignment) where
@@ -130,7 +130,7 @@ listTE :: [TExp a] -> TExp [a]
 listTE = TExp . ListE . map unType
 
 
--- * Peek and poke helper functions 
+-- * Peek and poke helper functions
 
 -- | Produces a 'do' block for peeking a constructor. The generated code has the
 -- following shape:
@@ -205,7 +205,7 @@ processField ty = do
   let newOffE :: Q (TExp Int)
       newOffE = [|| $$beginOff + $$sizeTy ||]
   newOff <- lift (TExp <$> varE newOffV)
-  assignNewOff <- lift [d| $(varP newOffV) = $(unType <$> newOffE) |] 
+  assignNewOff <- lift [d| $(varP newOffV) = $(unType <$> newOffE) |]
 
   -- alignment after this field
   newAlignV <- lift $ newName "algn"
@@ -213,7 +213,7 @@ processField ty = do
       newAlignE = [|| $$alignTy `max` $$(pure prevAlign) ||]
   newAlign <- lift (TExp <$> varE newAlignV)
   assignNewAlign <- lift [d| $(varP newAlignV) = $(unType <$> newAlignE) |]
-  
+
   -- update state
   put (Alignment { decs = concat [ assignBeginOff
                                  , assignNewOff
@@ -238,7 +238,7 @@ processADT :: [(Constructor, [Type])]  -- ^ constructors and the types of their 
 
 -- The one constructor case is special - we don't need to specify a tag
 processADT [(con, fields)] = do
-  
+
   initAlign <- mempty
   (peekPokes, Alignment ds off algn)
     <- runStateT (traverse processField fields) initAlign
@@ -258,7 +258,7 @@ processADT [(con, fields)] = do
     funD alignmentN [clause [wildP] (normalB (pure . unType $ algn)) ds']
 
   let (peekFields, pokeFields) = unzip peekPokes
-  
+
   -- peek
   peek_ <- do
     ptr <- newName "ptr"
