@@ -3,7 +3,7 @@
 
 module Main where
 
-import Language.Rust.Inline
+import Language.Fortran.Inline
 import Data.Int
 --import Language.C.Inline
 import Foreign
@@ -102,7 +102,7 @@ c     print *, "test v1",$vec(v1:inout:real:1)(1)
       print *, "adalah lagi ix ",ix
       do 300 j = 1,3
       do 301 i = 1,3
-          $vec(v:inout:real:2)(i,j) = l
+          $vec(v:inout:real:0)(i,j) = l
           l = l + 1
   301   continue
   300 continue
