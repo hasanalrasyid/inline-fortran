@@ -7,3 +7,4 @@ inline-fortran.cabal
 inline-fortran-exe
 _stack-work.local*
 .inline-fortran
+stack.yaml.lock
