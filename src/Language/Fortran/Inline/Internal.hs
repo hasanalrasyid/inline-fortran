@@ -160,24 +160,14 @@ cargoFinalizer extraArgs dependencies = do
     runIO $ putStrLn se
     reportError $ unlines [rustcErrMsg, se]
 
-  {-
-  -- Run Cargo again to get the static library path
-  jOuts <- runIO $ readProcess "cargo" (cargoArgs ++ msgFormat) ""
-  let jOut = last (lines jOuts)
-  rustLibFp <-
-    case decode jOut of
-      Error msg -> fail ("cargoFinalizer: " ++ msg)
-      Ok jObj -> case lookup "filenames" (fromJSObject jObj) of
-                   Just (JSArray [ JSString jStr ]) -> pure (fromJSString jStr)
-                   _ -> fail ("cargoFinalizer: did not find one static library")
-  -}
   -- Move the library to a GHC temporary file
   let ext = ".o"
   rustLibFp' <- addTempFile ext
   runIO $ copyFile (dir </> thisFile -<.> "o") rustLibFp'
 
+  runIO $ putStrLn $ "====cargoFinalizer: rustLibFp'" ++ show rustLibFp'
   -- Link in the static library
-  addForeignFilePath RawObject rustLibFp'
+  addForeignFilePath RawObject (dir </> thisFile -<.> "o")
 
 -- | Error message to display when @cargo@/@rustc@ fail to compile the module's
 -- Rust file. Unfortunately, [errors reported by TH are always followed by the
@@ -204,15 +194,6 @@ fileFinalizer = do
   Just cb <- getQ
   Just (Context (_,_,impls)) <- getQ
   let code = showsCodeBlocks cb ""
-    {-
-           . showString "pub mod marshal {\n"
-           . showString "#[allow(unused_imports)] use super::*;\n"
-           . showString "pub trait MarshalInto<T> { fn marshal(self) -> T; }\n"
-           . appEndo (foldMap (\s -> Endo (showString s . showString "\n")) impls)
-           . showString "}\n"
-           . showString "#[allow(unused_imports)]  use self::marshal::*;\n"
-           $ ""
-           -}
 
   -- Write out the file
   runIO $ putStrLn $ "creating directory: " ++ dir

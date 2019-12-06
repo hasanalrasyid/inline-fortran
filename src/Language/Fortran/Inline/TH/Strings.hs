@@ -38,6 +38,47 @@ int compare ( char **s0, char *t );
 int endcard ( char *s );
 void get_name ( char *s, char *f );
 void split_file ( FILE *file_input );
+size_t sgets (char *inBuf, size_t n, char *outBuf);
+
+size_t sgets (char *inBuf, size_t n, char *outBuf)
+{
+    size_t len = 0;
+    unsigned char *s;
+    unsigned char *p, *t;
+
+    if (n <= 0)             /* sanity check */
+            return (-1);
+
+    p =  inBuf;
+    s = outBuf;
+
+    n--;                    /* leave space for NUL */
+
+    while (n != 0) {
+
+        len = n;
+        t = memchr((void *)p, '\n', strlen(p));
+
+        //printf ("'p' found at position %d.\n", t -p + 1);
+
+        if (t != NULL) {
+            len = ++t -p;
+            (void)memcpy((void *)s, (void *)p, len);
+            s[len] = 0;
+            return len;
+        }
+
+        (void)memcpy((void *)s, (void *)p, len);
+        s += len;
+        n -= len;
+
+    }
+
+    *s = 0;
+
+    return len;
+
+}
 
 /******************************************************************************/
 
@@ -370,6 +411,123 @@ void get_name ( char *s, char *f )
   return;
 }
 /******************************************************************************/
+
+void split_string ( FILE *file_input)
+{
+  char file_out_name[NAMELENGTH];
+  char file_temp_name[NAMELENGTH];
+  FILE *file_temp;
+  int i;
+  char in[BIG];
+  int nline;
+/*
+  Set FILE_TEMP_NAME to a template name.
+*/
+  strcpy ( file_temp_name, "fsplit.XXXXX" );
+/*
+  MKSTEMP replaces the 'X' characters in FILE_TEMP_NAME by characters that
+  result in a unique file name.
+*/
+  ( void ) mkstemp ( file_temp_name );
+/*
+  Open the temporary file for write access.
+*/
+  file_temp = fopen ( file_temp_name, "w" );
+
+  if ( file_temp == NULL )
+  {
+    fprintf ( stderr, "\n" );
+    fprintf ( stderr, "FSPLIT90: Error!\n" );
+    fprintf ( stderr, "  Can't open temporary file %s.\n", file_temp_name );
+    exit ( EXIT_FAILURE );
+  }
+/*
+  Read a line from the input unit.
+*/
+  nline = 0;
+
+  while ( fgets ( in, BIG, file_input ) != NULL )
+  {
+    nline = nline + 1;
+/*
+  If the line is a comment line, output it, and get the next line.
+  We're really hoping to see a module name.
+*/
+    if ( *in=='c' || *in=='C' || *in=='*' || *in=='!' )
+    {
+      fputs ( in, file_temp );
+      continue;
+    }
+
+    for ( i = 0; i < 80; i++ )
+    {
+      if ( in[i] == '\0' || in[i] == '\n')
+      {
+        i = 80;
+        break;
+      }
+
+      if (in[i] != ' ' && in[i] != '\t')
+      {
+        break;
+      }
+    }
+
+    if ( i == 80 )
+    {
+      fputs ( in, file_temp );
+      continue;
+    }
+
+    get_name ( in, file_out_name );
+
+    if ( unlink(file_out_name),link(file_temp_name, file_out_name) == -1 ||
+         unlink(file_temp_name) == -1)
+    {
+      fprintf ( stderr, "\n" );
+      fprintf ( stderr, "FSPLIT90: Error!\n" );
+      fprintf ( stderr, "  Cannot move %s to %s\n", file_temp_name, file_out_name );
+      exit ( EXIT_FAILURE );
+    }
+
+    printf ( "%s\n", file_out_name );
+
+    fputs ( in, file_temp );
+/*
+  Write all subsequent lines to this file until an END statement is encountered.
+*/
+    while ( !endcard(in) && fgets(in, BIG, file_input) )
+    {
+      fputs ( in, file_temp );
+    }
+/*
+  Close the current file, and open the next temporary file.
+*/
+    ( void ) fclose ( file_temp );
+
+    file_temp = fopen ( file_temp_name, "w" );
+
+    if ( file_temp == NULL )
+    {
+      fprintf ( stderr, "\n" );
+      fprintf ( stderr, "FSPLIT90: Error:\n" );
+      fprintf ( stderr, "  Can't open temporary file %s.", file_temp_name );
+      exit ( EXIT_FAILURE );
+    }
+
+  }
+
+  if ( unlink ( file_temp_name ) == -1)
+  {
+    fprintf ( stderr, "\n" );
+    fprintf ( stderr, "FSPLIT90: Error:\n" );
+    fprintf ( stderr, "  Couldn't remove the temp file %s\n", file_temp_name );
+    exit ( EXIT_FAILURE );
+  }
+
+  return;
+}
+
 
 void split_file ( FILE *file_input )
 

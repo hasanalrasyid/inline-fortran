@@ -415,9 +415,6 @@ processQQ safety isPure (QQParse _ rustNamedArgs locVars rustBody ) = do
              -> [(String, Bool, Ty Span)]  -- ^ remaining arguments to process
              -> Q Exp             -- ^ FFI call
 
-      -- Once we run out of arguments we call the quasiquote function with all the
-      -- accumulated arguments. If the return value is not marshallable, we have to
-      -- 'alloca' some space to put the return value.
       goArgs acc []
         | returnFfi /= BoxedIndirect = appsE (varE qqName : reverse acc)
         | otherwise = do
@@ -427,23 +424,12 @@ processQQ safety isPure (QQParse _ rustNamedArgs locVars rustBody ) = do
                      ; peek $(varE ret)
                      }) |]
 
-      -- If an argument is by value, we just stack it into the accumulated arguments.
-      -- Otherwise, we use 'with' to get a pointer to its stack position.
-      -- goArgs acc ((argStr, byVal,rustArg) : args) = do
       goArgs acc ((argStr,_ ,rustArg) : args) = do
         arg <- lookupValueName argStr
         case arg of
           Nothing -> fail ("Could not find Haskell variable ‘" ++ argStr ++ "’")
           Just argName -> do
             withVar goArgs argName acc args (HaskVar rustArg)
-            {-
-            | byVal -> goArgs (varE argName : acc) args
-            | otherwise -> do
-                          x <- newName "x"
-                          runIO $ putStrLn $ "goArgs argName:" ++ argStr
-                          [e| with $(varE argName) (\( $(varP x) ) ->
-                                $(goArgs (varE x : acc) args)) |]
-                                -}
   let haskCall' = goArgs [] (zip3 rustArgNames argsByVal rustArgs1)
       haskCall = if isPure && returnFfi /= UnboxedDirect
                    then [e| unsafeLocalState $haskCall' |]
@@ -457,19 +443,6 @@ processQQ safety isPure (QQParse _ rustNamedArgs locVars rustBody ) = do
       mergeArgs t (Just tInter) = (fmap (const mempty) tInter, t)
 
   -- Generate the Rust function.
-    {-
-  let retByVal = returnFfi /= BoxedIndirect
-      --(retArg, retTy, ret)
-      (_ , _ , _ )
-         | retByVal  = ( []
-                       , renderType rustRet'
-                       , "out.marshal()"
-                       )
-         | otherwise = ( ["ret_" ++ qqStrName ++ ": *mut " ++ renderType rustRet']
-                       , "()"
-                       , "unsafe { ::std::ptr::write(ret_" ++ qqStrName ++ ", out.marshal()) }"
-                       )
-         -}
   let headSubroutine' =  "      subroutine " ++ qqStrName ++
                           "(" ++ intercalate ", " rustArgNames ++ ")"
   let (h1:h1s) = chunksOf 60 headSubroutine'
@@ -477,27 +450,12 @@ processQQ safety isPure (QQParse _ rustNamedArgs locVars rustBody ) = do
 
   void . emitCodeBlock . unlines $
     [ headSubroutine
-    {-
-        intercalate ", " ([ s ++ ": " ++ marshal (renderType t)
-                                | (s,t,v) <- zip3 rustArgNames rustArgs' argsByVal
-                                , let marshal x = if v then x else "*const " ++ x
-                                ] ++ retArg) ++
-                                -}
     , case locVars of
         Just l -> unlines $ map renderFortran $ take l rustBody
         _ -> ""
     , unlines $ map renderVarStatement $ zip3 rustArgNames rustArgs' $ zip intents rustArgs1
     , unlines $ map renderFortran $ drop (fromMaybe 0 locVars) rustBody
     , "      end subroutine " ++ qqStrName
-
-  {-
-    , unlines [ "  let " ++ s ++ ": " ++ renderType t ++ " = " ++ marshal s ++ ".marshal();"
-              | (s,t,v) <- zip3 rustArgNames rustConvertedArgs argsByVal
-              , let marshal x = if v then x else "unsafe { ::std::ptr::read(" ++ x ++ ") }"
-              ]
-    , "  let out: " ++ renderType rustConvertedRet ++ " = (|| {" ++ renderTokens rustBody ++ "})();"
-    , "  " ++ ret
-              -}
     ]
 
   -- Return the Haskell call to the FFI import
