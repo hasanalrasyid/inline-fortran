@@ -17,7 +17,7 @@ in
 nixpkgs.haskell.lib.buildStackProject {
   inherit ghc;
   name = "inline-fortran";
-  buildInputs = [ git hlint protobuf haskellPackages.stylish-haskell zlib gfortran gfortran.cc haskellPackages.language-rust ];
+  buildInputs = [ git hlint protobuf haskellPackages.stylish-haskell zlib gfortran gfortran.cc haskellPackages.happy haskellPackages.alex eigen ];
   doHaddock = false;
   doCheck = false;
 }

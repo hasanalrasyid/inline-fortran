@@ -334,24 +334,24 @@ gt :: { () }
 -------------
 
 -- | One or more occurences of 'p'
-some(p) :: { Reversed NonEmpty _ }
+some(p) :: { Reversed NonEmpty p }
   : some(p) p             { let Reversed xs = $1 in Reversed ($2 <| xs) }
   | p                     { [$1] }
 
 -- | One or more occurences of 'p', seperated by 'sep'
-sep_by1(p,sep) :: { Reversed NonEmpty _ }
+sep_by1(p,sep) :: { Reversed NonEmpty p }
   : sep_by1(p,sep) sep p  { let Reversed xs = $1 in Reversed ($3 <| xs) }
   | p                     { [$1] }
 
 
 -- | One or more occurrences of 'p', seperated by 'sep', optionally ending in 'sep'
-sep_by1T(p,sep) :: { Reversed NonEmpty _ }
+sep_by1T(p,sep) :: { Reversed NonEmpty p }
   : sep_by1(p,sep) sep    { $1 }
   | sep_by1(p,sep)        { $1 }
 
 -- | Zero or more occurences of 'p', seperated by 'sep', optionally ending in 'sep' (only if there
 -- is at least one 'p')
-sep_byT(p,sep) :: { [ _ ] }
+sep_byT(p,sep) :: { [ p ] }
   : sep_by1T(p,sep)       { toList $1 }
   | {- empty -}           { [] }
 
