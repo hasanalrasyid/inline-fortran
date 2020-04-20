@@ -78,11 +78,34 @@ library:
   source-dirs:
     - src
     - lang
-  extra-libraries:  gfortran #    gsl gslcblas m
+  extra-libraries:  gfortran quadmath #    gsl gslcblas m
+  other-extensions:
+    TemplateHaskell
   ghc-options:
     - -ddump-splices
     - -ddump-to-file
     - -Wall
+# exposed-modules:  Language.Fortran.Pretty
+#                   Language.Fortran.Parser
+#                   Language.Fortran.Parser.Literals
+#                   Language.Fortran.Parser.ParseMonad
+#                   Language.Fortran.Parser.Reversed
+#                   Language.Fortran.Syntax
+#                   Language.Fortran.Quote
+#                   Language.Fortran.Pretty.Util
+#                   Language.Fortran.Pretty.Literals
+#                   Language.Fortran.Pretty.Resolve
+#                   Language.Fortran.Pretty.Internal
+#                   Language.Fortran.Syntax.AST
+#                   Language.Fortran.Syntax.Token
+
+# other-modules:  Language.Fortran.Parser.Literals
+#                 Language.Fortran.Parser.Reversed
+#                 Language.Fortran.Pretty.Resolve
+#                 Language.Fortran.Pretty.Literals
+#                 Language.Fortran.Pretty.Util
+#                 Language.Fortran.Syntax.AST
+#                 Language.Fortran.Syntax.Token
 
 #executables:
 tests:

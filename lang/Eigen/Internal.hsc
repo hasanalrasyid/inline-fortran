@@ -6,7 +6,7 @@
 
 {-# LANGUAGE AllowAmbiguousTypes       #-}
 {-# LANGUAGE BangPatterns              #-}
-{-# LANGUAGE CPP                       #-} 
+{-# LANGUAGE CPP                       #-}
 {-# LANGUAGE EmptyDataDecls            #-}
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE FlexibleInstances         #-}
@@ -213,7 +213,7 @@ instance Storable a => Binary (VS.Vector a) where
         (fp,fs) = VS.unsafeToForeignPtr0 vs
         es = sizeOf (VS.head vs)
         bs = BSI.fromForeignPtr (castForeignPtr fp) 0 (fs * es)
-        
+
     get = get >>= getByteString >>= \bs -> let
         (fp,fo,fs) = BSI.toForeignPtr bs
         es = sizeOf (VS.head vs)
@@ -255,6 +255,7 @@ call :: IO CString -> IO ()
 call func = func >>= \c_str -> when (c_str /= nullPtr) $
     peekCString c_str >>= \str -> c_freeString c_str >> fail str
 
+  {-
 foreign import ccall "eigen-proxy.h free" free :: Ptr a -> IO ()
 
 foreign import ccall "eigen-proxy.h eigen_setNbThreads" c_setNbThreads :: CInt -> IO ()
@@ -365,5 +366,6 @@ foreign import ccall "eigen-proxy.h eigen_getNbThreads" c_getNbThreads :: IO CIn
 #api3 sparse_la_logAbsDeterminant,  "CSolverPtr a -> Ptr (C a) -> IO CString"
 #api3 sparse_la_absDeterminant,     "CSolverPtr a -> Ptr (C a) -> IO CString"
 #api3 sparse_la_signDeterminant,    "CSolverPtr a -> Ptr (C a) -> IO CString"
+-}
 
 --------------------------------------------------------------------------------
