@@ -8,3 +8,4 @@ inline-fortran-exe
 _stack-work.local*
 .inline-fortran
 stack.yaml.lock
+*dump-splices

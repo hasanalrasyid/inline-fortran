@@ -27,18 +27,21 @@ import Language.Haskell.TH.Syntax
 
 import Control.Monad               ( when )
 import Data.Typeable               ( Typeable )
-import Data.Monoid                 ( Endo(..) )
+--import Data.Monoid                 ( Endo(..) )
 import Data.Maybe                  ( fromMaybe )
 import Data.List                   ( unfoldr )
 import Data.Char                   ( isAlpha, isAlphaNum )
 
-import System.FilePath             ( (</>), (-<.>), (<.>), takeExtension )
+import System.FilePath             ( (</>), (-<.>), (<.>)
+--                                 , takeExtension
+                                   )
 import System.Directory            ( copyFile, createDirectoryIfMissing )
-import System.Process              ( spawnProcess, readProcess, waitForProcess, readProcessWithExitCode )
+import System.Process              ( -- spawnProcess, readProcess, waitForProcess,
+                                     readProcessWithExitCode )
 import System.Exit                 ( ExitCode(..) )
 import System.Environment          ( lookupEnv, setEnv )
 
-import Text.JSON
+--import Text.JSON
 
 
 -- * Module State
@@ -135,12 +138,13 @@ getHType haskType = getHTypeInContext haskType =<< getContext
 cargoFinalizer :: [String]           -- ^ Extra @cargo@ arguments
                -> [(String, String)] -- ^ Dependencies
                -> Q ()
-cargoFinalizer extraArgs dependencies = do
+--cargoFinalizer extraArgs dependencies = do
+cargoFinalizer extraArgs _ = do
   (pkg, mods) <- currentFile
 
   let dir = ".inline-fortran" </> pkg
       thisFile = foldr1 (</>) mods <.> "f"
-      crate = "q_" ++ pkg
+--    crate = "q_" ++ pkg
   runIO $ createDirectoryIfMissing True dir
 
   inlineFFlags <- runIO $ fromMaybe "" <$> lookupEnv "INLINE_FORTRAN_FFLAGS"
@@ -152,7 +156,7 @@ cargoFinalizer extraArgs dependencies = do
                                     , "-o", dir </> thisFile -<.> "o"
                                     , dir </> thisFile
                                     ] ++ extraArgs
-      msgFormat = [ "--message-format=json" ]
+--    msgFormat = [ "--message-format=json" ]
   runIO $ putStrLn $ "cargoArgs: " ++ inlineFC ++ unwords cargoArgs
 
   (ec,_,se) <- runIO $ readProcessWithExitCode inlineFC cargoArgs ""
@@ -192,7 +196,8 @@ fileFinalizer = do
 
   -- Figure out what we are putting into this file
   Just cb <- getQ
-  Just (Context (_,_,impls)) <- getQ
+  Just (Context _) <- getQ
+--Just (Context (_,_,impls)) <- getQ
   let code = showsCodeBlocks cb ""
 
   -- Write out the file

@@ -13,10 +13,10 @@ module Language.Fortran.Inline.Parser where
 
 import Language.Fortran.Inline.Pretty ( renderType )
 
-import Language.Fortran.Syntax        ( Token(..), Delim(..), Ty(..), LitTok(..), Expr(..))
+import Language.Fortran.Syntax        ( Token(..), Delim(..), Ty(..), LitTok(..) )
 import Language.Fortran.Parser
-import Language.Rust.Data.Position ( Spanned(..), Position(..), Span(..), Located(..), unspan )
-import Language.Rust.Data.Ident    ( Ident(..), mkIdent )
+import Language.Rust.Data.Position ( Spanned(..), Position(..), Span(..) )
+import Language.Rust.Data.Ident    ( Ident(..) )
 
 import Language.Haskell.TH         ( Q, runIO )
 
@@ -90,11 +90,13 @@ parseQQ input = do
 
   -- Done!
 --  let dummy = snd $ head vars
-  let dummy = Never (Span NoPosition NoPosition)
+  let
+    dummy :: Ty Span
+    dummy = Never (Span NoPosition NoPosition)
 --  bodyToks <- fmap (rearrange) $ constructFortran $  takeWhile' bodyToks'
-  (locVars,bodyToks) <- takeWhile' bodyToks
+  (locVars,bodyToks2) <- takeWhile' bodyToks
 --  runIO $ putStrLn $ "dummy: " ++ show  bodyToks
-  bodyToks' <- cekLitTok [] bodyToks
+  bodyToks' <- cekLitTok [] bodyToks2
   pure (QQParse dummy vars locVars bodyToks')
   where
     cekLitTok r [] = pure $ reverse r
@@ -104,7 +106,7 @@ parseQQ input = do
                                 l@(Spanned (LiteralTok IntegerTok{} _) _) ->
                                   case (reads (show l) :: [(Float,String)]) of
                                     (_,""):_ -> t1
-                                    otherwise -> head $ makeLiteral [] [l]
+                                    _        -> head $ makeLiteral [] [l]
                                 _ -> t1
       cekLitTok (tt:r) ts
     takeWhile' as = do
@@ -145,11 +147,12 @@ parseQQ input = do
       runIO $ putStrLn $ "parseV: rst2: " ++ show rst2
       t1 <- case rst2 of
               FVarBase t -> parseFType t
-              FVarString d -> pure $ (FString nullSpan)
+              FVarString _ -> pure $ (FString nullSpan)
               FVarArray t (Spanned (LiteralTok (IntegerTok n) _) _) -> do
-                ty <- parseFType t
+                ty1 <- parseFType t
                 let dim = read n
-                pure $ FArray dim ty nullSpan
+                pure $ FArray dim ty1 nullSpan
+              _ -> fail $ "parseV: t1: error on case rst2"
       runIO $ putStrLn $ "parseV: t1: " ++ show t1
       -- Add it to 'vars' if it isn't a duplicate
       let i' = name i
@@ -163,18 +166,20 @@ parseQQ input = do
                    Just (t2,_) | void t1 == void t2 -> pure vars
                                | otherwise -> fail (dupMsg t2)
       pure newVars
+    parseV _ _ _ _ = return $ fail $ "parseV: sumthin wrong"
 
+    processVITDP [] = return (nullSpTok,nullSpTok,Nothing)
     processVITDP (_:vs) = do
-      let rs@(v:tIntent:res) = wordsBy isColon $ init vs
+      let (v:tIntent:res) = wordsBy isColon $ init vs
       r <- go res
       runIO $ putStrLn $ "processVITDP: r: " ++ show r
       return (head v, head tIntent,r)
         where go [] = pure Nothing
               go (t:[]) = pure $ Just (t,Nothing)
               go (t:di:_) = pure $ Just (t,Just $ head di)
-              go _ = fail $ "error processVITDP"
+--              go _ = fail $ "error processVITDP"
 
-
+    takeDollar :: Maybe Int -> [SpTok]-> [SpTok] -> Q ([SpTok],(SpTok,SpTok,FVar))
     takeDollar (Just 0) cs rs = do
       runIO $ putStrLn $ "takeDollar Just 0" ++ show cs
       fVar <- case reverse cs of
@@ -184,7 +189,7 @@ parseQQ input = do
                   return $ (v,i,FVarBase t)
                ((Spanned (IdentTok (Ident "str" _ _)) _):vidP) -> do
                   runIO $ putStrLn $ "!takeDollar: str si: " ++ show vidP
-                  si@(v,i, Just (d,_)) <- processVITDP vidP
+                  (v,i, Just (d,_)) <- processVITDP vidP
                   return $ (v,i,FVarString $ head d)
                ((Spanned (IdentTok (Ident "vec" _ _)) _):vitdP) -> do
                   runIO $ putStrLn $ "!takeDollar: vec rs" ++ show vitdP
@@ -202,6 +207,7 @@ parseQQ input = do
       | openParen r = takeDollar (Just $ 1 + i) (r:cs) rs
       | closeParen r = takeDollar (Just $ i - 1) (r:cs) rs
       | otherwise = takeDollar j (r:cs) rs
+    takeDollar _ _ [] = fail $ "takeDollar for []"
   {-
     parseBody' parCount toks vars rest = do
         case rest of
@@ -253,7 +259,6 @@ parseQQ input = do
              parseBody' parCount (pure (IdentTok i) : toks) newVars rst3
 
           (tok : rst2) -> parseBody' parCount (tok : toks) vars rst2
-    -}
     parseVars strStat vars i intent rst2@(_:r2) = do
       -- Parse the rest of the escape
       (t1, rst3) <- case strStat of
@@ -292,10 +297,15 @@ parseQQ input = do
                              Left (ParseFail _ msg) -> fail $ "parseEscape: " ++ msg
                              Right parsed           -> do
                                pure (parsed, rst2)
+    -}
 
 
 --strFType = FType (mkIdent "character") (TupExpr [] [] (Span (Position 1 227 54) (Position 10 227 63))) (Span (Position 1 227 54) (Position 10 227 63))
+strFType :: Ty Span
 strFType = FString nullSpan
+
+nullSpTok :: SpTok
+nullSpTok = Spanned Eof nullSpan
 
 makeLiteral :: [SpTok] -> [SpTok] -> [SpTok]
 makeLiteral r [] = r
@@ -315,6 +325,7 @@ openBrace :: SpTok -> Bool
 openBrace (Spanned (OpenDelim Brace) _) = True
 openBrace _ = False
 
+nullSpan :: Span
 nullSpan = Span NoPosition NoPosition
 
 -- | Identifies an open paren token

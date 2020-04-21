@@ -52,7 +52,7 @@ import Language.Fortran.Syntax.Token      ( Token )
 import Control.Exception               ( Exception )
 import Data.Maybe                      ( listToMaybe )
 import Data.Typeable                   ( Typeable )
-import Debug.Trace (trace)
+--import Debug.Trace (trace)
 
 -- | Parsing and lexing monad. A value of type @'P' a@ represents a parser that can be run (using
 -- 'execParser') to possibly produce a value of type @a@.

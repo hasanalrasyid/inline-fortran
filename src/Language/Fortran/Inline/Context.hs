@@ -27,7 +27,7 @@ import Language.Haskell.TH
 import Data.Semigroup              ( Semigroup )
 import Data.Monoid                 ( First(..) )
 import Data.Typeable               ( Typeable )
-import Control.Monad               ( void, liftM2 )
+import Control.Monad               ( void, liftM2, fail )
 import Data.Traversable            ( for )
 import Data.List                   ( intercalate )
 
@@ -37,16 +37,16 @@ import Foreign.Ptr                 ( Ptr, FunPtr )
 import Foreign.C.Types             -- pretty much every type here is used
 
 import GHC.Exts                    ( Char#, Int#, Word#, Float#, Double#,
-                                     ByteArray# )
+--                                   ByteArray#
+                                   )
 
 import qualified Control.Monad.Fail as Fail
 import Eigen.Internal -- CComplex
 import qualified Data.Vector.Storable.Mutable as VM
 import qualified Data.Vector.Storable as V
-import qualified Debug.Trace as D
+--import qualified Debug.Trace as D
 
 import Language.Rust.Data.Position
-
 
 instance Fail.MonadFail First where
   fail = error "MonadFail First error"

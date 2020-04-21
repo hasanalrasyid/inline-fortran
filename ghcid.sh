@@ -3,4 +3,5 @@ if [ -z "$1" ]; then
 else
   tipe="-Wall"
 fi
-LD_LIBRARY_PATH=./foreign/lib:$LD_LIBRARY_PATH ghcid -c "stack ghci --main-is inline-fortran:test:i --only-main --ghci-options '$tipe'"
+#LD_LIBRARY_PATH=./foreign/lib:$LD_LIBRARY_PATH stack exec ghcid -- -c "stack ghci --main-is inline-fortran:test:i --only-main --ghci-options '$tipe'"
+LD_LIBRARY_PATH=./foreign/lib:$LD_LIBRARY_PATH nix-shell shell-stack.nix --run "stack exec ghcid -- -c \"stack ghci --main-is inline-fortran:test:i --only-main --ghci-options '$tipe'\""
