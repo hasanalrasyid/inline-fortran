@@ -85,29 +85,7 @@ library:
     - -ddump-splices
     - -ddump-to-file
     - -Wall
-# exposed-modules:  Language.Fortran.Pretty
-#                   Language.Fortran.Parser
-#                   Language.Fortran.Parser.Literals
-#                   Language.Fortran.Parser.ParseMonad
-#                   Language.Fortran.Parser.Reversed
-#                   Language.Fortran.Syntax
-#                   Language.Fortran.Quote
-#                   Language.Fortran.Pretty.Util
-#                   Language.Fortran.Pretty.Literals
-#                   Language.Fortran.Pretty.Resolve
-#                   Language.Fortran.Pretty.Internal
-#                   Language.Fortran.Syntax.AST
-#                   Language.Fortran.Syntax.Token
 
-# other-modules:  Language.Fortran.Parser.Literals
-#                 Language.Fortran.Parser.Reversed
-#                 Language.Fortran.Pretty.Resolve
-#                 Language.Fortran.Pretty.Literals
-#                 Language.Fortran.Pretty.Util
-#                 Language.Fortran.Syntax.AST
-#                 Language.Fortran.Syntax.Token
-
-#executables:
 tests:
   i:
     main:                Main.hs
@@ -126,13 +104,3 @@ tests:
     - inline-fortran
     - vector
 
-#tests:
-#  inline-fortran-test:
-#    main:                Spec.hs
-#    source-dirs:         test
-#    ghc-options:
-#    - -threaded
-#    - -rtsopts
-#    - -with-rtsopts=-N
-#    dependencies:
-#    - inline-fortran
