@@ -54,7 +54,6 @@ instance Fail.MonadFail First where
 --start for Vector Context
 type CArray = Ptr
 
-
 -- Easier on the eyes
 type RType = Ty ()
 type HType = Type

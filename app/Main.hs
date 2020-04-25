@@ -5,7 +5,7 @@ module Main where
 
 import Language.Fortran.Inline
 import Language.Fortran.Inline.Utils
-import Data.Int
+--import Data.Int
 --import Language.C.Inline
 import Foreign
 import Foreign.C.Types
@@ -13,6 +13,7 @@ import qualified Data.Vector.Storable as V
 import qualified Data.Vector.Storable.Mutable as VM
 import qualified Data.Text.Foreign as T
 import qualified Data.Text as T
+import Eigen.Internal
 
 $(genWithPtrs 20)
 
@@ -22,6 +23,7 @@ extendContext fVectors
 
 setCrateRoot []
 
+main :: IO ()
 main = do
   putStrLn "Haskell: Hello. Enter a number:"
   let angstr  = 1/0.5291769
@@ -42,6 +44,8 @@ main = do
   let sInit = T.append sInit' $ T.replicate (256 - T.length sInit') "X"
   let vInit = V.fromList $ take 9 [0,0 .. ] :: V.Vector Float
   let vInit1 = V.fromList $ take 9 [0,0 .. ] :: V.Vector Float
+  let vInitCComplex = V.fromList $ take 9 $ repeat (CComplex 0 0) :: V.Vector (CComplex Double)
+  putStrLn $ "Haskell: says vInitCComplex: " ++ show vInitCComplex
 --  v <- V.thaw vm
   putStrLn $ "Haskell: says vInit: " ++ (show vInit)
   putStrLn $ "Haskell: says x: " ++ (show ix)
@@ -127,32 +131,49 @@ c     print *, "test v1",$vec(v1:inout:real:1)(1)
   putStrLn $ "Haskell: says v changed    : " ++ (show vInit)
   putStrLn $ "Haskell: says ix unchanged : " ++ (show ix)
   hSep ""
-  u1 <- VM.replicate 1 1
-  u2 <- VM.replicate 1 2
-  u3 <- VM.replicate 1 3
-  u4 <- VM.replicate 1 4
-  unsafeWithVectors [u1,u2,u3,u4] $ \l@(u1:u2:u3:u4:_) -> do
+  ua1 <- VM.replicate 2 1 :: IO (VM.IOVector Double)
+  ua2 <- VM.replicate 2 2 :: IO (VM.IOVector Double)
+  ua3 <- VM.replicate 2 3 :: IO (VM.IOVector Double)
+  ua4 <- VM.replicate 2 4 :: IO (VM.IOVector Double)
+  let uas = [ua1,ua2,ua3,ua4]
+  unsafeWithVectors uas $ \(u1:u2:u3:u4:_) -> do
+--  (flip mapM_) l $ \p -> do
+--    t <- peek p
+--    poke p $ t * t
+--    tt <- peek p :: IO Double
+--    putStrLn $ show tt
+    [fortIO|
+      IMPLICIT NONE
+      integer :: i
+      dimension u1(2)
+      $vec(u1:inout:real(kind=8):0)(1) = 3
+      do 300 i=1,2
+        u1(i) = 33*i
+  300 continue
+      print*,"test u1:",u1
+    |]
+  uasFrozen <- mapM V.unsafeFreeze uas
+  putStrLn $ "uas: " ++ show uasFrozen
+  hSep ""
+--a <- mapM V.unsafeFreeze [ua1,ua2,ua3,ua4]
+--putStrLn $ "a:" ++ show a
+  b <- withPtrs3 $ \l -> do -- \l@(a1:a2:a3:[]) -> do
     (flip mapM_) l $ \p -> do
       t <- peek p
-      poke p $ t*t
-      tt <- peek p :: IO Int
-      putStrLn $ show tt
-  a <- mapM V.unsafeFreeze [u1,u2,u3,u4]
-  putStrLn $ show a
-  b <- withPtrs3 $ \l@(a1:a2:a3:[]) -> do
-    (flip mapM_) l $ \p -> do
-      t <- peek p
-      poke p $ 2
+      poke p $ 2 * t
       tt <- peek p :: IO Int
       putStrLn $ show tt
   putStrLn $ show b
 -- Utils
+  hSep ""
   splitF90 "test/f90split_test.f90"
+  hSep ""
   test2
 
 --withPtrs3 :: (V.Storable a) => ([Ptr a] -> IO ()) -> IO [a]
 --withPtrs3 = $(withPtrsN 3)
 
+hSep :: String -> IO ()
 hSep s = putStrLn $ take 70 $ "===" ++ s ++ (repeat '=')
 
 vectorFromC :: Storable a => Int -> Ptr a -> IO (V.Vector a)
@@ -165,10 +186,10 @@ vectorToC vec len ptr = do
   ptr' <- newForeignPtr_ ptr
   V.copy (VM.unsafeFromForeignPtr0 ptr' len) vec
 
-
+test2 :: IO ()
 test2 = do
   putStrLn "====test2"
-  nax <- withPtr $ \nax -> do
+  (nax,_) <- withPtr $ \nax -> do
     poke nax 888
     [fortIO|
       print *,'this is testing'
@@ -176,4 +197,5 @@ test2 = do
       nax = 777
 
     |]
-  putStrLn "===!test2"
+  putStrLn $ "nax: " ++ show (nax :: CInt)
+  putStrLn $ "===!test2"

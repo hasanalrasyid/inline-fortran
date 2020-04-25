@@ -162,7 +162,7 @@ cargoFinalizer extraArgs _ = do
   (ec,_,se) <- runIO $ readProcessWithExitCode inlineFC cargoArgs ""
   when (ec /= ExitSuccess) $ do
     runIO $ putStrLn se
-    reportError $ unlines [rustcErrMsg, se]
+    reportError $ unlines [fortErrMsg, se]
 
   -- Move the library to a GHC temporary file
   let ext = ".o"
@@ -180,8 +180,8 @@ cargoFinalizer extraArgs _ = do
 -- TODO: is there a way to avoid this?
 --
 -- [0]: https://stackoverflow.com/questions/47598270/whole-file-template-haskell-error
-rustcErrMsg :: String
-rustcErrMsg = "Rust source file associated with this module failed to compile"
+fortErrMsg :: String
+fortErrMsg = "Fortran source file associated with this module failed to compile"
 
 -- | A finalizer to write out a Rust source file when we are done processing
 -- a module. This emits into a file in the @.inline-fortran@ directory all of the

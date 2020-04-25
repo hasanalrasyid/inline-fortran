@@ -249,13 +249,11 @@ plusForeignPtr fp fo = castForeignPtr fp1 where
     vs = VS.unsafeFromForeignPtr (castForeignPtr fp) fo 0
     (fp1, _) = VS.unsafeToForeignPtr0 vs
 
-foreign import ccall "eigen-proxy.h free" c_freeString :: CString -> IO ()
-
+  {-
 call :: IO CString -> IO ()
 call func = func >>= \c_str -> when (c_str /= nullPtr) $
     peekCString c_str >>= \str -> c_freeString c_str >> fail str
 
-  {-
 foreign import ccall "eigen-proxy.h free" free :: Ptr a -> IO ()
 
 foreign import ccall "eigen-proxy.h eigen_setNbThreads" c_setNbThreads :: CInt -> IO ()
