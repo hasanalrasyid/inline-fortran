@@ -1,0 +1,11 @@
+call subroutine in haskell:
+  syntax:
+      call $(subroutine:routineNameInHaskell)(params)
+  routineNameInHaskell should be returned as IO ()
+
+
+call a function in haskell:
+  syntax:
+      x = $(function:functionNameInHaskell)(param)
+  functionNameInHaskell should be pure function, and strict
+
