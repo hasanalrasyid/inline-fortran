@@ -72,32 +72,34 @@ parseQQ input = do
 
   {- No need for leading type, we can go straight to body
       it means body need no brace
+  REVISED:
+  we need leading type, we switch openbrace with ::
+-}
   -- Split off the leading type's tokens
   (tyToks, rest2) <-
-    case break openBrace rest1 of
+    case break doubleColon rest1 of
       (_, []) -> fail "Ran out of input parsing leading type in quasiquote"
-      (tyToks, brace : rest2) -> pure (tyToks, brace : rest2)
-
+      (tyToks, _ : rest2) -> pure (tyToks, rest2)
   -- Parse leading type
   leadingTy <-
     case parseFromToks tyToks of
       Left (ParseFail _ msg) -> fail msg
       Right parsed -> pure parsed
---}
+--
 
   -- Parse body of quasiquote
-  (bodyToks, vars) <- parseBody [] [] rest1
+  (bodyToks, vars) <- parseBody [] [] rest2
 
   -- Done!
 --  let dummy = snd $ head vars
-  let
-    dummy :: Ty Span
-    dummy = Never (Span NoPosition NoPosition)
+--let
+--  dummy :: Ty Span
+--  dummy = Never (Span NoPosition NoPosition) -- this should be return value
 --  bodyToks <- fmap (rearrange) $ constructFortran $  takeWhile' bodyToks'
   (locVars,bodyToks2) <- takeWhile' bodyToks
 --  runIO $ putStrLn $ "dummy: " ++ show  bodyToks
   bodyToks' <- cekLitTok [] bodyToks2
-  pure (QQParse dummy vars locVars bodyToks')
+  pure (QQParse leadingTy vars locVars bodyToks')
   where
     cekLitTok r [] = pure $ reverse r
     cekLitTok r (t:ts) = do
@@ -334,6 +336,10 @@ nullSpan = Span NoPosition NoPosition
 openParen :: SpTok -> Bool
 openParen (Spanned (OpenDelim Paren) _) = True
 openParen _ = False
+
+doubleColon :: SpTok -> Bool
+doubleColon (Spanned ModSep _) = True
+doubleColon _ = False
 
 -- | Identifies a close paren token
 closeParen :: SpTok -> Bool

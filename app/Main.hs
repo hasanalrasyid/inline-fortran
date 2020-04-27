@@ -55,7 +55,7 @@ main = do
     xp <- withPtr $ \x -> do -- this is for output
       V.unsafeWith vInit1 $ \v1 -> do
         T.withCStringLen sInit $ \(sInit,_) -> do
-          [fortIO|
+          [fortIO| () ::
 ! # C macro dideteksi di level haskell... unexpected... but OK or better
 #if defined (CPP)
       use module3
@@ -144,7 +144,7 @@ c     print *, "test v1",$vec(v1:inout:real:1)(1)
 --    poke p $ t * t
 --    tt <- peek p :: IO Double
 --    putStrLn $ show tt
-    [fortIO|
+    [fortIO| () ::
       IMPLICIT NONE
       integer :: i
       dimension u1(2)
@@ -153,7 +153,6 @@ c     print *, "test v1",$vec(v1:inout:real:1)(1)
         u1(i) = 33*i
   300 continue
       print*,"test u1:",u1
-
     |]
   uasFrozen <- mapM V.unsafeFreeze uas
   putStrLn $ "uas: " ++ show uasFrozen
@@ -180,8 +179,8 @@ c     print *, "test v1",$vec(v1:inout:real:1)(1)
 
 test3 :: IO ()
 test3 = do
-  x <- $(withFunPtr [t| Double -> Double |]) (\x -> x^2 + 1) $ return 6
     {-
+  x <- $(withFunPtr [t| Double -> Double |]) (\x -> x^2 + 1) $
           [fortIO|
 c     f = $(func: extern "C" fn(64) -> f64)
 c     f(9.1)
@@ -209,7 +208,7 @@ test2 = do
   {-
   (nax,_) <- withPtr $ \nax -> do
     poke nax 888
-    [fortIO|
+    [fortIO| () ::
       external pureFunc
 
       real(kind = 8) :: d1

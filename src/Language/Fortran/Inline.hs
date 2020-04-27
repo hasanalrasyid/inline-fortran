@@ -346,7 +346,7 @@ showTy = show . pprParendType
 --       right Haskell arguments.
 --
 processQQ :: Safety -> Bool -> RustQuasiquoteParse -> Q Exp
-processQQ safety isPure (QQParse _ rustNamedArgs locVars rustBody ) = do
+processQQ safety isPure (QQParse rustRet rustNamedArgs locVars rustBody ) = do
 
   -- Make a name to thread through Haskell/Rust (see Trac #13054)
   q <- runIO randomIO :: Q Int16
@@ -365,6 +365,7 @@ processQQ safety isPure (QQParse _ rustNamedArgs locVars rustBody ) = do
   haskRet <- [t| () |]  -- this means haskRet will be always void in C
 --  runIO $ putStrLn $ "rustArgs:" ++ show rustArgs
 --  runIO $ putStrLn $ "intents:" ++ show intents
+  runIO $ putStrLn $ "rustRet: " ++ show rustRet
   (haskArgs, reprCArgs) <- unzip <$> traverse (getRType . void) rustArgs
 
   -- Convert the Haskell return type to a marshallable FFI type
