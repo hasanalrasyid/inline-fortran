@@ -1,5 +1,6 @@
 {-# LANGUAGE TemplateHaskell, QuasiQuotes #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ForeignFunctionInterface #-}
 
 module Main where
 
@@ -20,6 +21,7 @@ $(genWithPtrs 20)
 extendContext basic
 --extendContext vectors
 extendContext fVectors
+extendContext functions
 
 setCrateRoot []
 
@@ -151,6 +153,7 @@ c     print *, "test v1",$vec(v1:inout:real:1)(1)
         u1(i) = 33*i
   300 continue
       print*,"test u1:",u1
+
     |]
   uasFrozen <- mapM V.unsafeFreeze uas
   putStrLn $ "uas: " ++ show uasFrozen
@@ -169,9 +172,23 @@ c     print *, "test v1",$vec(v1:inout:real:1)(1)
   splitF90 "test/f90split_test.f90"
   hSep ""
   test2
+  hSep ""
+  test3
 
 --withPtrs3 :: (V.Storable a) => ([Ptr a] -> IO ()) -> IO [a]
 --withPtrs3 = $(withPtrsN 3)
+
+test3 :: IO ()
+test3 = do
+  x <- $(withFunPtr [t| Double -> Double |]) (\x -> x^2 + 1) $ return 6
+    {-
+          [fortIO|
+c     f = $(func: extern "C" fn(64) -> f64)
+c     f(9.1)
+      print*,"test test3: withFunPtr"
+          |]
+          -}
+  putStrLn $ "test3: try for withFunPtr "
 
 hSep :: String -> IO ()
 hSep s = putStrLn $ take 70 $ "===" ++ s ++ (repeat '=')
@@ -189,13 +206,23 @@ vectorToC vec len ptr = do
 test2 :: IO ()
 test2 = do
   putStrLn "====test2"
+  {-
   (nax,_) <- withPtr $ \nax -> do
     poke nax 888
     [fortIO|
-      print *,'this is testing'
-      print *,'nax :',$(nax:inout:integer)
-      nax = 777
+      external pureFunc
 
+      real(kind = 8) :: d1
+      real(kind = 8) :: dr
+
+      d1 = 3.4
+      print *,'this is testing'
+      print *,'nax :',$(nax:inout:real(kind=8))
+      nax = 777
+      d1 = 3.7
+      dr = pureFunc(d1)
+      print *,'d1:',d1
     |]
-  putStrLn $ "nax: " ++ show (nax :: CInt)
+  putStrLn $ "nax: " ++ show (nax :: Double)
+  -}
   putStrLn $ "===!test2"

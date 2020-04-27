@@ -127,13 +127,15 @@ parseQQ input = do
                    Nothing -> False
     -- Parse the body of the quasiquote
     parseBody toks vars [] =pure (reverse toks, vars)
+    parseBody toks vars (e@(Spanned Exclamation _): d@(Spanned Dollar _): rst2) =
+      parseBody (d:e:toks) vars rst2
     parseBody toks vars (Spanned Dollar _  : rst2) = do
       runIO $ putStrLn "parseBody: Dollar"
       (rst3, iD@(v,i,r)) <- takeDollar Nothing [] rst2
       runIO $ putStrLn $ "inDollar:" ++ show iD
       newVars <- parseV vars v i r
       parseBody (v:toks) newVars rst3
-    parseBody toks vars (r:rst2) = do
+    parseBody toks vars (r:rst2) =
       parseBody (r:toks) vars rst2
 
     parseFType toks =

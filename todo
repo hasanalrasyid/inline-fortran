@@ -1,3 +1,5 @@
+return value from fortIO, give it name fort
+
 call subroutine in haskell:
   syntax:
       call $(subroutine:routineNameInHaskell)(params)
