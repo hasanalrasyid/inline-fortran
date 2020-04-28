@@ -1,13 +1,14 @@
-return value from fortIO, give it name fort
+v return value from fortIO, use () for void
 
-call subroutine in haskell:
-  syntax:
-      call $(subroutine:routineNameInHaskell)(params)
-  routineNameInHaskell should be returned as IO ()
+call Haskell function as:
+  subroutine from fortran:
+    syntax:
+        call $(subroutine:routineNameInHaskell)(params)
+    routineNameInHaskell should be returned as IO ()
 
 
-call a function in haskell:
-  syntax:
-      x = $(function:functionNameInHaskell)(param)
-  functionNameInHaskell should be pure function, and strict
+  function in haskell:
+    syntax:
+        x = $(function:functionNameInHaskell)(param)
+    functionNameInHaskell should be pure function, and strict
 
