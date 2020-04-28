@@ -153,6 +153,7 @@ c     print *, "test v1",$vec(v1:inout:real:1)(1)
         u1(i) = 33*i
   300 continue
       print*,"test u1:",u1
+
     |]
   uasFrozen <- mapM V.unsafeFreeze uas
   putStrLn $ "uas: " ++ show uasFrozen
@@ -205,11 +206,9 @@ vectorToC vec len ptr = do
 test2 :: IO ()
 test2 = do
   putStrLn "====test2"
-  {-
-  (nax,_) <- withPtr $ \nax -> do
+  (nax,x) <- withPtr $ \nax -> do
     poke nax 888
-    [fortIO| () ::
-      external pureFunc
+    x <-  [fortIO| real(kind = 8) ::
 
       real(kind = 8) :: d1
       real(kind = 8) :: dr
@@ -219,9 +218,12 @@ test2 = do
       print *,'nax :',$(nax:inout:real(kind=8))
       nax = 777
       d1 = 3.7
-      dr = pureFunc(d1)
+c     dr = pureFunc(d1)
       print *,'d1:',d1
-    |]
-  putStrLn $ "nax: " ++ show (nax :: Double)
-  -}
+      $return = d1
+
+          |]
+    return x
   putStrLn $ "===!test2"
+  putStrLn $ "nax: " ++ show (nax :: Double)
+  putStrLn $ "x: " ++ show (x :: Double)

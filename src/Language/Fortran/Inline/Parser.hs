@@ -88,7 +88,7 @@ parseQQ input = do
 --
 
   -- Parse body of quasiquote
-  (bodyToks, vars) <- parseBody [] [] rest2
+  (bodyToks, vars) <- parseBody leadingTy [] [] rest2
 
   -- Done!
 --  let dummy = snd $ head vars
@@ -99,6 +99,7 @@ parseQQ input = do
   (locVars,bodyToks2) <- takeWhile' bodyToks
 --  runIO $ putStrLn $ "dummy: " ++ show  bodyToks
   bodyToks' <- cekLitTok [] bodyToks2
+  runIO $ putStrLn $ "QQParse: " ++ (show $ length vars) ++ " :: " ++ show vars
   pure (QQParse leadingTy vars locVars bodyToks')
   where
     cekLitTok r [] = pure $ reverse r
@@ -128,17 +129,26 @@ parseQQ input = do
                    Just _ -> True
                    Nothing -> False
     -- Parse the body of the quasiquote
-    parseBody toks vars [] =pure (reverse toks, vars)
-    parseBody toks vars (e@(Spanned Exclamation _): d@(Spanned Dollar _): rst2) =
-      parseBody (d:e:toks) vars rst2
-    parseBody toks vars (Spanned Dollar _  : rst2) = do
+    parseBody _ toks vars [] = pure (reverse toks, vars)
+    parseBody l toks vars (e@(Spanned Exclamation _): d@(Spanned Dollar _): rst2) =
+      parseBody l (d:e:toks) vars rst2
+    parseBody leadingTy toks vars (Spanned Dollar _  : rst2) = do
       runIO $ putStrLn "parseBody: Dollar"
       (rst3, iD@(v,i,r)) <- takeDollar Nothing [] rst2
       runIO $ putStrLn $ "inDollar:" ++ show iD
-      newVars <- parseV vars v i r
-      parseBody (v:toks) newVars rst3
-    parseBody toks vars (r:rst2) =
-      parseBody (r:toks) vars rst2
+      newR <- case r of
+                   FVarReturn -> pure leadingTy
+                   FVarBase t -> parseFType t
+                   FVarString _ -> pure $ (FString nullSpan)
+                   FVarArray t (Spanned (LiteralTok (IntegerTok n) _) _) -> do
+                     ty1 <- parseFType t
+                     let dim = read n
+                     pure $ FArray dim ty1 nullSpan
+                   _ -> fail $ "parseV: t1: error on case rst2"
+      newVars <- parseV vars v i newR
+      parseBody leadingTy (v:toks) newVars rst3
+    parseBody l toks vars (r:rst2) =
+      parseBody l (r:toks) vars rst2
 
     parseFType toks =
       case (parseFromToks toks) of
@@ -146,28 +156,24 @@ parseQQ input = do
         Right parsed           -> do
                                      pure parsed
 
+    parseV :: [(String,(Ty Span, String))] -> SpTok -> SpTok -> Ty Span -> Q [(String,(Ty Span, String))]
     parseV vars (Spanned (IdentTok i) _) (Spanned (IdentTok intent) _) rst2 = do
       -- Parse the rest of the escape
       runIO $ putStrLn $ "parseV: rst2: " ++ show rst2
+        {-
       t1 <- case rst2 of
-              FVarBase t -> parseFType t
-              FVarString _ -> pure $ (FString nullSpan)
-              FVarArray t (Spanned (LiteralTok (IntegerTok n) _) _) -> do
-                ty1 <- parseFType t
-                let dim = read n
-                pure $ FArray dim ty1 nullSpan
-              _ -> fail $ "parseV: t1: error on case rst2"
       runIO $ putStrLn $ "parseV: t1: " ++ show t1
+      -}
       -- Add it to 'vars' if it isn't a duplicate
       let i' = name i
-      let dupMsg t2 = concat [ "Variable `", i', ": ", renderType t1
+      let dupMsg t2 = concat [ "Variable `", i', ": ", renderType rst2
                               , "' has already been given type `"
                               , renderType t2, "'"
                               ]
       let intent' = name intent
       newVars <- case lookup i' vars of
-                   Nothing -> pure ((i', (t1,intent')) : vars)
-                   Just (t2,_) | void t1 == void t2 -> pure vars
+                   Nothing -> pure ((i', (rst2,intent')) : vars)
+                   Just (t2,_) | void rst2 == void t2 -> pure vars
                                | otherwise -> fail (dupMsg t2)
       pure newVars
     parseV _ _ _ _ = return $ fail $ "parseV: sumthin wrong"
@@ -204,6 +210,11 @@ parseQQ input = do
                  return $ (Spanned Eof nullSpan, Spanned Eof nullSpan, ErrFVar)
       return (rs,fVar)
 
+    takeDollar Nothing [] ((Spanned (IdentTok i@(Ident "return" b c)) a):rs) = do
+      let newVar = Spanned (IdentTok (Ident "return__" b c)) a
+          newIntent = Spanned (IdentTok (Ident "inout" b c)) a
+      return (rs,(newVar,newIntent,FVarReturn))
+--    fail $ "we have return..."
     takeDollar Nothing cs (r:rs)
       | openParen r = takeDollar (Just 1) (r:cs) rs
       | otherwise = takeDollar Nothing (r:cs) rs
@@ -211,7 +222,7 @@ parseQQ input = do
       | openParen r = takeDollar (Just $ 1 + i) (r:cs) rs
       | closeParen r = takeDollar (Just $ i - 1) (r:cs) rs
       | otherwise = takeDollar j (r:cs) rs
-    takeDollar _ _ [] = fail $ "takeDollar for []"
+    takeDollar a b [] = fail $ "takeDollar for [] " ++ show a ++ "___" ++ show b
   {-
     parseBody' parCount toks vars rest = do
         case rest of
@@ -346,6 +357,10 @@ closeParen :: SpTok -> Bool
 closeParen (Spanned (CloseDelim Paren) _) = True
 closeParen _ = False
 
+isReturn :: SpTok -> Bool
+--isReturn (Spanned Ret _) = True
+isReturn _ = False
+
 isColon :: SpTok -> Bool
 isColon (Spanned Colon _) = True
 isColon _ = False
@@ -354,4 +369,5 @@ data FVar = ErrFVar
           | FVarString SpTok -- length
           | FVarBase [SpTok] -- type
           | FVarArray [SpTok] SpTok -- type dimLength
+          | FVarReturn
           deriving Show

@@ -85,7 +85,7 @@ module Language.Fortran.Inline (
  -- externCrate,
 ) where
 
-import Data.List.Split (chunksOf)
+import Data.List.Split (chunksOf, splitOn)
 import Language.Fortran.Inline.Context
 import Language.Fortran.Inline.Context.Prelude  ( prelude )
 import Language.Fortran.Inline.Internal
@@ -107,7 +107,7 @@ import Foreign.Marshal.Unsafe                ( unsafeLocalState )
 import Foreign.Ptr                           ( freeHaskellFunPtr, Ptr )
 
 import Control.Monad                         ( void, replicateM, forM )
-import Data.List                             ( intercalate )
+import Data.List                             ( intercalate,partition )
 import Data.Traversable                      ( for )
 import System.Random                         ( randomIO )
 
@@ -118,6 +118,9 @@ import Data.Int (Int16)
 import qualified Data.Vector.Storable as V
 import qualified Data.Vector.Storable.Mutable as VM
 import Foreign (peek)
+
+replace :: Eq a => [a] -> [a] -> [a] -> [a]
+replace old n = intercalate n . splitOn old
 
 -- $overview
 --
@@ -355,22 +358,26 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs locVars rustBody ) = do
 
   -- Find out what the corresponding Haskell representations are for the
   -- argument and return types
-  let (rustArgNames, rustArgs_intents) = unzip rustNamedArgs
+  let (retNamedArgs,rustNamedArgs') = partition (\(a,_) -> a == "return__") rustNamedArgs
+  let (rustArgNames, rustArgs_intents) = unzip rustNamedArgs'
   let (rustArgs1, intents) = unzip rustArgs_intents
   let rustArgs = rustArgs1
-    {-
   (haskRet, reprCRet) <- getRType (void rustRet)
+    {-
   reprCRet <- pure Nothing
   -}
-  haskRet <- [t| () |]  -- this means haskRet will be always void in C
+--  haskRet <- [t| () |]  -- this means haskRet will be always void in C
 --  runIO $ putStrLn $ "rustArgs:" ++ show rustArgs
 --  runIO $ putStrLn $ "intents:" ++ show intents
   runIO $ putStrLn $ "rustRet: " ++ show rustRet
+  runIO $ putStrLn $ "reprCRet: " ++ show reprCRet
   (haskArgs, reprCArgs) <- unzip <$> traverse (getRType . void) rustArgs
 
   -- Convert the Haskell return type to a marshallable FFI type
-  (returnFfi, haskRet') <- do
+  (procedure,returnFfi, haskRet') <- do
     marshalFrom <- ghcMarshallable haskRet
+    runIO $ putStrLn $ "marshalFrom: " ++ show marshalFrom ++ "_" ++ showTy haskRet
+    -- we will always have ret of BoxedDirect
     ret <- case marshalFrom of
              BoxedDirect -> [t| IO $(pure haskRet) |]
              BoxedIndirect -> [t| Ptr $(pure haskRet) -> IO () |]
@@ -379,13 +386,17 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs locVars rustBody ) = do
                | otherwise ->
                    let retTy = showTy haskRet
                    in fail ("Cannot put unlifted type ‘" ++ retTy ++ "’ in IO")
-    pure (marshalFrom, pure ret)
+    let retTy = showTy haskRet
+    procedure  <- pure $ if retTy == "()" then Subroutine
+                                          else Function
+    pure (procedure,marshalFrom, pure ret)
 
   -- Convert the Haskell arguments to marshallable FFI types
   (argsByVal, haskArgs') <- fmap unzip $
     for (zip haskArgs intents) $ \(haskArg,intent) -> do
-      {-
       marshalForm <- ghcMarshallable haskArg
+      runIO $ putStrLn $ "marshalForm: " ++ show marshalForm
+      {-
       case marshalForm of
         BoxedIndirect
           | returnFfi == UnboxedDirect ->
@@ -401,10 +412,10 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs locVars rustBody ) = do
 
         _ -> do -- in app/Main.hs, this is for x
         -} -- cause everything is passed as pointer
-              ptr <- case intent of
-                       "value" -> [t| $(pure haskArg) |]
-                       _ -> [t| Ptr $(pure haskArg) |]
-              pure (True, ptr)
+      ptr <- case intent of
+               "value" -> [t| $(pure haskArg) |]
+               _ -> [t| Ptr $(pure haskArg) |]
+      pure (True, ptr)
 
   -- Generate the Haskell FFI import declaration and emit it
   haskSig <- foldr (\l r -> [t| $(pure l) -> $r |]) haskRet' haskArgs'
@@ -425,7 +436,9 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs locVars rustBody ) = do
                      ; peek $(varE ret)
                      }) |]
 
-      goArgs acc ((argStr,_ ,rustArg) : args) = do
+      goArgs acc (("return__",_ ,_) : args) = goArgs acc args
+      goArgs acc (a@(argStr,_ ,rustArg) : args) = do
+        runIO $ putStrLn $ "goArgs: args: " ++ show a
         arg <- lookupValueName argStr
         case arg of
           Nothing -> fail ("Could not find Haskell variable ‘" ++ argStr ++ "’")
@@ -444,19 +457,28 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs locVars rustBody ) = do
       mergeArgs t (Just tInter) = (fmap (const mempty) tInter, t)
 
   -- Generate the Rust function.
-  let headSubroutine' =  "      subroutine " ++ qqStrName ++
+  let (headSubroutine',endProcedure) =
+        case procedure of
+          Subroutine -> ( "      subroutine " ++ qqStrName ++
                           "(" ++ intercalate ", " rustArgNames ++ ")"
+                        , "      end subroutine " )
+          Function -> ("      function " ++ qqStrName ++
+                            "(" ++ intercalate ", " rustArgNames ++ ")"
+                          , "      end function  ")
   let (h1:h1s) = chunksOf 60 headSubroutine'
   let headSubroutine = unlines $ h1:(map ("     c" ++) h1s)
-
+  let retVarStatement = case retNamedArgs of
+                          [] -> ""
+                          ((_,(retTy,_)):_) -> "      "++ renderType retTy ++ " :: " ++ qqStrName
   void . emitCodeBlock . unlines $
     [ headSubroutine
     , case locVars of
         Just l -> unlines $ map renderFortran $ take l rustBody
         _ -> ""
     , unlines $ map renderVarStatement $ zip3 rustArgNames rustArgs' $ zip intents rustArgs1
-    , unlines $ map renderFortran $ drop (fromMaybe 0 locVars) rustBody
-    , "      end subroutine " ++ qqStrName
+    , retVarStatement
+    , replace "return__" qqStrName $ unlines $ map renderFortran $ drop (fromMaybe 0 locVars) rustBody
+    , endProcedure ++ qqStrName
     ]
 
   -- Return the Haskell call to the FFI import
