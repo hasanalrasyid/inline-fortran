@@ -31,16 +31,6 @@ setCrateRoot []
 
 C.context (C.baseCtx <> C.funCtx <> C.fptrCtx)
 
-  {-
-C.block [r|
-double pureFuncC_ (double* x){
-  double (*f)(double);
-  f = $fun:(double (*pureFunc) (double));
-  return f(*x);
-  }
-  |]
--}
-
 main :: IO ()
 main = do
   putStrLn "Haskell: Hello. Enter a number:"
@@ -207,10 +197,8 @@ test4 = do
           {
             double (*f)(double);
             double *pc;
-            f = $fun:(double (*pureFuncIO) (double));
             pc = $fptr-ptr:(double *p);
-
-            return f(*pc);
+            return $fun:(double (*pureFuncIO) (double))(*pc);
           }
         |]
         return (y :: CDouble)
@@ -256,8 +244,9 @@ test2 = do
       print *,'nax :',$(nax:inout:real(kind=8))
       nax = 777
       d1 = 3.7
-c     dr = pureFunc(d1)
+c     dr = inline_c_Main_0(d1)
       print *,'d1:',d1
+      print *,'dr:',dr
       $return = d1
 
           |]
@@ -265,3 +254,13 @@ c     dr = pureFunc(d1)
   putStrLn $ "===!test2"
   putStrLn $ "nax: " ++ show (nax :: Double)
   putStrLn $ "x: " ++ show (x :: Double)
+
+  {-
+C.verbatim [r|
+double tester_ (double *x) {
+  double r ;
+  r = inline_c_Main_0(pureFuncIO_inline_c_0,x);
+  return r;
+}
+  |]
+  -}
