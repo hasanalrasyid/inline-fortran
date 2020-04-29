@@ -7,7 +7,7 @@ module Main where
 import Language.Fortran.Inline
 import Language.Fortran.Inline.Utils
 --import Data.Int
---import Language.C.Inline
+import qualified Language.C.Inline as C
 import Foreign
 import Foreign.C.Types
 import qualified Data.Vector.Storable as V
@@ -15,6 +15,10 @@ import qualified Data.Vector.Storable.Mutable as VM
 import qualified Data.Text.Foreign as T
 import qualified Data.Text as T
 import Eigen.Internal
+
+import External
+
+import           Text.RawString.QQ (r)
 
 $(genWithPtrs 20)
 
@@ -24,6 +28,18 @@ extendContext fVectors
 extendContext functions
 
 setCrateRoot []
+
+C.context (C.baseCtx <> C.funCtx <> C.fptrCtx)
+
+  {-
+C.block [r|
+double pureFuncC_ (double* x){
+  double (*f)(double);
+  f = $fun:(double (*pureFunc) (double));
+  return f(*x);
+  }
+  |]
+-}
 
 main :: IO ()
 main = do
@@ -174,20 +190,42 @@ c     print *, "test v1",$vec(v1:inout:real:1)(1)
   test2
   hSep ""
   test3
+  hSep ""
+  test4
 
 --withPtrs3 :: (V.Storable a) => ([Ptr a] -> IO ()) -> IO [a]
 --withPtrs3 = $(withPtrsN 3)
 
+test4 :: IO ()
+test4 = do
+  putStrLn "===== test4"
+  let pureFuncIO x = return $ pureFunc x
+  x <- withPtr $ \pp -> do
+        poke pp 2.3
+        p <- newForeignPtr_ pp :: IO (ForeignPtr CDouble)
+        y <- [C.block| double
+          {
+            double (*f)(double);
+            double *pc;
+            f = $fun:(double (*pureFuncIO) (double));
+            pc = $fptr-ptr:(double *p);
+
+            return f(*pc);
+          }
+        |]
+        return (y :: CDouble)
+  putStrLn $ "=====!test4 " ++ (show x)
+
 test3 :: IO ()
 test3 = do
-    {-
+  {-
   x <- $(withFunPtr [t| Double -> Double |]) (\x -> x^2 + 1) $
-          [fortIO|
+          [fortIO| real(kind=8) ::
 c     f = $(func: extern "C" fn(64) -> f64)
-c     f(9.1)
       print*,"test test3: withFunPtr"
+      $return = f(9.1)
           |]
-          -}
+  -}
   putStrLn $ "test3: try for withFunPtr "
 
 hSep :: String -> IO ()
