@@ -29,7 +29,7 @@ extendContext functions
 
 setCrateRoot []
 
-C.context (C.baseCtx <> C.funCtx <> C.fptrCtx)
+--C.context (C.baseCtx <> C.funCtx <> C.fptrCtx)
 
 main :: IO ()
 main = do
@@ -190,6 +190,7 @@ test4 :: IO ()
 test4 = do
   putStrLn "===== test4"
   let pureFuncIO x = return $ pureFunc x
+    {-
   x <- withPtr $ \pp -> do
         poke pp 2.3
         p <- newForeignPtr_ pp :: IO (ForeignPtr CDouble)
@@ -202,18 +203,41 @@ test4 = do
           }
         |]
         return (y :: CDouble)
-  putStrLn $ "=====!test4 " ++ (show x)
+        -}
+  putStrLn $ "=====!test4 " -- ++ (show x)
 
 test3 :: IO ()
 test3 = do
+  putStrLn $ "test3: ==================="
+  let f x = x*x + 1
+--        f = $(func: extern "C" fn(f64) -> f64);
+  let x = 2.3
+  my_func <- $(newFunPtr [t| Double -> Double|]) f
+  x <- [fortIO| real(kind=8) ::
+          IMPLICIT NONE
+          interface
+            function shouldbe_the_function (x)
+              real(kind=8), intent(in) :: x
+              real(kind=8) :: shouldbe_the_function
+            end function shouldbe_the_function
+          end interface
+          procedure(shouldbe_the_function), pointer :: funcPointer
+          real(kind=8) :: f
+c         NEED SOMETHING LIKE THIS
+c         funcPointer => $fun(my_func)
+          f = $(x:value:real(kind=8))
+          $return = 3.1
+       |]
+  freeHaskellFunPtr my_func
   {-
   x <- $(withFunPtr [t| Double -> Double |]) (\x -> x^2 + 1) $
           [fortIO| real(kind=8) ::
 c     f = $(func: extern "C" fn(64) -> f64)
       print*,"test test3: withFunPtr"
       $return = f(9.1)
+
           |]
-  -}
+          -}
   putStrLn $ "test3: try for withFunPtr "
 
 hSep :: String -> IO ()
@@ -235,7 +259,6 @@ test2 = do
   (nax,x) <- withPtr $ \nax -> do
     poke nax 888
     x <-  [fortIO| real(kind = 8) ::
-
       real(kind = 8) :: d1
       real(kind = 8) :: dr
 
