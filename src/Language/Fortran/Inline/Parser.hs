@@ -21,7 +21,7 @@ import Language.Rust.Data.Ident    ( Ident(..) )
 import Language.Haskell.TH         ( Q, runIO )
 
 import Control.Monad               ( void )
-import Data.List.Split ( wordsBy )
+import Data.List.Split ( wordsBy,splitWhen )
 import Data.List
 import Data.Char
 
@@ -144,27 +144,19 @@ parseQQ input = do
                      ty1 <- parseFType t
                      let dim = read n
                      pure $ FArray dim ty1 nullSpan
-                   _ -> fail $ "parseV: t1: error on case rst2"
+                   FVarProcPtr fn retTy parTy -> do
+                     fnIdent <- takeIdent fn
+                     pure $ FProcedurePtr fnIdent retTy parTy nullSpan
+                   _ -> fail $ "parseBody: t1: error on case rst2"
       newVars <- parseV vars v i newR
       parseBody leadingTy (v:toks) newVars rst3
     parseBody l toks vars (r:rst2) =
       parseBody l (r:toks) vars rst2
 
-    parseFType toks =
-      case (parseFromToks toks) of
-        Left (ParseFail _ msg) -> fail $ "parseFType: " ++ msg ++ " " ++ show toks
-        Right parsed           -> do
-                                     pure parsed
-
     parseV :: [(String,(Ty Span, String))] -> SpTok -> SpTok -> Ty Span -> Q [(String,(Ty Span, String))]
     parseV vars (Spanned (IdentTok i) _) (Spanned (IdentTok intent) _) rst2 = do
       -- Parse the rest of the escape
       runIO $ putStrLn $ "parseV: rst2: " ++ show rst2
-        {-
-      t1 <- case rst2 of
-      runIO $ putStrLn $ "parseV: t1: " ++ show t1
-      -}
-      -- Add it to 'vars' if it isn't a duplicate
       let i' = name i
       let dupMsg t2 = concat [ "Variable `", i', ": ", renderType rst2
                               , "' has already been given type `"
@@ -210,11 +202,14 @@ parseQQ input = do
                  return $ (Spanned Eof nullSpan, Spanned Eof nullSpan, ErrFVar)
       return (rs,fVar)
 
-    takeDollar Nothing [] ((Spanned (IdentTok i@(Ident "return" b c)) a):rs) = do
+    takeDollar Nothing [] ((Spanned (IdentTok (Ident "func" _ _)) _):_:rs) = do
+     --(rs,fVar) <- processFunPtr rs
+      (res,funcVar,fVar) <- processFunPtr rs
+      return (res, (funcVar, nullSpTok, fVar))
+    takeDollar Nothing [] ((Spanned (IdentTok (Ident "return" b c)) a):rs) = do
       let newVar = Spanned (IdentTok (Ident "return__" b c)) a
           newIntent = Spanned (IdentTok (Ident "inout" b c)) a
       return (rs,(newVar,newIntent,FVarReturn))
---    fail $ "we have return..."
     takeDollar Nothing cs (r:rs)
       | openParen r = takeDollar (Just 1) (r:cs) rs
       | otherwise = takeDollar Nothing (r:cs) rs
@@ -223,97 +218,41 @@ parseQQ input = do
       | closeParen r = takeDollar (Just $ i - 1) (r:cs) rs
       | otherwise = takeDollar j (r:cs) rs
     takeDollar a b [] = fail $ "takeDollar for [] " ++ show a ++ "___" ++ show b
+
+parseFType :: (Parse a, Monad m) => [SpTok] -> m a
+parseFType toks =
+  case (parseFromToks toks) of
+    Left (ParseFail _ msg) -> fail $ "parseFType: " ++ msg ++ " " ++ show toks
+    Right parsed           -> do
+                                 pure parsed
+
+processFunPtr :: [SpTok] -> Q ([SpTok], SpTok, FVar)
+processFunPtr (r:rs) = do
+  let (res,(_:r1s)) = takeParen 1 [r] rs
+  let ((funcVar:_):params) = splitWhen isColon $ init r1s
+  (retTy:paramTys) <- mapM parseFType params
+  return (res,funcVar,(FVarProcPtr funcVar retTy paramTys))
+processFunPtr [] = fail "processFunPtr: empty list processed"
+
+takeParen :: Int -> [SpTok] -> [SpTok] -> ([SpTok],[SpTok])
+takeParen 0 acc res  = (res,reverse acc)
+takeParen i acc (r:rs)
+  | openParen r = takeParen (i+1) (r:acc) rs
+  | closeParen r = takeParen (i-1) (r:acc) rs
+  | otherwise = takeParen i (r:acc) rs
+takeParen _ _ [] = error "takeParen: unbalanced brace"
+
+takeIdent :: SpTok -> Q Ident
+takeIdent (Spanned (IdentTok i@(Ident _ _ _)) _) = return i
+takeIdent i = fail $ "takeIdent: wrong Ident : " ++ show i
+
+
   {-
-    parseBody' parCount toks vars rest = do
-        case rest of
-          [] -> if parCount /= 0 then fail $ "Too much Parenthesis==" -- ++ show parCount ++ "==toks==" ++ (show $ reverse toks) ++ "==vars==" ++ show vars
-                                 else pure (reverse toks, vars)
-          (Spanned t@(OpenDelim Paren) _ : rst2) -> do
---            runIO $ putStrLn $ "Paren132:" ++ show t ++ "==" ++ show parCount ++ "==" ++ (show $ head rst2)
-            parseBody (parCount+1) (pure t : toks) vars rst2
-          (Spanned t@TNewLine _ :
-           rst2@(Spanned Ampersand _ : _)) -> do
-            parseBody' parCount (pure t:toks) vars rst2
-          (Spanned t@TNewLine _ : rst2) -> do
-            if parCount > 0 then parseBody' parCount         toks  vars rst2
-                            else parseBody' parCount (pure t:toks) vars rst2
-          (Spanned t@(CloseDelim Paren) _ : rst2) -> do
---            runIO $ putStrLn $ "Paren141:" ++ show t ++ "==" ++ (show $ head rst2)
-            parseBody (parCount-1) (pure t : toks) vars rst2
-
-          (Spanned Dollar _            :
-           s@(Spanned (IdentTok (Ident "str" _ _)) _)      :
-           Spanned (OpenDelim Paren) _ :
-           Spanned (IdentTok i) _      :
-           Spanned Colon _             :
-           Spanned (IdentTok intent) _ : rst2) -> do
-             (newVars,rst3) <- parseVars (Just ("str",s)) vars i intent rst2
-             parseBody' parCount (pure (IdentTok i) : toks) newVars rst3
-
-          (Spanned Dollar _            :
-           Spanned (IdentTok v) _      :
-           Spanned (OpenDelim Paren) _ :
-           Spanned (IdentTok i) _      :
-           Spanned Colon _             :
-           Spanned (IdentTok intent) _ :
-           Spanned Colon _             : rst2) -> do
-             let vec = name v
-             case vec of
-               "vec" -> do
-                 (newVars,rst3) <- parseVars Nothing vars i intent rst2
-                 parseBody' parCount (pure (IdentTok i) : toks) newVars rst3
-               _ -> fail $ "error $" ++ vec ++ " is not yet implemented"
-
-          (Spanned Dollar _            :
-           Spanned (OpenDelim Paren) _ :
-           Spanned (IdentTok i) _      :
-           Spanned Colon _             :
-           Spanned (IdentTok intent) _ :
-           Spanned Colon _             : rst2) -> do
-             (newVars,rst3) <- parseVars Nothing vars i intent rst2
-             parseBody' parCount (pure (IdentTok i) : toks) newVars rst3
-
-          (tok : rst2) -> parseBody' parCount (tok : toks) vars rst2
-    parseVars strStat vars i intent rst2@(_:r2) = do
-      -- Parse the rest of the escape
-      (t1, rst3) <- case strStat of
-                      Nothing -> parseEscape [] 1 rst2
-                      Just ("str",s) -> pure (strFType,r2)
-                      Just (s,_) -> fail $ "Not implemented " ++ s
-      runIO $ putStrLn $ "parseVars:t1: " ++ show t1
-      -- Add it to 'vars' if it isn't a duplicate
-      let i' = name i
-      let dupMsg t2 = concat [ "Variable `", i', ": ", renderType t1
-                              , "' has already been given type `"
-                              , renderType t2, "'"
-                              ]
-      let intent' = name intent
-      newVars <- case lookup i' vars of
-                   Nothing -> pure ((i', (t1,intent')) : vars)
-                   Just (t2,_) | void t1 == void t2 -> pure vars
-                               | otherwise -> fail (dupMsg t2)
-      pure (newVars,rst3)
-
-            -- Continue parsing
-    -- Parse the part of escapes like @$(x: i32)@ that comes after the @:@.
-    parseEscape :: [SpTok] -> Int -> [SpTok] -> Q (Ty Span, [SpTok])
-    parseEscape toks p rst1 = do
-        case rst1 of
-          [] -> fail "Ran out of input while parsing variable escape"
-          tok : rst2
-            | isColon tok           -> parseEscape (tok : toks) (p) rst2
-            | openParen tok           -> parseEscape (tok : toks) (p+1) rst2
-            | closeParen tok && p > 1 -> parseEscape (tok : toks) (p-1) rst2
-            | not (closeParen tok)    -> parseEscape (tok : toks) p     rst2
-            | otherwise -> do
-                runIO $ putStrLn $ unwords
-                  ["parseEscape toks p rst1: ",show $ reverse toks]
-                case (parseFromToks $ reverse toks) of
-                             Left (ParseFail _ msg) -> fail $ "parseEscape: " ++ msg
-                             Right parsed           -> do
-                               pure (parsed, rst2)
-    -}
-
+    go j acc       ('(' : cs) =          go (j + 1) (j : acc) cs
+    go j []        (')' : cs) = error "unbalanced parentheses!"
+    go j (i : is)  (')' : cs) = (i, j) : go (j + 1) is        cs
+    go j acc       (c   : cs) =          go (j + 1) acc       cs
+-}
 
 --strFType = FType (mkIdent "character") (TupExpr [] [] (Span (Position 1 227 54) (Position 10 227 63))) (Span (Position 1 227 54) (Position 10 227 63))
 strFType :: Ty Span
@@ -370,4 +309,8 @@ data FVar = ErrFVar
           | FVarBase [SpTok] -- type
           | FVarArray [SpTok] SpTok -- type dimLength
           | FVarReturn
+          | FVarProcPtr SpTok (Ty Span) [Ty Span]
+        --                    |      |         +- parameters
+        --                    |      +- return
+        --                    +-pointer name
           deriving Show

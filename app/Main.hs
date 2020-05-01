@@ -221,10 +221,11 @@ test3 = do
               real(kind=8) :: shouldbe_the_function
             end function shouldbe_the_function
           end interface
-          procedure(shouldbe_the_function), pointer :: funcPointer
+          procedure(shouldbe_the_function), pointer:: funcPointer
           real(kind=8) :: f
 c         NEED SOMETHING LIKE THIS
 c         funcPointer => $fun(my_func)
+          f = $func:(my_func:real(kind=8):real(kind=8))(3.2)
           f = $(x:value:real(kind=8))
           $return = 3.1
        |]

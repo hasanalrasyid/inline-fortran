@@ -149,6 +149,7 @@ printType (MacTy m x)           = annotate x (printMac Bracket m)
 printType (FType ty k x)           = annotate x (printIdent ty <> printExpr k )
 printType (FArray _ ty x)           = annotate x (printType ty )
 printType (FString x)           = annotate x ( "StringType" )
+printType (FProcedurePtr _ _ _ x)           = annotate x ( "FProcedurePtr" )
 printType (BareFn u a l d x)    = annotate x (printFormalLifetimeList l
                                                <+> printFnHeaderInfo u NotConst a InheritedV
                                                <> printFnArgsAndRet d)
