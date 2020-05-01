@@ -40,6 +40,7 @@ data RustQuasiquoteParse = QQParse
   , variables :: [(String, (Ty Span, String))]
   , locVar :: Maybe Int
   -- | body tokens, with @$(<ident>: <ty>)@ escapes replaced by just @ident@
+  , bodyVars :: [[SpTok]]
   , body :: [[SpTok]]
 
   } deriving (Show)
@@ -100,8 +101,19 @@ parseQQ input = do
 --  runIO $ putStrLn $ "dummy: " ++ show  bodyToks
   bodyToks' <- cekLitTok [] bodyToks2
   runIO $ putStrLn $ "QQParse: " ++ (show $ length vars) ++ " :: " ++ show vars
-  pure (QQParse leadingTy vars locVars bodyToks')
+  let (bodyVars1,bodyToks3) = genVarsBody bodyToks'
+  pure (QQParse leadingTy vars locVars bodyVars1 bodyToks3)
   where
+    genVarsBody :: [[SpTok]] -> ([[SpTok]],[[SpTok]])
+    genVarsBody xs =
+      let is = findIndices haveColon xs
+       in case is of
+            [] -> ([],xs)
+            _  -> splitAt (1 + (maximum is)) xs
+    haveColon [] = False
+    haveColon (x:xs) =
+      if isModSep x then True
+                    else haveColon xs
     cekLitTok r [] = pure $ reverse r
     cekLitTok r (t:ts) = do
 --      runIO $ putStrLn $ "cekLitTok: " ++ show t
@@ -134,8 +146,8 @@ parseQQ input = do
       parseBody l (d:e:toks) vars rst2
     parseBody leadingTy toks vars (Spanned Dollar _  : rst2) = do
       runIO $ putStrLn "parseBody: Dollar"
-      (rst3, iD@(v,i,r)) <- takeDollar Nothing [] rst2
-      runIO $ putStrLn $ "inDollar:" ++ show iD
+      (rst3, (v,i,r)) <- takeDollar Nothing [] rst2
+
       newR <- case r of
                    FVarReturn -> pure leadingTy
                    FVarBase t -> parseFType t
@@ -150,26 +162,17 @@ parseQQ input = do
                    _ -> fail $ "parseBody: t1: error on case rst2"
       newVars <- parseV vars v i newR
       runIO $ putStrLn $ "newVars :: " ++ show newVars ++ " :: " ++ show newR
-      parseBody leadingTy (v:toks) newVars rst3
+      v1 <- setNullSpan v
+      parseBody leadingTy (v1:toks) newVars rst3
     parseBody l toks vars (r:rst2) =
       parseBody l (r:toks) vars rst2
 
     parseV :: [(String,(Ty Span, String))] -> SpTok -> SpTok -> Ty Span -> Q [(String,(Ty Span, String))]
-    parseV vars (Spanned (IdentTok f) _) _ rst2@(FProcedurePtr fn retTy paramTys _) = do
+    parseV vars (Spanned (IdentTok f) _) _ rst2@(FProcedurePtr _ _ _ _) = do
       let f' = name f
-      newVars <- case lookup f' vars of
+      case lookup f' vars of
                    Nothing -> pure ((f', (rst2,"")) : vars)
                    Just (t2,_) -> fail $ "parseV: FProcedurePtr: " ++ show t2
-                     {-
-      fail $ intercalate " :: " [ "we have new FProcedurePtr"
-                                , (show $ map renderType paramTys)
-                                , renderType retTy
-                                , show f'
-                                , show $ lookup f' vars
-                                , show $ ((f', (rst2,"in")) : vars)
-                                ]
-                                -}
-      pure newVars
     parseV vars (Spanned (IdentTok i) _) (Spanned (IdentTok intent) _) rst2 = do
       -- Parse the rest of the escape
       runIO $ putStrLn $ "parseV: rst2: " ++ show rst2
@@ -242,12 +245,16 @@ parseFType toks =
     Right parsed           -> do
                                  pure parsed
 
+setNullSpan :: Spanned a -> Q (Spanned a)
+setNullSpan (Spanned t _) = return $ Spanned t nullSpan
+
 processFunPtr :: [SpTok] -> Q ([SpTok], SpTok, FVar)
 processFunPtr (r:rs) = do
   let (res,(_:r1s)) = takeParen 1 [r] rs
-  let ((funcVar:_):params) = splitWhen isColon $ init r1s
+  let ((f@(Spanned (IdentTok (Ident funcVar a _)) _):_):params) = splitWhen isColon $ init r1s
+  let f1 =(Spanned (IdentTok (Ident (funcVar ++ "_fptr") a 0)) nullSpan)
   (retTy:paramTys) <- mapM parseFType params
-  return (res,funcVar,(FVarProcPtr funcVar retTy paramTys))
+  return (res,f1,(FVarProcPtr f retTy paramTys))
 processFunPtr [] = fail "processFunPtr: empty list processed"
 
 takeParen :: Int -> [SpTok] -> [SpTok] -> ([SpTok],[SpTok])
@@ -315,6 +322,10 @@ closeParen _ = False
 isReturn :: SpTok -> Bool
 --isReturn (Spanned Ret _) = True
 isReturn _ = False
+
+isModSep :: SpTok -> Bool
+isModSep (Spanned ModSep _) = True
+isModSep _ = False
 
 isColon :: SpTok -> Bool
 isColon (Spanned Colon _) = True

@@ -215,19 +215,21 @@ test3 = do
   my_func <- $(newFunPtr [t| Double -> Double|]) f
   x <- [fortIO| real(kind=8) ::
           IMPLICIT NONE
-          interface
-            function shouldbe_the_function (x)
-              real(kind=8), intent(in) :: x
-              real(kind=8) :: shouldbe_the_function
-            end function shouldbe_the_function
-          end interface
-          procedure(shouldbe_the_function), pointer:: funcPointer
+c         interface
+c           function shouldbe_the_function (x)
+c             real(kind=8), intent(in) :: x
+c             real(kind=8) :: shouldbe_the_function
+c           end function shouldbe_the_function
+c         end interface
+c         procedure(shouldbe_the_function), pointer:: funcPointer
           real(kind=8) :: f
 c         NEED SOMETHING LIKE THIS
 c         funcPointer => $fun(my_func)
-          f = $func:(my_func:real(kind=8):real(kind=8))(3.2)
-          f = $(x:value:real(kind=8))
+c         f = $func:(my_func:real(kind=8):real(kind=8))(3.2)
+          f = $func:(my_func:real(kind=8):real(kind=8))($(x:value:real(kind=8)))
+c         f = $(x:value:real(kind=8))
           $return = 3.1
+
        |]
   freeHaskellFunPtr my_func
   {-

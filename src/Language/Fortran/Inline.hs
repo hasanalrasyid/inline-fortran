@@ -349,7 +349,7 @@ showTy = show . pprParendType
 --       right Haskell arguments.
 --
 processQQ :: Safety -> Bool -> RustQuasiquoteParse -> Q Exp
-processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr locVars rustBody ) = do
+processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr locVars varsInBody rustBody ) = do
 
   -- Make a name to thread through Haskell/Rust (see Trac #13054)
   q <- runIO randomIO :: Q Int16
@@ -475,23 +475,32 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr locVars rustBody ) 
                           ((_,(retTy,_)):_) -> "      "++ renderType retTy ++ " :: " ++ qqStrName
   void . emitCodeBlock . unlines $
     [ headSubroutine
-    , case locVars of
-        Just l -> unlines $ map renderFortran $ take l rustBody
-        _ -> ""
+    , "      USE, INTRINSIC :: ISO_C_BINDING"
+    , unlines $ map renderFortran varsInBody
+    , "cccccccccccccc VarStatements"
     , unlines $ map renderVarStatement $ zip3 rustArgNames rustArgs' $ zip intents rustArgs1
     , retVarStatement
     , renderFuncInterface fortFnPtrNamedArgs
-    , replace "return__" qqStrName $ unlines $ map renderFortran $ drop (fromMaybe 0 locVars) rustBody
+--  , unlines $ map renderFortran $ drop (fromMaybe 0 locVars) varsInBody
+    , "cccccccccccccc bodyStatements"
+    , replace "return__" qqStrName $ unlines $ map renderFortran rustBody
     , endProcedure ++ qqStrName
     ]
 
   -- Return the Haskell call to the FFI import
   haskCall
     where
+      genFuncPtrAssign (_,(FProcedurePtr fn _ _ _, _)) =
+        "      call c_f_procpointer("++ fn ++ "_ptr," ++ fn ++"_fptr)"
+      genFuncPtrFort (_,(FProcedurePtr fn _ _ _, _)) =
+        "      procedure(" ++ fn ++ "), pointer :: " ++ fn ++ "_fptr"
+      genFuncPtrFort _ = error "genFuncPtrFort: undefined input"
+      genFuncPointer (_,(FProcedurePtr fn _ _ _, _)) =
+        "      type(C_FUNPTR),intent(in),value :: " ++ fn ++ "_ptr"
+      genFuncPointer _ = error "genFuncPointer: undefined input"
       renderVarType (v,t) = renderType t ++ ",intent(in),value :: " ++ v
       genFuncInterface (_,(FProcedurePtr fn retTy paramTys _, _)) =
-        let s = "123"
-            paramVars = (map (("dum" ++) . show) $ [1..(length paramTys)])
+        let paramVars = (map (("dum" ++) . show) $ [1..(length paramTys)])
             paramList = "(" ++ (intercalate "," paramVars ) ++ ")"
          in unlines $ map ("      " ++) $
               [ "function " ++ (unwords [ fn , paramList ])
@@ -499,12 +508,15 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr locVars rustBody ) 
               , renderType retTy ++ " :: " ++ fn
               , "end function " ++ fn
               ]
+      genFuncInterface _ = error "genFuncInterface: wrong type of input, FProcedurePtr needed"
       renderFuncInterface [] = ""
       renderFuncInterface xs = unlines
-        [ "c     function interface"
-        , "      interface"
+        [  "      interface"
         , concat $ map genFuncInterface xs
         , "      end interface"
+        , unlines $ map genFuncPointer xs
+        , unlines $ map genFuncPtrFort xs
+        , unlines $ map genFuncPtrAssign xs
         ]
       renderVarStatement (s,(FString _),(_,_)) = "c     " ++ s ++ " needs manual declaration for its length"
       renderVarStatement (s,(FArray d t _),(i,_)) =
