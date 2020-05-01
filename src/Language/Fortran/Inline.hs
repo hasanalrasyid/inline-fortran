@@ -460,13 +460,13 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr locVars varsInBody 
       mergeArgs t (Just tInter) = (fmap (const mempty) tInter, t)
 
   -- Generate the Rust function.
+  let fortFnPtrNames = map ((++ "_ptr") . takeFnName) fortFnPtrNamedArgs
   let (headSubroutine',endProcedure) =
-        case procedure of
-          Subroutine -> ( "      subroutine " ++ qqStrName ++
-                          "(" ++ intercalate ", " rustArgNames ++ ")"
+        let param = "(" ++ intercalate ", " (fortFnPtrNames ++ rustArgNames) ++ ")"
+         in case procedure of
+          Subroutine -> ( "      subroutine " ++ qqStrName ++ param
                         , "      end subroutine " )
-          Function -> ("      function " ++ qqStrName ++
-                            "(" ++ intercalate ", " rustArgNames ++ ")"
+          Function -> ("      function " ++ qqStrName ++ param
                           , "      end function  ")
   let (h1:h1s) = chunksOf 60 headSubroutine'
   let headSubroutine = unlines $ h1:(map ("     c" ++) h1s)
@@ -490,6 +490,10 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr locVars varsInBody 
   -- Return the Haskell call to the FFI import
   haskCall
     where
+      genHeadSubroutine hs =
+        let (h1:h1s) = chunksOf 60 hs
+         in unlines $ h1:(map ("     c" ++) h1s)
+      takeFnName (_,(FProcedurePtr fn _ _ _, _)) = fn
       genFuncPtrAssign (_,(FProcedurePtr fn _ _ _, _)) =
         "      call c_f_procpointer("++ fn ++ "_ptr," ++ fn ++"_fptr)"
       genFuncPtrFort (_,(FProcedurePtr fn _ _ _, _)) =
@@ -502,12 +506,16 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr locVars varsInBody 
       genFuncInterface (_,(FProcedurePtr fn retTy paramTys _, _)) =
         let paramVars = (map (("dum" ++) . show) $ [1..(length paramTys)])
             paramList = "(" ++ (intercalate "," paramVars ) ++ ")"
-         in unlines $ map ("      " ++) $
-              [ "function " ++ (unwords [ fn , paramList ])
+            funcStatement = "function " ++ (unwords [ fn , paramList ])
+            (h:rs) = map ("      " ++) $
+              [ funcStatement
               , unlines $ map renderVarType $ zip paramVars paramTys
               , renderType retTy ++ " :: " ++ fn
               , "end function " ++ fn
               ]
+         in unlines $ (genHeadSubroutine h):rs
+
+
       genFuncInterface _ = error "genFuncInterface: wrong type of input, FProcedurePtr needed"
       renderFuncInterface [] = ""
       renderFuncInterface xs = unlines
