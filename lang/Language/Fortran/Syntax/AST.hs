@@ -1025,7 +1025,7 @@ data Ty a
   | FType Ident (Expr a) a
   | FArray Int (Ty a) a
   | FString a
-  | FProcedurePtr Ident (Ty a) [Ty a] a
+  | FProcedurePtr String (Ty a) [Ty a] a
   deriving (Eq, Ord, Functor, Show, Typeable, Data, Generic, Generic1, NFData)
 
 instance Located a => Located (Ty a) where

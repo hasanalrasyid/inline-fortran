@@ -145,15 +145,31 @@ parseQQ input = do
                      let dim = read n
                      pure $ FArray dim ty1 nullSpan
                    FVarProcPtr fn retTy parTy -> do
-                     fnIdent <- takeIdent fn
-                     pure $ FProcedurePtr fnIdent retTy parTy nullSpan
+                     (Ident fnString _ _) <- takeIdent fn
+                     pure $ FProcedurePtr fnString retTy parTy nullSpan
                    _ -> fail $ "parseBody: t1: error on case rst2"
       newVars <- parseV vars v i newR
+      runIO $ putStrLn $ "newVars :: " ++ show newVars ++ " :: " ++ show newR
       parseBody leadingTy (v:toks) newVars rst3
     parseBody l toks vars (r:rst2) =
       parseBody l (r:toks) vars rst2
 
     parseV :: [(String,(Ty Span, String))] -> SpTok -> SpTok -> Ty Span -> Q [(String,(Ty Span, String))]
+    parseV vars (Spanned (IdentTok f) _) _ rst2@(FProcedurePtr fn retTy paramTys _) = do
+      let f' = name f
+      newVars <- case lookup f' vars of
+                   Nothing -> pure ((f', (rst2,"")) : vars)
+                   Just (t2,_) -> fail $ "parseV: FProcedurePtr: " ++ show t2
+                     {-
+      fail $ intercalate " :: " [ "we have new FProcedurePtr"
+                                , (show $ map renderType paramTys)
+                                , renderType retTy
+                                , show f'
+                                , show $ lookup f' vars
+                                , show $ ((f', (rst2,"in")) : vars)
+                                ]
+                                -}
+      pure newVars
     parseV vars (Spanned (IdentTok i) _) (Spanned (IdentTok intent) _) rst2 = do
       -- Parse the rest of the escape
       runIO $ putStrLn $ "parseV: rst2: " ++ show rst2

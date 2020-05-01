@@ -349,15 +349,18 @@ showTy = show . pprParendType
 --       right Haskell arguments.
 --
 processQQ :: Safety -> Bool -> RustQuasiquoteParse -> Q Exp
-processQQ safety isPure (QQParse rustRet rustNamedArgs locVars rustBody ) = do
+processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr locVars rustBody ) = do
 
   -- Make a name to thread through Haskell/Rust (see Trac #13054)
   q <- runIO randomIO :: Q Int16
   qqName <- newName $ "qq" ++ show (abs q)
   let qqStrName = show qqName
 
+  let (fortFnPtrNamedArgs,rustNamedArgs) = partition (\(_,(b,_)) -> isFunctionPtr b) rustNamedArgs_FnPtr
   -- Find out what the corresponding Haskell representations are for the
   -- argument and return types
+  runIO $ putStrLn $ "fortFnPtrNamedArgs: " ++ show fortFnPtrNamedArgs
+  runIO $ putStrLn $ "rustNamedArgs_FnPtr: " ++ (show $ length rustNamedArgs_FnPtr ) ++ " :: " ++ show rustNamedArgs_FnPtr
   let (retNamedArgs,rustNamedArgs') = partition (\(a,_) -> a == "return__") rustNamedArgs
   let (rustArgNames, rustArgs_intents) = unzip rustNamedArgs'
   let (rustArgs1, intents) = unzip rustArgs_intents
@@ -477,6 +480,7 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs locVars rustBody ) = do
         _ -> ""
     , unlines $ map renderVarStatement $ zip3 rustArgNames rustArgs' $ zip intents rustArgs1
     , retVarStatement
+    , renderFuncInterface fortFnPtrNamedArgs
     , replace "return__" qqStrName $ unlines $ map renderFortran $ drop (fromMaybe 0 locVars) rustBody
     , endProcedure ++ qqStrName
     ]
@@ -484,6 +488,24 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs locVars rustBody ) = do
   -- Return the Haskell call to the FFI import
   haskCall
     where
+      renderVarType (v,t) = renderType t ++ ",intent(in),value :: " ++ v
+      genFuncInterface (_,(FProcedurePtr fn retTy paramTys _, _)) =
+        let s = "123"
+            paramVars = (map (("dum" ++) . show) $ [1..(length paramTys)])
+            paramList = "(" ++ (intercalate "," paramVars ) ++ ")"
+         in unlines $ map ("      " ++) $
+              [ "function " ++ (unwords [ fn , paramList ])
+              , unlines $ map renderVarType $ zip paramVars paramTys
+              , renderType retTy ++ " :: " ++ fn
+              , "end function " ++ fn
+              ]
+      renderFuncInterface [] = ""
+      renderFuncInterface xs = unlines
+        [ "c     function interface"
+        , "      interface"
+        , concat $ map genFuncInterface xs
+        , "      end interface"
+        ]
       renderVarStatement (s,(FString _),(_,_)) = "c     " ++ s ++ " needs manual declaration for its length"
       renderVarStatement (s,(FArray d t _),(i,_)) =
         let intent = "intent(" ++ i ++ ")"
@@ -504,21 +526,6 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs locVars rustBody ) = do
 
       withVar f argName acc args (HaskVar _) = do
               f (varE argName : acc) args
-                {-
-        x <- newName "x"
-        case a of
-          Array _ _ _ -> do
-              [e| V.unsafeWith $(varE argName) (\( $(varP x) ) ->
-                  $(f (varE x : acc) args)) |]
-          _ -> do
-              f (varE argName : acc) args
-              -}
-            {-
-              [e| with $(varE argName) (\( $(varP x) ) ->
-                  $(f (varE x : acc) args)) |]
-      takeBase (Array b _ _) = b
-      takeBase r = r
-                  -}
       pad6Blanks p = take (p-1) "      "
       renderFortran [] = ""
       renderFortran tok@(tt@(Spanned t _):_) =
@@ -531,5 +538,9 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs locVars rustBody ) = do
                   _         -> if (7 >= pn) then (pad6Blanks pn)
                                             else "      "
          in ad ++ (takeWhile (/= '\n') $ renderTokens tok)
+
+isFunctionPtr :: Ty Span -> Bool
+isFunctionPtr (FProcedurePtr _ _ _ _) = True
+isFunctionPtr _ = False
 
 newtype HaskVar a = HaskVar a

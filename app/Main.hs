@@ -176,8 +176,8 @@ c     print *, "test v1",$vec(v1:inout:real:1)(1)
 -- Utils
   hSep ""
   splitF90 "test/f90split_test.f90"
-  hSep ""
-  test2
+--hSep ""
+--test2
   hSep ""
   test3
   hSep ""
@@ -254,6 +254,7 @@ vectorToC vec len ptr = do
   ptr' <- newForeignPtr_ ptr
   V.copy (VM.unsafeFromForeignPtr0 ptr' len) vec
 
+  {-
 test2 :: IO ()
 test2 = do
   putStrLn "====test2"
@@ -278,6 +279,7 @@ c     dr = inline_c_Main_0(d1)
   putStrLn $ "===!test2"
   putStrLn $ "nax: " ++ show (nax :: Double)
   putStrLn $ "x: " ++ show (x :: Double)
+-}
 
   {-
 C.verbatim [r|
