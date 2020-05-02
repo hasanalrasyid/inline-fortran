@@ -356,6 +356,7 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr locVars varsInBody 
   qqName <- newName $ "qq" ++ show (abs q)
   let qqStrName = show qqName
 
+  --let (fortFnPtrNamedArgs,rustNamedArgs) = partition (\(_,(b,_)) -> isFunctionPtr b) rustNamedArgs_FnPtr
   let (fortFnPtrNamedArgs,rustNamedArgs) = partition (\(_,(b,_)) -> isFunctionPtr b) rustNamedArgs_FnPtr
   -- Find out what the corresponding Haskell representations are for the
   -- argument and return types
@@ -363,8 +364,7 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr locVars varsInBody 
   runIO $ putStrLn $ "rustNamedArgs_FnPtr: " ++ (show $ length rustNamedArgs_FnPtr ) ++ " :: " ++ show rustNamedArgs_FnPtr
   let (retNamedArgs,rustNamedArgs') = partition (\(a,_) -> a == "return__") rustNamedArgs
   let (rustArgNames, rustArgs_intents) = unzip rustNamedArgs'
-  let (rustArgs1, intents) = unzip rustArgs_intents
-  let rustArgs = rustArgs1
+  let (rustArgs, intents) = unzip rustArgs_intents
   (haskRet, reprCRet) <- getRType (void rustRet)
     {-
   reprCRet <- pure Nothing
@@ -399,29 +399,27 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr locVars varsInBody 
     for (zip haskArgs intents) $ \(haskArg,intent) -> do
       marshalForm <- ghcMarshallable haskArg
       runIO $ putStrLn $ "marshalForm: " ++ show marshalForm
-      {-
-      case marshalForm of
-        BoxedIndirect
-          | returnFfi == UnboxedDirect ->
-              let argTy = showTy haskArg
-                  retTy = showTy haskRet
-              in fail ("Cannot pass an argument ‘" ++ argTy ++ "’" ++
-                       " indirectly when returning an unlifted type " ++
-                       "‘" ++ retTy ++ "’")
-
-          | otherwise -> do -- in app/Main.hs, this is for v
-              ptr <- [t| Ptr $(pure haskArg) |]
-              pure (True, ptr)
-
-        _ -> do -- in app/Main.hs, this is for x
-        -} -- cause everything is passed as pointer
+       -- cause everything is passed as pointer
       ptr <- case intent of
                "value" -> [t| $(pure haskArg) |]
                _ -> [t| Ptr $(pure haskArg) |]
       pure (True, ptr)
 
+  --haskArgsFunPtr <- do
+  let (rustArgNamesFunPtr, rustArgs_intentsFunPtr) = unzip fortFnPtrNamedArgs
+  let (rustArgsFunPtr, _) = unzip rustArgs_intentsFunPtr
+--Failed on this step....
+  (haskArgsFunPtr, reprCArgsFunPtr) <- unzip <$> traverse (getRType . void) rustArgsFunPtr
   -- Generate the Haskell FFI import declaration and emit it
-  haskSig <- foldr (\l r -> [t| $(pure l) -> $r |]) haskRet' haskArgs'
+  haskSig <- foldr (\l r -> [t| $(pure l) -> $r |]) haskRet' $ haskArgs' ++ haskArgsFunPtr
+  --fail $
+  runIO $ putStrLn $
+    intercalate " ===:===\n "
+      [ show haskArgsFunPtr
+      , show haskArgs'
+      , show reprCArgsFunPtr
+      , show haskSig
+      ]
   let ffiImport = ForeignD (ImportF CCall safety (qqStrName ++ "_") qqName haskSig)
   addTopDecls [ffiImport]
 
@@ -447,7 +445,7 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr locVars varsInBody 
           Nothing -> fail ("Could not find Haskell variable ‘" ++ argStr ++ "’")
           Just argName -> do
             withVar goArgs argName acc args (HaskVar rustArg)
-  let haskCall' = goArgs [] (zip3 rustArgNames argsByVal rustArgs1)
+  let haskCall' = goArgs [] (zip3 rustArgNames argsByVal rustArgs)
       haskCall = if isPure && returnFfi /= UnboxedDirect
                    then [e| unsafeLocalState $haskCall' |]
                    else haskCall'
@@ -478,7 +476,7 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr locVars varsInBody 
     , "      USE, INTRINSIC :: ISO_C_BINDING"
     , unlines $ map renderFortran varsInBody
     , "cccccccccccccc VarStatements"
-    , unlines $ map renderVarStatement $ zip3 rustArgNames rustArgs' $ zip intents rustArgs1
+    , unlines $ map renderVarStatement $ zip3 rustArgNames rustArgs' $ zip intents rustArgs
     , retVarStatement
     , renderFuncInterface fortFnPtrNamedArgs
 --  , unlines $ map renderFortran $ drop (fromMaybe 0 locVars) varsInBody

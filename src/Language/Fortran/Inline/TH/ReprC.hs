@@ -366,7 +366,7 @@ mkMarshalFunc _     retTy body = let gen = mkGenerics []
 extendCtx :: TyVarDict -> Context -> Q Context
 extendCtx dict ctx = dictCtx <> pure ctx
   where
-    dictCtx = mkContext [ (mkPathTy i, varT v, False)
+    dictCtx = mkContext "dictCtx" [ (mkPathTy i, varT v, False,"extendCtx")
                         | (v, TyParam _ i _ _ _) <- dict
                         ]
 
@@ -533,9 +533,9 @@ mkVariant ctx tys pub = do
   rustTys <- traverse (\ht -> getHTypeInContext ht ctx) tys
   let structFlds  = [ StructField Nothing vis t [] () | t <- rustTys ]
       variantData = TupleD structFlds ()
-
+      snd' (_,b,_) = b
   -- Intermediate Rust types corresponding to Haskell ones
-  rustTys' <- traverse (\rt -> sequence . snd $ getRTypeInContext rt ctx) rustTys
+  rustTys' <- traverse (\rt -> sequence . snd' $ getRTypeInContext rt ctx) rustTys
   let needInter    = any isJust rustTys'
       rustInterTys = zipWith fromMaybe rustTys rustTys'
       structFlds'  = [ StructField Nothing vis t [] () | t <- rustInterTys ]

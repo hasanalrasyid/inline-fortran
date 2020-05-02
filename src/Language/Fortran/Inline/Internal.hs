@@ -41,6 +41,8 @@ import System.Process              ( -- spawnProcess, readProcess, waitForProces
 import System.Exit                 ( ExitCode(..) )
 import System.Environment          ( lookupEnv, setEnv )
 
+import Language.Fortran.Syntax.AST
+
 --import Text.JSON
 
 
@@ -119,7 +121,7 @@ extendContext qExtension = do
 -- | Search in a 'Context' for the Haskell type corresponding to a Rust type.
 getRType :: RType -> Q (HType, Maybe RType)
 getRType rustType = do
-  (qht, qrtOpt) <- getRTypeInContext rustType <$> getContext
+  (qht, qrtOpt,_) <- getRTypeInContext rustType <$> getContext
   (,) <$> qht <*> sequence qrtOpt
 
 -- | Search in a 'Context' for the Rust type corresponding to a Haskell type.

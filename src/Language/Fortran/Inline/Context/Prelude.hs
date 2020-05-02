@@ -59,13 +59,13 @@ prelude = maybeContext <> eitherContext <> mconcat [ tupleContext i | i <- [2..1
 maybeContext :: Q Context
 maybeContext = do
     maybeConT <- [t| Maybe |]
-    pure (Context ([rule],[rev maybeConT],maybeItems))
+    pure (Context ([rule],[rev maybeConT],maybeItems,"maybeContext"))
   where
   rule pt context = do
     PathTy Nothing (Path False [PathSegment "Option" (Just (AngleBracketed [] [t] [] _)) _] _) _ <- pure pt
-    (t', rInterOpt) <- lookupRTypeInContext t context
+    (t', rInterOpt,i) <- lookupRTypeInContext t context
     let inter = mkGenPathTy "MaybeC" <$> ((\x -> [x]) <$> maybe (pure t) id rInterOpt)
-    pure ([t| Maybe $t' |], Just inter)
+    pure ([t| Maybe $t' |], Just inter,"maybeContext:rule:" ++ i)
 
 
   rev maybeConT pt context = do
@@ -80,15 +80,15 @@ maybeContext = do
 eitherContext :: Q Context
 eitherContext = do
     eitherConT <- [t| Either |]
-    pure (Context ([rule],[rev eitherConT],eitherItems))
+    pure (Context ([rule],[rev eitherConT],eitherItems,"eitherContext"))
   where
   rule pt context = do
     PathTy Nothing (Path False [PathSegment "Result" (Just (AngleBracketed [] [l,r] [] _)) _] _) _ <- pure pt
-    (l', lInter) <- lookupRTypeInContext l context
-    (r', rInter) <- lookupRTypeInContext r context
+    (l', lInter,i) <- lookupRTypeInContext l context
+    (r', rInter,j) <- lookupRTypeInContext r context
     let inter = mkGenPathTy "EitherC" <$> ((\x y -> [x,y]) <$> maybe (pure r) id rInter
                                                            <*> maybe (pure l) id lInter)
-    pure ([t| Either $r' $l' |], Just inter)
+    pure ([t| Either $r' $l' |], Just inter,"eitherContext:rule:" ++ i ++ ":" ++ "j")
 
   rev eitherConT pt context = do
     AppT (AppT eitherCon l) r <- pure pt
@@ -101,7 +101,7 @@ eitherContext = do
 
 -- | Context for tuple types
 tupleContext :: Int -> Q Context
-tupleContext n = pure (Context ([rule],[rev],tupleItems n))
+tupleContext n = pure (Context ([rule],[rev],tupleItems n,"tupleContext"))
   where
   rule pt ctx = do
     TupTy tys _ <- pure pt
@@ -109,11 +109,11 @@ tupleContext n = pure (Context ([rule],[rev],tupleItems n))
     -- Filter out incorrect tuple types
     () <- if length tys == n then pure () else fail "Wrong sized tuple"
 
-    (tys', tysInter) <- fmap unzip $ traverse (`lookupRTypeInContext` ctx) tys
+    (tys', tysInter,is) <- fmap unzip3 $ traverse (`lookupRTypeInContext` ctx) tys
 
     let tysGen = zipWith (\x m -> maybe (pure x) id m) tys tysInter
         inter = mkGenPathTy (mkIdent ("Tuple" ++ show n)) <$> sequence tysGen
-    pure (foldl appT (tupleT n) tys', Just inter)
+    pure (foldl appT (tupleT n) tys', Just inter,"tupleContext:rule:" ++ unwords is)
 
   rev pt ctx = do
     Just tys <- pure (getTupTy [] pt)

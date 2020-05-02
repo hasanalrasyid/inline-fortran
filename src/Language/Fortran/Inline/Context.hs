@@ -24,8 +24,8 @@ import Language.Fortran.Syntax        ( Ty(..), Abi(..), FnDecl(..),
 
 import Language.Haskell.TH
 
-import Data.Semigroup              ( Semigroup )
-import Data.Monoid                 ( First(..) )
+--import Data.Semigroup             hiding (Arg)
+import Data.Monoid
 import Data.Typeable               ( Typeable )
 import Control.Monad               ( void, liftM2, fail )
 import Data.Traversable            ( for )
@@ -49,7 +49,7 @@ import qualified Data.Vector.Storable as V
 import Language.Rust.Data.Position
 
 instance Fail.MonadFail First where
-  fail = error "MonadFail First error"
+  fail x = error $ "MonadFail First error: " ++ x
 
 --start for Vector Context
 type CArray = Ptr
@@ -65,7 +65,7 @@ type HType = Type
 -- recursively into the 'Context' again before possibly producing a Haskell
 -- type.
 newtype Context =
-    Context ( [ RType -> Context -> First (Q HType, Maybe (Q RType)) ]
+    Context ( [ RType -> Context -> First (Q HType, Maybe (Q RType),String) ]
             -- Given a Rust type in a quasiquote, we need to look up the
             -- corresponding Haskell type (for the FFI import) as well as the
             -- C-compatible Rust type (if the initial Rust type isn't already
@@ -78,6 +78,7 @@ newtype Context =
 
             , [ String ]
             -- Source for the trait impls of @MarshalTo@
+            , String
             )
   deriving (Semigroup, Monoid, Typeable)
 
@@ -98,28 +99,43 @@ instance Monoid (Q Context) where
 --   1. The Haskell type have a 'Storable' instance
 --   2. The C-compatible Rust type have the same layout
 --
-lookupRTypeInContext :: RType -> Context -> First (Q HType, Maybe (Q RType))
-lookupRTypeInContext rustType context@(Context (rules, _, _)) =
-  foldMap (\fits -> fits rustType context) rules
+lookupRTypeInContext :: RType -> Context -> First (Q HType, Maybe (Q RType),String)
+lookupRTypeInContext rustType context@(Context (rules, _, _,idCon))
+  | isFProcedurePtr rustType =
+      let r = foldMap (\fits -> fits rustType context) rules
+          x a = error $ "lookupRTypeInContext: FProcedurePtr " ++ idCon ++ (show $ length rules) ++ a
+          cekit x = snd <$> getFirst x
+       in case rustType of
+            (FProcedurePtr _ _ _ _) -> r
+            _ -> r
+  | otherwise =  foldMap (\fits -> fits rustType context) rules
+
+isFProcedurePtr :: RType -> Bool
+isFProcedurePtr (FProcedurePtr _ _ _ _) = True
+isFProcedurePtr _ = False
 
 -- | Search in a 'Context' for the Rust type corresponding to a Haskell type.
 -- Looking up the Rust type using 'lookupRTypeInContext' should yield the
 -- initial Haskell type again.
 lookupHTypeInContext :: HType -> Context -> First (Q RType)
-lookupHTypeInContext haskType context@(Context (_, rules, _)) =
+lookupHTypeInContext haskType context@(Context (_, rules, _,_)) =
   foldMap (\fits -> fits haskType context) rules
 
 -- | Partial version of 'lookupRTypeInContext' that fails with an error message
 -- if the type is not convertible.
-getRTypeInContext :: RType -> Context -> (Q HType, Maybe (Q RType))
+getRTypeInContext :: RType -> Context -> (Q HType, Maybe (Q RType),String)
 getRTypeInContext rustType context =
-  case getFirst (lookupRTypeInContext rustType context) of
+  let x = takeIdContext context
+   in case getFirst (lookupRTypeInContext rustType context) of
     Just found -> found
     Nothing -> ( fail $ unwords [ "Could not find information about"
                                 , renderType rustType
-                                , "in the context"
+                                , "in the context " ++ x ++ " : " ++ show rustType
                                 ]
-               , Nothing )
+               , Nothing, "failed" )
+
+takeIdContext :: Context -> String
+takeIdContext (Context (_,_,_,i)) = i
 
 -- | Partial version of 'lookupHTypeInContext' that fails with an error message
 -- if the type is not convertible.
@@ -132,26 +148,26 @@ getHTypeInContext haskType context =
                               , "in the context"
                               ]
 
-
 -- | Make a 'Context' consisting of rules to map the Rust types on the left to
 -- the Haskell types on the right. The Rust types should all be @#[repr(C)]@
 -- and the Haskell types should all be 'Storable'.
-mkContext :: [(Ty a, Q HType, Bool)] -> Q Context
-mkContext tys = do
-    tys' <- traverse (\(rt,qht,mkImpl) -> do { ht <- qht; pure (void rt,ht,mkImpl) }) tys
+mkContext :: String -> [(Ty a, Q HType, Bool,String)] -> Q Context
+mkContext idContext tys = do
+    tys' <- traverse (\(rt,qht,mkImpl,idSubcon) -> do { ht <- qht; pure (void rt,ht,mkImpl,idSubcon) }) tys
     pure (Context ( map fits tys'
                   , map rev tys'
                   , map impl tys'
+                  , idContext
                   ))
   where
-    fits (rts, hts, _) rt _ | rt == rts = pure (pure hts, Nothing)
+    fits (rts, hts, _, i) rt _ | rt == rts = pure (pure hts, Nothing,i)
                             | otherwise = mempty
 
-    rev (rts, hts, _) ht _  | ht == hts = pure (pure rts)
+    rev (rts, hts, _,_) ht _  | ht == hts = pure (pure rts)
                             | otherwise = mempty
 
 
-    impl (rts, _, mkImpl)   | mkImpl = implMarshalInto rts
+    impl (rts, _, mkImpl,_)   | mkImpl = implMarshalInto rts
                             | otherwise = mempty
 
 
@@ -166,7 +182,7 @@ implMarshalInto t = unlines [ "impl MarshalInto<" ++ tyStr ++ "> for " ++ tyStr 
 -- | Make a singleton 'Context' consisting of a rule to map the given Rust type
 -- to the given Haskell type.
 singleton :: Ty a -> Q HType -> Q Context
-singleton rts qht = mkContext [(rts, qht, True)]
+singleton rts qht = mkContext "singleton" [(rts, qht, True,"singleton")]
 
 
 -- * Some handy contexts
@@ -177,7 +193,7 @@ singleton rts qht = mkContext [(rts, qht, True)]
 -- layouts (since they both promise to have the same memory layout as C) and are
 -- passed on the stack.
 libc :: Q Context
-libc = mkContext []
+libc = mkContext "libc" []
 --h--  [ ([ty| libc::c_char      |], [t| CChar      |], False) -- char
 --h--  , ([ty| libc::c_schar     |], [t| CSChar     |], False) -- signed char
 --h--  , ([ty| libc::c_uchar     |], [t| CUChar     |], False) -- unsigned char
@@ -216,9 +232,9 @@ libc = mkContext []
 --h--  ]
 
 vecCtx :: Q Context
-vecCtx = mkContext
-  [ ([ty| vecptr |], [t| VM.IOVector |], True)
-  , ([ty| veclen |], [t| Int |], True)
+vecCtx = mkContext "vecCtx"
+  [ ([ty| vecptr |], [t| VM.IOVector |], True ,"vecptr")
+  , ([ty| veclen |], [t| Int |], True         ,"veclen")
   ]
 -- | Basic numeric (and similar) Haskell and Rust types.
 --
@@ -227,30 +243,30 @@ vecCtx = mkContext
 basic :: Q Context
 basic = do
   runIO $ putStrLn $  "=====debug:" ++ show [ty| character |]
-  mkContext
-    [ ([ty| char  |], [t| Char    |], True) -- 4 bytes
-    , ([ty| i8    |], [t| Int8    |], True)
-    , ([ty| i16   |], [t| Int16   |], True)
-    , ([ty| i32   |], [t| Int32   |], True)
-    , ([ty| i64   |], [t| Int64   |], True)
-    , ([ty| u8    |], [t| Word8   |], True)
-    , ([ty| u16   |], [t| Word16  |], True)
-    , ([ty| u32   |], [t| Word32  |], True)
-    , ([ty| u64   |], [t| Word64  |], True)
-    , ([ty| f32   |], [t| Float   |], True)
-    , ([ty| f64   |], [t| Double  |], True)
-    , ([ty| isize |], [t| Int     |], True)
-    , ([ty| usize |], [t| Word    |], True)
-    , ([ty| bool  |], [t| Word8   |], True)
-    , ([ty| ()    |], [t| ()      |], True)
+  mkContext "basic"
+    [ ([ty| char  |], [t| Char    |], True, "char ") -- 4 bytes
+    , ([ty| i8    |], [t| Int8    |], True, "i8   ")
+    , ([ty| i16   |], [t| Int16   |], True, "i16  ")
+    , ([ty| i32   |], [t| Int32   |], True, "i32  ")
+    , ([ty| i64   |], [t| Int64   |], True, "i64  ")
+    , ([ty| u8    |], [t| Word8   |], True, "u8   ")
+    , ([ty| u16   |], [t| Word16  |], True, "u16  ")
+    , ([ty| u32   |], [t| Word32  |], True, "u32  ")
+    , ([ty| u64   |], [t| Word64  |], True, "u64  ")
+    , ([ty| f32   |], [t| Float   |], True, "f32  ")
+    , ([ty| f64   |], [t| Double  |], True, "f64  ")
+    , ([ty| isize |], [t| Int     |], True, "isize")
+    , ([ty| usize |], [t| Word    |], True, "usize")
+    , ([ty| bool  |], [t| Word8   |], True, "bool ")
+    , ([ty| ()    |], [t| ()      |], True, "()   ")
 --   Fortran
-    , ([ty| integer   |], [t| CInt            |], True )
-    , ([ty| logical   |], [t| Int8            |], True )
-    , ([ty| real      |], [t| Float           |], True )
-    , ([ty| complex   |], [t| CComplex Float  |], True )
-    , ([ty| character |], [t| CChar           |], True )
-    , ([ty| real(kind=8)    |], [t| Double          |], True)
-    , ((FString (Span NoPosition NoPosition)), [t|CChar |], True)
+    , ([ty| integer       |], [t| CInt            |], True , "integer     ")
+    , ([ty| logical       |], [t| Int8            |], True , "logical     ")
+    , ([ty| real          |], [t| Float           |], True , "real        ")
+    , ([ty| complex       |], [t| CComplex Float  |], True , "complex     ")
+    , ([ty| character     |], [t| CChar           |], True , "character   ")
+    , ([ty| real(kind=8)  |], [t| Double          |], True , "real(kind=8)")
+    , ((FString (Span NoPosition NoPosition)), [t|CChar |], True, "FString")
     {-
     , ([ty| logical(kind=1) |], [t| Int8            |])
     , ([ty| character(len=1)|], [t| CChar           |])
@@ -276,12 +292,12 @@ basic = do
 -- TODO: MutableByteArray#
 ghcUnboxed :: Q Context
 ghcUnboxed = do
-  mkContext
-    [ ([ty| char      |], [t| Char#      |], False)
-    , ([ty| isize     |], [t| Int#       |], False)
-    , ([ty| usize     |], [t| Word#      |], False)
-    , ([ty| f32       |], [t| Float#     |], False)
-    , ([ty| f64       |], [t| Double#    |], False)
+  mkContext "ghcUnboxed"
+    [ ([ty| char      |], [t| Char#      |], False, "char  ")
+    , ([ty| isize     |], [t| Int#       |], False, "isize ")
+    , ([ty| usize     |], [t| Word#      |], False, "usize ")
+    , ([ty| f32       |], [t| Float#     |], False, "f32   ")
+    , ([ty| f64       |], [t| Double#    |], False, "f64   ")
 --    , ([ty| *const i8 |], [t| ByteArray# |], False)
     ]
 
@@ -291,11 +307,11 @@ ghcUnboxed = do
 --
 -- NOTE: pointers will not support pointed types that require an intermediate
 --       Rust type.
-
+  {-
 fImmutableVectors :: Q Context
 fImmutableVectors = do
   vecConT <- [t| V.Vector |]
-  pure (Context ([rule], [rev vecConT], []))
+  pure (Context ([rule], [rev vecConT], [], "fImmutableVectors"))
   where
   rule vec context = do
     FArray _ t _  <- pure vec
@@ -310,16 +326,17 @@ fImmutableVectors = do
         t' <- lookupHTypeInContext t context
         pure (FArray (-1) <$> t' <*> pure ())
         --pure (Ptr Mutable <$> t' <*> pure ())
+-}
 
 fVectors :: Q Context
 fVectors = do
   vecConT <- [t| VM.MVector |]
-  pure (Context ([rule], [rev vecConT], []))
+  pure (Context ([rule], [rev vecConT], [], "fVectors"))
   where
   rule vec context = do
-    FArray _ t _  <- pure vec
-    (t', Nothing) <- lookupRTypeInContext t context
-    pure ([t| $t' |], Nothing)
+    (FArray _ t _) <- pure vec
+    (t', Nothing,i) <- lookupRTypeInContext t context
+    pure ([t| $t' |], Nothing,i)
 
   rev vecConT pt context = do
     AppT vecCon t <- pure pt
@@ -330,18 +347,16 @@ fVectors = do
         pure (FArray (-1) <$> t' <*> pure ())
         --pure (Ptr Mutable <$> t' <*> pure ())
 
-
-
 vectors :: Q Context
 vectors = do
   vecConT <- [t| V.MVector |]
-  pure (Context ([rule], [rev vecConT], []))
+  pure (Context ([rule], [rev vecConT], [], "vectors"))
   where
   rule vec context = do
     Array t _ _  <- pure vec
 --    V.MVector t _  <- pure vec
-    (t', Nothing) <- lookupRTypeInContext t context
-    pure ([t| $t' |], Nothing)
+    (t', Nothing,i) <- lookupRTypeInContext t context
+    pure ([t| $t' |], Nothing,i)
 
   rev vecConT pt context = do
     AppT vecCon t <- pure pt
@@ -351,16 +366,15 @@ vectors = do
         t' <- lookupHTypeInContext t context
         pure (Ptr Mutable <$> t' <*> pure ())
 
-
 pointers :: Q Context
 pointers = do
     ptrConT <- [t| Ptr |]
-    pure (Context ([rule],[rev ptrConT],[constPtr,mutPtr]))
+    pure (Context ([rule],[rev ptrConT],[constPtr,mutPtr],"pointers"))
   where
   rule pt context = do
     Ptr _ t _ <- pure pt
-    (t', Nothing) <- lookupRTypeInContext t context
-    pure ([t| Ptr $t' |], Nothing)
+    (t', Nothing,i) <- lookupRTypeInContext t context
+    pure ([t| Ptr $t' |], Nothing,i)
 
   rev ptrConT pt context = do
     AppT ptrCon t <- pure pt
@@ -390,20 +404,59 @@ pointers = do
 --
 -- NOTE: function pointers will not support pointed types that require an intermediate
 --       Rust type.
+
+makeIO :: Q HType -> Q HType
+makeIO x = do
+  ioT <- [t| IO |]
+  x1 <- x
+  xx <- case x1 of
+             AppT ioT _ -> x
+             _ -> [t| IO $x |]
+  return xx
+
 functions :: Q Context
 functions = do
   funPtrT <- [t| FunPtr |]
   ioT <- [t| IO |]
-  pure (Context ([rule], [rev funPtrT ioT], [impl]))
+  pure (Context ([rule], [rev funPtrT ioT], [impl],"functions"))
   where
+  rule :: RType -> Context -> First (Q HType, Maybe (Q RType),String)
   rule ft context = do
-    BareFn _ C _ (FnDecl args retTy False _) _ <- pure ft
+    --BareFn _ C _ (FnDecl args retTy False _) _ <- pure ft
+    ff <- pure ft
+    case ff of
+      (FProcedurePtr _ retTy argTys _) -> do
+        args' <- for argTys $ \arg -> do
+          (t',_,_) <- lookupRTypeInContext arg context
+          pure t'
+        retTy' <- do
+          (t',_,_) <- lookupRTypeInContext retTy context
+          pure t'
+        --retTy2 <- pure $ makeIO <$> retTy'
+        let retTy2 :: Q HType
+            retTy2 = makeIO retTy'
+        let hFunTy = foldr (\l r -> [t| $l -> $r |]) retTy2 args'
+        let hFunPtr = [t| FunPtr $hFunTy |]
+
+        pure (hFunPtr, Nothing,"FProcedurePtr")
+      _ -> mempty
+      {-
+    (FProcedurePtr _ retTy argTys _) <- pure ft
+--  case ft of
+--    (FProcedurePtr _ _ _ _) -> error $ "functions " ++ show ft
+--    _ -> fail $ "f: " ++ show ft
+    args' <- for argTys $ \arg -> do
+      (t',_) <- lookupRTypeInContext arg context
+      pure t'
+    retTy' <- do
+      fail $ show retTy
+      (t',_) <- lookupRTypeInContext retTy context
+      pure t'
     args' <-
       for args $ \arg -> do
         Arg _ argTy _ <- pure arg
         (t', Nothing) <- lookupRTypeInContext argTy context
         pure t'
-
     retTy' <-
       case retTy of
         Nothing -> pure [t| IO () |]
@@ -414,8 +467,9 @@ functions = do
     let hFunTy = foldr (\l r -> [t| $l -> $r |]) retTy' args'
     let hFunPtr = [t| FunPtr $hFunTy |]
 
-    pure (hFunPtr, Nothing)
-
+    pure (hFunPtr, Nothing,"functions")
+-}
+  rev :: Type -> Type -> HType -> Context -> First (Q RType)
   rev funPtrT ioT ft context = do
     AppT funPtr t <- pure ft
     if funPtr /= funPtrT
@@ -435,11 +489,14 @@ functions = do
 
         argsRs <- traverse (`lookupHTypeInContext` context) args
         retRs <- traverse (`lookupHTypeInContext` context) ret''
-
         let argsRs' :: Q [Arg ()]
             argsRs' = map (\a -> Arg Nothing a ()) <$> sequence argsRs
+            argsRs2 :: Q [RType]
+            argsRs2 = sequence argsRs
         let decl = FnDecl <$> argsRs' <*> sequence retRs <*> pure False <*> pure ()
         pure (BareFn Normal C [] <$> decl <*> pure ())
+--        pure (FProcedurePtr "dummy" retRs argsRs2 <*> pure mempty )
+--
 
   getApps :: Type -> [Type]
   getApps (AppT e1 e2) = e1 : getApps e2

@@ -22,18 +22,19 @@ import           Text.RawString.QQ (r)
 
 $(genWithPtrs 20)
 
-extendContext basic
 --extendContext vectors
-extendContext fVectors
+--extendContext fVectors
 extendContext functions
+extendContext basic
 
 setCrateRoot []
 
---C.context (C.baseCtx <> C.funCtx <> C.fptrCtx)
+C.context (C.baseCtx <> C.funCtx <> C.fptrCtx)
 
 main :: IO ()
 main = do
   putStrLn "Haskell: Hello. Enter a number:"
+    {-
   let angstr  = 1/0.5291769
   let celvin  = 1/(2*13.606*11605)
   let second  = 1.0+17/2.4189
@@ -176,6 +177,7 @@ c     print *, "test v1",$vec(v1:inout:real:1)(1)
 -- Utils
   hSep ""
   splitF90 "test/f90split_test.f90"
+-- -}
 --hSep ""
 --test2
   hSep ""
@@ -190,7 +192,6 @@ test4 :: IO ()
 test4 = do
   putStrLn "===== test4"
   let pureFuncIO x = return $ pureFunc x
-    {-
   x <- withPtr $ \pp -> do
         poke pp 2.3
         p <- newForeignPtr_ pp :: IO (ForeignPtr CDouble)
@@ -200,47 +201,28 @@ test4 = do
             double *pc;
             pc = $fptr-ptr:(double *p);
             return $fun:(double (*pureFuncIO) (double))(*pc);
+
           }
         |]
         return (y :: CDouble)
-        -}
   putStrLn $ "=====!test4 " -- ++ (show x)
 
 test3 :: IO ()
 test3 = do
   putStrLn $ "test3: ==================="
-  let f x = x*x + 1
---        f = $(func: extern "C" fn(f64) -> f64);
+  let f x = return $ x*x + 1
   let x = 2.3
-  my_func <- $(newFunPtr [t| Double -> Double|]) f
-  x <- [fortIO| real(kind=8) ::
+  my_func <- $(newFunPtr [t| Double -> IO Double|]) f
+  putStrLn $ "my_func: " ++ show my_func
+  y <- (\a f -> f a) my_func $ [fortIO| real(kind=8) ::
           IMPLICIT NONE
-c         interface
-c           function shouldbe_the_function (x)
-c             real(kind=8), intent(in) :: x
-c             real(kind=8) :: shouldbe_the_function
-c           end function shouldbe_the_function
-c         end interface
-c         procedure(shouldbe_the_function), pointer:: funcPointer
           real(kind=8) :: f
-c         NEED SOMETHING LIKE THIS
-c         funcPointer => $fun(my_func)
-c         f = $func:(my_func:real(kind=8):real(kind=8))(3.2)
+          print *,"test this: ", x
           f = $func:(my_func:real(kind=8):real(kind=8))($(x:value:real(kind=8)))
-c         f = $(x:value:real(kind=8))
-          $return = 3.1
-
+          $return = f
        |]
   freeHaskellFunPtr my_func
-  {-
-  x <- $(withFunPtr [t| Double -> Double |]) (\x -> x^2 + 1) $
-          [fortIO| real(kind=8) ::
-c     f = $(func: extern "C" fn(64) -> f64)
-      print*,"test test3: withFunPtr"
-      $return = f(9.1)
-
-          |]
-          -}
+  putStrLn $ "===: y: " ++ show y
   putStrLn $ "test3: try for withFunPtr "
 
 hSep :: String -> IO ()
@@ -256,7 +238,6 @@ vectorToC vec len ptr = do
   ptr' <- newForeignPtr_ ptr
   V.copy (VM.unsafeFromForeignPtr0 ptr' len) vec
 
-  {-
 test2 :: IO ()
 test2 = do
   putStrLn "====test2"
@@ -281,14 +262,4 @@ c     dr = inline_c_Main_0(d1)
   putStrLn $ "===!test2"
   putStrLn $ "nax: " ++ show (nax :: Double)
   putStrLn $ "x: " ++ show (x :: Double)
--}
 
-  {-
-C.verbatim [r|
-double tester_ (double *x) {
-  double r ;
-  r = inline_c_Main_0(pureFuncIO_inline_c_0,x);
-  return r;
-}
-  |]
-  -}

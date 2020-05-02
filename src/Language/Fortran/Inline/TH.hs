@@ -22,9 +22,9 @@ adtCtx :: Name         -- ^ name of the 'Storable' Haskell type
        -> Int          -- ^ how many generic parameters
        -> [String]     -- ^ impl's of @MarshalInto@
        -> Q Context
-adtCtx hADT rEnum rReprCOpt n impls = pure (Context ([ goRType ], [ goHType ], impls))
+adtCtx hADT rEnum rReprCOpt n impls = pure (Context ([ goRType ], [ goHType ], impls,"adtCtx"))
   where
-  goRType :: RType -> Context -> First (Q HType, Maybe (Q RType))
+  goRType :: RType -> Context -> First (Q HType, Maybe (Q RType),String)
   goRType rTy ctx = do
     PathTy Nothing (Path False [ PathSegment rName params _ ] _) _ <- pure rTy
     rGen <-
@@ -38,7 +38,7 @@ adtCtx hADT rEnum rReprCOpt n impls = pure (Context ([ goRType ], [ goHType ], i
     () <- if length rGen == n then pure () else fail "Wrong number of generics"
 
     -- Look up generic args recursively
-    (hGen, rInterGenOpt) <- fmap unzip $ traverse (`lookupRTypeInContext` ctx) rGen
+    (hGen, rInterGenOpt,_) <- fmap unzip3 $ traverse (`lookupRTypeInContext` ctx) rGen
 
     -- Compute the intermediate #[repr(C)] rust type (if we even need one)
     let needInter = getAny $ foldMap Any (isJust rReprCOpt : map isJust rInterGenOpt)
@@ -52,7 +52,7 @@ adtCtx hADT rEnum rReprCOpt n impls = pure (Context ([ goRType ], [ goHType ], i
     -- Compute the Haskell type
     let hTy = foldl appT (conT hADT) hGen
 
-    pure (hTy, rInter)
+    pure (hTy, rInter,"goRType")
 
 
   goHType :: HType -> Context -> First (Q RType)
