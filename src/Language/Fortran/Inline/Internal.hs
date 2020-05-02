@@ -159,7 +159,7 @@ cargoFinalizer extraArgs _ = do
                                     , dir </> thisFile
                                     ] ++ extraArgs
 --    msgFormat = [ "--message-format=json" ]
-  runIO $ putStrLn $ "cargoArgs: " ++ inlineFC ++ unwords cargoArgs
+  runIO $ putStrLn $ unwords ("cargoArgs: " : inlineFC : cargoArgs)
 
   (ec,_,se) <- runIO $ readProcessWithExitCode inlineFC cargoArgs ""
   when (ec /= ExitSuccess) $ do

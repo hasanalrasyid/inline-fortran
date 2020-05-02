@@ -5,16 +5,16 @@
 module Main where
 
 import Language.Fortran.Inline
---import Language.Fortran.Inline.Utils
+import Language.Fortran.Inline.Utils
 --import Data.Int
 import qualified Language.C.Inline as C
 import Foreign
 import Foreign.C.Types
 import qualified Data.Vector.Storable as V
 import qualified Data.Vector.Storable.Mutable as VM
---import qualified Data.Text.Foreign as T
---import qualified Data.Text as T
---import Eigen.Internal
+import qualified Data.Text.Foreign as T
+import qualified Data.Text as T
+import Eigen.Internal
 
 import External
 import Submodule.Addition
@@ -35,7 +35,6 @@ C.context (C.baseCtx <> C.funCtx <> C.fptrCtx)
 main :: IO ()
 main = do
   putStrLn "Haskell: Hello. Enter a number:"
-    {-
   let angstr  = 1/0.5291769
   let celvin  = 1/(2*13.606*11605)
   let second  = 1.0+17/2.4189
@@ -178,11 +177,8 @@ c     print *, "test v1",$vec(v1:inout:real:1)(1)
 -- Utils
   hSep ""
   splitF90 "test/f90split_test.f90"
---hSep ""
---test2
   hSep ""
-  test3
----}
+  test2
   hSep ""
   test4
   hSep ""

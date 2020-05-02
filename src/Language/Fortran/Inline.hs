@@ -529,8 +529,8 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr _ varsInBody rustBo
       space6 = "      "
       chop60colsPerLine x =
         let go1 x1 =
-              let (a:as) = chunksOf 70 x1
-                  as1 = map ("     c" ++) as
+              let (a,as) = splitAt 70 x1
+                  as1 = map ("     c" ++) $ chunksOf 60 as
                in (a:as1)
             goChop60 t = if length t < 70 then t
                                           else unlines $ go1 t
