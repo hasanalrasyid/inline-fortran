@@ -34,6 +34,7 @@ C.context (C.baseCtx <> C.funCtx <> C.fptrCtx)
 main :: IO ()
 main = do
   putStrLn "Haskell: Hello. Enter a number:"
+    {-
   let angstr  = 1/0.5291769
   let celvin  = 1/(2*13.606*11605)
   let second  = 1.0+17/2.4189
@@ -180,8 +181,11 @@ c     print *, "test v1",$vec(v1:inout:real:1)(1)
 --test2
   hSep ""
   test3
+---}
   hSep ""
   test4
+  hSep ""
+  test5
 
 --withPtrs3 :: (V.Storable a) => ([Ptr a] -> IO ()) -> IO [a]
 --withPtrs3 = $(withPtrsN 3)
@@ -205,18 +209,48 @@ test4 = do
         return (y :: CDouble)
   putStrLn $ "=====!test4 " -- ++ (show x)
 
-test3 :: IO ()
-test3 = do
-  putStrLn $ "test3: ==================="
-  let f x = return $ x*x + 1
+test5 :: IO ()
+test5 = do
+  putStrLn $ "test5: ==================="
+  let theFun x = return $ x*x + 1
   let x = 2.3
-  my_func <- $(newFunPtr [t| Double -> IO Double|]) f
+    {-
+  my_func <- $(newFunPtr [t| Double -> IO Double|]) theFun
+                :: IO (FunPtr (Double -> IO Double))
   putStrLn $ "my_func: " ++ show my_func
   y <- (\a f -> f a) my_func $ [fortIO| real(kind=8) ::
           IMPLICIT NONE
           real(kind=8) :: f
           print *,"test this: ", x
-          f = $func:(my_func:real(kind=8):real(kind=8))($(x:value:real(kind=8)))
+          f = $func:(my_func:theFun:real(kind=8):real(kind=8))($(x:value:real(kind=8)))
+          $return = f
+       |]
+  freeHaskellFunPtr my_func
+  -}
+  y <- $(withFunPtr [t| Double -> IO Double |]) theFun $
+      [fortIO| real(kind=8) ::
+          IMPLICIT NONE
+          real(kind=8) :: f
+          print *,"test this: ", x
+          f = $func:(my_func:theFun:real(kind=8):real(kind=8))($(x:value:real(kind=8)))
+          $return = f
+       |]
+  putStrLn $ "===: y: " ++ show y
+  putStrLn $ "test5: try for withFunPtr "
+
+test3 :: IO ()
+test3 = do
+  putStrLn $ "test3: ==================="
+  let theFun x = return $ x*x + 1
+  let x = 2.3
+  my_func <- $(newFunPtr [t| Double -> IO Double|]) theFun
+                :: IO (FunPtr (Double -> IO Double))
+  putStrLn $ "my_func: " ++ show my_func
+  y <- (\a f -> f a) my_func $ [fortIO| real(kind=8) ::
+          IMPLICIT NONE
+          real(kind=8) :: f
+          print *,"test this: ", x
+          f = $func:(my_func:theFun:real(kind=8):real(kind=8))($(x:value:real(kind=8)))
           $return = f
        |]
   freeHaskellFunPtr my_func

@@ -1025,7 +1025,10 @@ data Ty a
   | FType Ident (Expr a) a
   | FArray Int (Ty a) a
   | FString a
-  | FProcedurePtr String (Ty a) [Ty a] a
+  | FProcedurePtr String String (Ty a) [Ty a] a
+--                |       +- function_name
+--                +- function_pointer
+-- | FProcedurePtr String (Ty a) [Ty a] a
   deriving (Eq, Ord, Functor, Show, Typeable, Data, Generic, Generic1, NFData)
 
 instance Located a => Located (Ty a) where
@@ -1046,7 +1049,7 @@ instance Located a => Located (Ty a) where
   spanOf (FType _ _ s) = spanOf s
   spanOf (FArray _ _ s) = spanOf s
   spanOf (FString s) = spanOf s
-  spanOf (FProcedurePtr _ _ _ s) = spanOf s
+  spanOf (FProcedurePtr _ _ _ _ s) = spanOf s
 
 -- | Type parameter definition used in 'Generics' (@syntax::ast::TyParam@). Note that each
 -- parameter can have any number of (lifetime or trait) bounds, as well as possibly a default type.

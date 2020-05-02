@@ -104,7 +104,7 @@ import Foreign.Marshal.Utils                 ( with, new )
 import Foreign.Marshal.Alloc                 ( alloca, free )
 import Foreign.Marshal.Array                 ( withArrayLen, newArray )
 import Foreign.Marshal.Unsafe                ( unsafeLocalState )
-import Foreign.Ptr                           ( freeHaskellFunPtr, Ptr )
+import Foreign.Ptr                           ( freeHaskellFunPtr, Ptr, FunPtr )
 
 import Control.Monad                         ( void, replicateM, forM )
 import Data.List                             ( intercalate,partition )
@@ -408,7 +408,6 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr locVars varsInBody 
   --haskArgsFunPtr <- do
   let (rustArgNamesFunPtr, rustArgs_intentsFunPtr) = unzip fortFnPtrNamedArgs
   let (rustArgsFunPtr, _) = unzip rustArgs_intentsFunPtr
---Failed on this step....
   (haskArgsFunPtr, reprCArgsFunPtr) <- unzip <$> traverse (getRType . void) rustArgsFunPtr
   -- Generate the Haskell FFI import declaration and emit it
   haskSig <- foldr (\l r -> [t| $(pure l) -> $r |]) haskRet' $ haskArgs' ++ haskArgsFunPtr
@@ -416,8 +415,6 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr locVars varsInBody 
   runIO $ putStrLn $
     intercalate " ===:===\n "
       [ show haskArgsFunPtr
-      , show haskArgs'
-      , show reprCArgsFunPtr
       , show haskSig
       ]
   let ffiImport = ForeignD (ImportF CCall safety (qqStrName ++ "_") qqName haskSig)
@@ -446,10 +443,28 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr locVars varsInBody 
           Just argName -> do
             withVar goArgs argName acc args (HaskVar rustArg)
   let haskCall' = goArgs [] (zip3 rustArgNames argsByVal rustArgs)
-      haskCall = if isPure && returnFfi /= UnboxedDirect
+      haskCall1 :: Q Exp
+      haskCall1 = if isPure && returnFfi /= UnboxedDirect
                    then [e| unsafeLocalState $haskCall' |]
                    else haskCall'
-
+  test <- haskCall1
+  let haskCall = haskCall1
+  case fortFnPtrNamedArgs of
+    [] -> return ()
+    _ -> do
+      funPtr <- newName . show =<< newName "toFunPtr"
+      let (haskArgsFunPtr1:_) = haskArgsFunPtr
+      let
+          haskCall2 :: Q Exp
+          haskCall2 = [e|
+              do
+                return $ $(haskCall1)
+            |]
+      ttt <- haskCall2
+      -- fail
+      runIO $ putStrLn
+        $ "haskCall :: " ++ show ttt
+      return ()
   -- Generate the Rust function arguments and the converted arguments
   let (rustArgs', _) = unzip $ zipWith mergeArgs rustArgs reprCArgs
 
@@ -491,17 +506,17 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr locVars varsInBody 
       genHeadSubroutine hs =
         let (h1:h1s) = chunksOf 60 hs
          in unlines $ h1:(map ("     c" ++) h1s)
-      takeFnName (_,(FProcedurePtr fn _ _ _, _)) = fn
-      genFuncPtrAssign (_,(FProcedurePtr fn _ _ _, _)) =
+      takeFnName (_,(FProcedurePtr fn _ _ _ _, _)) = fn
+      genFuncPtrAssign (_,(FProcedurePtr fn _ _ _ _, _)) =
         "      call c_f_procpointer("++ fn ++ "_ptr," ++ fn ++"_fptr)"
-      genFuncPtrFort (_,(FProcedurePtr fn _ _ _, _)) =
+      genFuncPtrFort (_,(FProcedurePtr fn _ _ _ _, _)) =
         "      procedure(" ++ fn ++ "), pointer :: " ++ fn ++ "_fptr"
       genFuncPtrFort _ = error "genFuncPtrFort: undefined input"
-      genFuncPointer (_,(FProcedurePtr fn _ _ _, _)) =
+      genFuncPointer (_,(FProcedurePtr fn _ _ _ _, _)) =
         "      type(C_FUNPTR),intent(in),value :: " ++ fn ++ "_ptr"
       genFuncPointer _ = error "genFuncPointer: undefined input"
       renderVarType (v,t) = renderType t ++ ",intent(in),value :: " ++ v
-      genFuncInterface (_,(FProcedurePtr fn retTy paramTys _, _)) =
+      genFuncInterface (_,(FProcedurePtr fn fName retTy paramTys _, _)) =
         let paramVars = (map (("dum" ++) . show) $ [1..(length paramTys)])
             paramList = "(" ++ (intercalate "," paramVars ) ++ ")"
             funcStatement = "function " ++ (unwords [ fn , paramList ])
@@ -558,7 +573,7 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr locVars varsInBody 
          in ad ++ (takeWhile (/= '\n') $ renderTokens tok)
 
 isFunctionPtr :: Ty Span -> Bool
-isFunctionPtr (FProcedurePtr _ _ _ _) = True
+isFunctionPtr (FProcedurePtr _ _ _ _ _) = True
 isFunctionPtr _ = False
 
 newtype HaskVar a = HaskVar a
