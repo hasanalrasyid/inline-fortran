@@ -460,8 +460,8 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr locVars varsInBody 
                    else haskCall'
   test <- haskCall1
   let haskCall = haskCall1
-  case fortFnPtrNamedArgs of
-    [] -> return ()
+  haskCall <- case fortFnPtrNamedArgs of
+    [] -> return haskCall1
     _ -> do
       funPtr <- newName . show =<< newName "toFunPtr"
       ptr <- newName "ptr" :: Q Name
@@ -481,15 +481,15 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr locVars varsInBody 
           haskCall2 =
             [e| do { $(varP ptr) <- $(newFunPtr haskArgsFunPtr2) $(varE theFun)
                    ; $(varP ret) <- (\a f -> f a) $(varE ptr) $ $(haskCall1)
-                     freeHaskellFunPtr $(varE ptr)
+                   ; freeHaskellFunPtr $(varE ptr)
                    ; pure $(varE ret)
                    }
             |]
       ttt <- haskCall2
-      fail
-      --runIO $ putStrLn
+      --fail
+      runIO $ putStrLn
         $ "haskCall :: "  ++ show ttt -- (show haskArgsFunPtr2)  -- theFun ++ show theF -- rustArgsFunPtr1 -- haskArgsFunPtr1 --  ttt
-      return ()
+      return haskCall2
   -- Generate the Rust function arguments and the converted arguments
   let (rustArgs', _) = unzip $ zipWith mergeArgs rustArgs reprCArgs
 

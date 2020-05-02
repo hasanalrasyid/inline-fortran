@@ -215,59 +215,17 @@ theFun x = return $ x*x + 1
 test5 :: IO ()
 test5 = do
   putStrLn $ "test5: ==================="
+  let theFun2 x = return $ x + x * 2
   let x = 2.3
-    {-
-  my_func <- $(newFunPtr [t| Double -> IO Double|]) theFun
-                :: IO (FunPtr (Double -> IO Double))
-  putStrLn $ "my_func: " ++ show my_func
-  y <- (\a f -> f a) my_func $ [fortIO| real(kind=8) ::
-          IMPLICIT NONE
-          real(kind=8) :: f
-          print *,"test this: ", x
-          f = $func:(my_func:theFun:real(kind=8):real(kind=8))($(x:value:real(kind=8)))
-          $return = f
-       |]
-  freeHaskellFunPtr my_func
-
-  y <- $(withFunPtr [t| Double -> IO Double |]) theFun $
-      [fortIO| real(kind=8) ::
-          IMPLICIT NONE
-          real(kind=8) :: f
-          print *,"test this: ", x
-          f = $func:(my_func:theFun:real(kind=8):real(kind=8))($(x:value:real(kind=8)))
-          $return = f
-       |]
-  -}
   y <- [fortIO| real(kind=8) ::
           IMPLICIT NONE
           real(kind=8) :: f
           print *,"test this: ", x
-          f = $func:(my_func:theFun:real(kind=8):real(kind=8))($(x:value:real(kind=8)))
+          f = $func:(my_func:theFun2:real(kind=8):real(kind=8))($(x:value:real(kind=8)))
           $return = f
        |]
   putStrLn $ "===: y: " ++ show y
   putStrLn $ "test5: try for withFunPtr "
-
-  {-
-test3 :: IO ()
-test3 = do
-  putStrLn $ "test3: ==================="
-  let theFun x = return $ x*x + 1
-  let x = 2.3
-  my_func <- $(newFunPtr [t| Double -> IO Double|]) theFun
-                :: IO (FunPtr (Double -> IO Double))
-  putStrLn $ "my_func: " ++ show my_func
-  y <- (\a f -> f a) my_func $ [fortIO| real(kind=8) ::
-          IMPLICIT NONE
-          real(kind=8) :: f
-          print *,"test this: ", x
-          f = $func:(my_func:theFun:real(kind=8):real(kind=8))($(x:value:real(kind=8)))
-          $return = f
-       |]
-  freeHaskellFunPtr my_func
-  putStrLn $ "===: y: " ++ show y
-  putStrLn $ "test3: try for withFunPtr "
--}
 
 hSep :: String -> IO ()
 hSep s = putStrLn $ take 70 $ "===" ++ s ++ (repeat '=')
