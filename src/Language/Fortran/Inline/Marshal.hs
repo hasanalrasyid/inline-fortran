@@ -146,6 +146,17 @@ withFunPtr hTy = do
                     }
     |]
 
+withFunPtr1 :: HType -> Q Exp
+withFunPtr1 hTy = do
+  func <- newName "func"
+  ret <- newName "ret"
+  let ht = pure hTy
+  [e| \f cont -> do { $(varP func) <- $(newFunPtr ht) f
+                    ; $(varP ret) <- cont $(varE func)
+                    ; freeHaskellFunPtr $(varE func)
+                    ; pure $(varE ret)
+                    }
+    |]
 -- | TH utility for converting function pointers back into Haskell functions.
 -- Remember to use the 'functions' context. Note that the function is only
 -- valid as long as the function pointer.

@@ -453,17 +453,27 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr locVars varsInBody 
     [] -> return ()
     _ -> do
       funPtr <- newName . show =<< newName "toFunPtr"
-      let (haskArgsFunPtr1:_) = haskArgsFunPtr
+      ret <- newName "ret" :: Q Name
+      let
+          (haskArgsFunPtr1:_) = haskArgsFunPtr :: [HType]
+          (rustArgsFunPtr1:_) = rustArgsFunPtr
+          theF = takeFunctionName rustArgsFunPtr1 :: String
+      theF1 <- lookupValueName $ takeFunctionName rustArgsFunPtr1
+      let theFun :: Name
+          theFun = case theF1 of
+                  Just f -> f
+                  _ -> error $ "haskCall: lookupValueName: can not find function: " ++ theF
       let
           haskCall2 :: Q Exp
-          haskCall2 = [e|
-              do
-                return $ $(haskCall1)
+          haskCall2 =
+            [e| \f -> do { $(varP ret) <- $(withFunPtr1 haskArgsFunPtr1) $(varE theFun) $(haskCall1)
+                         ; pure $(varE ret)
+                         }
             |]
       ttt <- haskCall2
-      -- fail
-      runIO $ putStrLn
-        $ "haskCall :: " ++ show ttt
+      fail
+      --runIO $ putStrLn
+        $ "haskCall :: " ++ show theFun ++ show theF -- rustArgsFunPtr1 -- haskArgsFunPtr1 --  ttt
       return ()
   -- Generate the Rust function arguments and the converted arguments
   let (rustArgs', _) = unzip $ zipWith mergeArgs rustArgs reprCArgs
@@ -473,7 +483,7 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr locVars varsInBody 
       mergeArgs t (Just tInter) = (fmap (const mempty) tInter, t)
 
   -- Generate the Rust function.
-  let fortFnPtrNames = map ((++ "_ptr") . takeFnName) fortFnPtrNamedArgs
+  let fortFnPtrNames = map ((++ "_ptr") . takeFnName1) fortFnPtrNamedArgs
   let (headSubroutine',endProcedure) =
         let param = "(" ++ intercalate ", " (fortFnPtrNames ++ rustArgNames) ++ ")"
          in case procedure of
@@ -506,7 +516,9 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr locVars varsInBody 
       genHeadSubroutine hs =
         let (h1:h1s) = chunksOf 60 hs
          in unlines $ h1:(map ("     c" ++) h1s)
-      takeFnName (_,(FProcedurePtr fn _ _ _ _, _)) = fn
+      takeFnName1 (_,(FProcedurePtr fn _ _ _ _, _)) = fn
+      takeFnName (FProcedurePtr fn _ _ _ _) = fn
+      takeFunctionName (FProcedurePtr _ n _ _ _) = n
       genFuncPtrAssign (_,(FProcedurePtr fn _ _ _ _, _)) =
         "      call c_f_procpointer("++ fn ++ "_ptr," ++ fn ++"_fptr)"
       genFuncPtrFort (_,(FProcedurePtr fn _ _ _ _, _)) =

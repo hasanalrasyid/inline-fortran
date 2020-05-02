@@ -209,10 +209,12 @@ test4 = do
         return (y :: CDouble)
   putStrLn $ "=====!test4 " -- ++ (show x)
 
+theFun :: Double -> IO Double
+theFun x = return $ x*x + 1
+
 test5 :: IO ()
 test5 = do
   putStrLn $ "test5: ==================="
-  let theFun x = return $ x*x + 1
   let x = 2.3
     {-
   my_func <- $(newFunPtr [t| Double -> IO Double|]) theFun
@@ -226,9 +228,17 @@ test5 = do
           $return = f
        |]
   freeHaskellFunPtr my_func
-  -}
+
   y <- $(withFunPtr [t| Double -> IO Double |]) theFun $
       [fortIO| real(kind=8) ::
+          IMPLICIT NONE
+          real(kind=8) :: f
+          print *,"test this: ", x
+          f = $func:(my_func:theFun:real(kind=8):real(kind=8))($(x:value:real(kind=8)))
+          $return = f
+       |]
+  -}
+  y <- [fortIO| real(kind=8) ::
           IMPLICIT NONE
           real(kind=8) :: f
           print *,"test this: ", x
@@ -238,6 +248,7 @@ test5 = do
   putStrLn $ "===: y: " ++ show y
   putStrLn $ "test5: try for withFunPtr "
 
+  {-
 test3 :: IO ()
 test3 = do
   putStrLn $ "test3: ==================="
@@ -256,6 +267,7 @@ test3 = do
   freeHaskellFunPtr my_func
   putStrLn $ "===: y: " ++ show y
   putStrLn $ "test3: try for withFunPtr "
+-}
 
 hSep :: String -> IO ()
 hSep s = putStrLn $ take 70 $ "===" ++ s ++ (repeat '=')
