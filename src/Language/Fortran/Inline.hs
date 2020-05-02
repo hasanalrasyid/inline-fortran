@@ -119,6 +119,8 @@ import qualified Data.Vector.Storable as V
 import qualified Data.Vector.Storable.Mutable as VM
 import Foreign (peek)
 
+import qualified GHC.Ptr
+
 replace :: Eq a => [a] -> [a] -> [a] -> [a]
 replace old n = intercalate n . splitOn old
 
@@ -348,6 +350,15 @@ showTy = show . pprParendType
 --    4. Generate and return a Haskell call to this function, slotting in the
 --       right Haskell arguments.
 --
+deFun :: HType -> Q HType
+deFun x = do
+  funPtr <- [t| FunPtr |]
+  go funPtr x
+    where
+      go ft c = case c of
+                  AppT ft t -> pure t
+                  _ -> error "deFun"
+
 processQQ :: Safety -> Bool -> RustQuasiquoteParse -> Q Exp
 processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr locVars varsInBody rustBody ) = do
 
@@ -453,11 +464,13 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr locVars varsInBody 
     [] -> return ()
     _ -> do
       funPtr <- newName . show =<< newName "toFunPtr"
+      ptr <- newName "ptr" :: Q Name
       ret <- newName "ret" :: Q Name
       let
           (haskArgsFunPtr1:_) = haskArgsFunPtr :: [HType]
           (rustArgsFunPtr1:_) = rustArgsFunPtr
           theF = takeFunctionName rustArgsFunPtr1 :: String
+      let haskArgsFunPtr2 = deFun haskArgsFunPtr1
       theF1 <- lookupValueName $ takeFunctionName rustArgsFunPtr1
       let theFun :: Name
           theFun = case theF1 of
@@ -466,14 +479,16 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr locVars varsInBody 
       let
           haskCall2 :: Q Exp
           haskCall2 =
-            [e| \f -> do { $(varP ret) <- $(withFunPtr1 haskArgsFunPtr1) $(varE theFun) $(haskCall1)
-                         ; pure $(varE ret)
-                         }
+            [e| do { $(varP ptr) <- $(newFunPtr haskArgsFunPtr2) $(varE theFun)
+                   ; $(varP ret) <- (\a f -> f a) $(varE ptr) $ $(haskCall1)
+                     freeHaskellFunPtr $(varE ptr)
+                   ; pure $(varE ret)
+                   }
             |]
       ttt <- haskCall2
       fail
       --runIO $ putStrLn
-        $ "haskCall :: " ++ show theFun ++ show theF -- rustArgsFunPtr1 -- haskArgsFunPtr1 --  ttt
+        $ "haskCall :: "  ++ show ttt -- (show haskArgsFunPtr2)  -- theFun ++ show theF -- rustArgsFunPtr1 -- haskArgsFunPtr1 --  ttt
       return ()
   -- Generate the Rust function arguments and the converted arguments
   let (rustArgs', _) = unzip $ zipWith mergeArgs rustArgs reprCArgs
