@@ -156,10 +156,9 @@ parseQQ input = do
                      ty1 <- parseFType t
                      let dim = read n
                      pure $ FArray dim ty1 nullSpan
-                   FVarProcPtr fn fName retTy parTy -> do
-                     (Ident fnString _ _) <- takeIdent fn
+                   FVarProcPtr fName retTy parTy -> do
                      (Ident fNameStr _ _) <- takeIdent fName
-                     pure $ FProcedurePtr fnString fNameStr retTy parTy nullSpan
+                     pure $ FProcedurePtr fNameStr retTy parTy nullSpan
                    _ -> fail $ "parseBody: t1: error on case rst2"
       newVars <- parseV vars v i newR
       runIO $ putStrLn $ "newVars :: " ++ show newVars ++ " :: " ++ show newR
@@ -169,7 +168,7 @@ parseQQ input = do
       parseBody l (r:toks) vars rst2
 
     parseV :: [(String,(Ty Span, String))] -> SpTok -> SpTok -> Ty Span -> Q [(String,(Ty Span, String))]
-    parseV vars (Spanned (IdentTok f) _) _ rst2@(FProcedurePtr _ _ _ _ _) = do
+    parseV vars (Spanned (IdentTok f) _) _ rst2@(FProcedurePtr _ _ _ _ ) = do
       let f' = name f
       case lookup f' vars of
                    Nothing -> pure ((f', (rst2,"")) : vars)
@@ -252,12 +251,11 @@ setNullSpan (Spanned t _) = return $ Spanned t nullSpan
 processFunPtr :: [SpTok] -> Q ([SpTok], SpTok, FVar)
 processFunPtr (r:rs) = do
   let (res,(_:r1s)) = takeParen 1 [r] rs
-  let (  (f@(Spanned (IdentTok (Ident funcVar1 a _)) _):_)
-       : (fN@(Spanned (IdentTok (Ident funcVar b _)) _):_)
+  let (  (fN@(Spanned (IdentTok (Ident funcVar b _)) _):_)
        : params) = splitWhen isColon $ init r1s
   let f1 =(Spanned (IdentTok (Ident (funcVar ++ "_fptr") b 0)) nullSpan)
   (retTy:paramTys) <- mapM parseFType params
-  return (res,f1,(FVarProcPtr f fN retTy paramTys))
+  return (res,f1,(FVarProcPtr fN retTy paramTys))
 processFunPtr [] = fail "processFunPtr: empty list processed"
 
 takeParen :: Int -> [SpTok] -> [SpTok] -> ([SpTok],[SpTok])
@@ -339,9 +337,8 @@ data FVar = ErrFVar
           | FVarBase [SpTok] -- type
           | FVarArray [SpTok] SpTok -- type dimLength
           | FVarReturn
-          | FVarProcPtr SpTok SpTok (Ty Span) [Ty Span]
-        --              |     |      |         +- parameters
-        --              |     |      +- return
-        --              |     +- function name
-        --              +-pointer name
+          | FVarProcPtr SpTok (Ty Span) [Ty Span]
+        --              |      |         +- parameters
+        --              |      +- return
+        --              +- function name
           deriving Show

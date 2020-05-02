@@ -104,7 +104,7 @@ lookupRTypeInContext rustType context@(Context (rules, _, _,_)) =
   foldMap (\fits -> fits rustType context) rules
 
 isFProcedurePtr :: RType -> Bool
-isFProcedurePtr (FProcedurePtr _ _ _ _ _) = True
+isFProcedurePtr (FProcedurePtr _ _ _ _) = True
 isFProcedurePtr _ = False
 
 -- | Search in a 'Context' for the Rust type corresponding to a Haskell type.
@@ -422,7 +422,7 @@ functions = do
     --BareFn _ C _ (FnDecl args retTy False _) _ <- pure ft
     ff <- pure ft
     case ff of
-      (FProcedurePtr _ _ retTy argTys _) -> do
+      (FProcedurePtr _ retTy argTys _) -> do
         args' <- for argTys $ \arg -> do
           (t',_,_) <- lookupRTypeInContext arg context
           pure t'
@@ -437,35 +437,6 @@ functions = do
 
         pure (hFunPtr, Nothing,"FProcedurePtr")
       _ -> mempty
-      {-
-    (FProcedurePtr _ retTy argTys _) <- pure ft
---  case ft of
---    (FProcedurePtr _ _ _ _) -> error $ "functions " ++ show ft
---    _ -> fail $ "f: " ++ show ft
-    args' <- for argTys $ \arg -> do
-      (t',_) <- lookupRTypeInContext arg context
-      pure t'
-    retTy' <- do
-      fail $ show retTy
-      (t',_) <- lookupRTypeInContext retTy context
-      pure t'
-    args' <-
-      for args $ \arg -> do
-        Arg _ argTy _ <- pure arg
-        (t', Nothing) <- lookupRTypeInContext argTy context
-        pure t'
-    retTy' <-
-      case retTy of
-        Nothing -> pure [t| IO () |]
-        Just t -> do
-          (t', Nothing) <- lookupRTypeInContext t context
-          pure t'
-
-    let hFunTy = foldr (\l r -> [t| $l -> $r |]) retTy' args'
-    let hFunPtr = [t| FunPtr $hFunTy |]
-
-    pure (hFunPtr, Nothing,"functions")
--}
   rev :: Type -> Type -> HType -> Context -> First (Q RType)
   rev funPtrT ioT ft context = do
     AppT funPtr t <- pure ft

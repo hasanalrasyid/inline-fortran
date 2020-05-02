@@ -222,7 +222,7 @@ test5 = do
           IMPLICIT NONE
           real(kind=8) :: f
           print *,"test this: ", x
-          f = $func:(my_func:theFun2:real(kind=8):real(kind=8))($(x:value:real(kind=8)))
+          f = $func:(theFun2:real(kind=8):real(kind=8))($(x:value:real(kind=8)))
           $return = f
        |]
   putStrLn $ "===: y: " ++ show y

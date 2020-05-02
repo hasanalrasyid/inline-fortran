@@ -529,27 +529,27 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr _ varsInBody rustBo
         let (h1:h1s) = chunksOf 60 hs
          in unlines $ h1:(map ("     c" ++) h1s)
 
-      takeFnName1 (_,(FProcedurePtr _ fn _ _ _, _)) = fn
+      takeFnName1 (_,(FProcedurePtr fn _ _ _, _)) = fn
       takeFnName1 _ = error "takeFnName1: wrong pattern"
 
-      takeFunctionName (FProcedurePtr _ n _ _ _) = n
+      takeFunctionName (FProcedurePtr n _ _ _) = n
       takeFunctionName _ = error "takeFunctionName: wrong pattern"
 
-      genFuncPtrAssign (_,(FProcedurePtr _ fn _ _ _, _)) =
+      genFuncPtrAssign (_,(FProcedurePtr fn _ _ _, _)) =
         "      call c_f_procpointer("++ fn ++ "_cptr," ++ fn ++"_fptr)"
       genFuncPtrAssign _ = error "genFuncPtrAssign: wrong pattern"
 
-      genFuncPtrFort (_,(FProcedurePtr _ fn  _ _ _, _)) =
+      genFuncPtrFort (_,(FProcedurePtr fn  _ _ _, _)) =
         "      procedure(" ++ fn ++ "), pointer :: " ++ fn ++ "_fptr"
       genFuncPtrFort _ = error "genFuncPtrFort: undefined input"
 
-      genFuncPointer (_,(FProcedurePtr _ fn _ _ _, _)) =
+      genFuncPointer (_,(FProcedurePtr fn _ _ _, _)) =
         "      type(C_FUNPTR),intent(in),value :: " ++ fn ++ "_cptr"
       genFuncPointer _ = error "genFuncPointer: undefined input"
 
       renderVarType (v,t) = renderType t ++ ",intent(in),value :: " ++ v
 
-      genFuncInterface (_,(FProcedurePtr fn1 fn retTy paramTys _, _)) =
+      genFuncInterface (_,(FProcedurePtr fn retTy paramTys _, _)) =
         let paramVars = (map ((fn ++) . show) $ [1..(length paramTys)])
             paramList = "(" ++ (intercalate "," paramVars ) ++ ")"
             funcStatement = "function " ++ (unwords [ fn , paramList ])
@@ -606,7 +606,7 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr _ varsInBody rustBo
          in ad ++ (takeWhile (/= '\n') $ renderTokens tok)
 
 isFunctionPtr :: Ty Span -> Bool
-isFunctionPtr (FProcedurePtr _ _ _ _ _) = True
+isFunctionPtr (FProcedurePtr _ _ _ _) = True
 isFunctionPtr _ = False
 
 newtype HaskVar a = HaskVar a
