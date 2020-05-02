@@ -252,10 +252,10 @@ setNullSpan (Spanned t _) = return $ Spanned t nullSpan
 processFunPtr :: [SpTok] -> Q ([SpTok], SpTok, FVar)
 processFunPtr (r:rs) = do
   let (res,(_:r1s)) = takeParen 1 [r] rs
-  let (  (f@(Spanned (IdentTok (Ident funcVar a _)) _):_)
-       : (fN@(Spanned (IdentTok (Ident funcName b _)) _):_)
+  let (  (f@(Spanned (IdentTok (Ident funcVar1 a _)) _):_)
+       : (fN@(Spanned (IdentTok (Ident funcVar b _)) _):_)
        : params) = splitWhen isColon $ init r1s
-  let f1 =(Spanned (IdentTok (Ident (funcVar ++ "_fptr") a 0)) nullSpan)
+  let f1 =(Spanned (IdentTok (Ident (funcVar ++ "_fptr") b 0)) nullSpan)
   (retTy:paramTys) <- mapM parseFType params
   return (res,f1,(FVarProcPtr f fN retTy paramTys))
 processFunPtr [] = fail "processFunPtr: empty list processed"

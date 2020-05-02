@@ -100,7 +100,7 @@ instance Monoid (Q Context) where
 --   2. The C-compatible Rust type have the same layout
 --
 lookupRTypeInContext :: RType -> Context -> First (Q HType, Maybe (Q RType),String)
-lookupRTypeInContext rustType context@(Context (rules, _, _,idCon)) =
+lookupRTypeInContext rustType context@(Context (rules, _, _,_)) =
   foldMap (\fits -> fits rustType context) rules
 
 isFProcedurePtr :: RType -> Bool
@@ -406,8 +406,9 @@ makeIO x = do
   ioT <- [t| IO |]
   x1 <- x
   xx <- case x1 of
-             AppT ioT _ -> x
-             _ -> [t| IO $x |]
+          AppT i _ -> if i == ioT then x
+                                  else [t| IO $x |]
+          _ -> [t| IO $x |]
   return xx
 
 functions :: Q Context
@@ -487,8 +488,8 @@ functions = do
         retRs <- traverse (`lookupHTypeInContext` context) ret''
         let argsRs' :: Q [Arg ()]
             argsRs' = map (\a -> Arg Nothing a ()) <$> sequence argsRs
-            argsRs2 :: Q [RType]
-            argsRs2 = sequence argsRs
+--          argsRs2 :: Q [RType]
+--          argsRs2 = sequence argsRs
         let decl = FnDecl <$> argsRs' <*> sequence retRs <*> pure False <*> pure ()
         pure (BareFn Normal C [] <$> decl <*> pure ())
 --        pure (FProcedurePtr "dummy" retRs argsRs2 <*> pure mempty )

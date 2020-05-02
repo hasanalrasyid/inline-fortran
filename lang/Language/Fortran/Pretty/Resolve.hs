@@ -461,6 +461,8 @@ resolveTy _ m@(MacTy (Mac p t x) x') = scope m $ do
   p' <- resolvePath TypePath p
   MacTy <$> resolveMac TypePath (Mac p' t x) <*> pure x'
 
+resolveTy _ _ = pure (Never mempty)
+
 instance (Typeable a, Monoid a) => Resolve (Ty a) where resolveM = resolveTy AnyType
 
 -- In some cases, the first argument of a function declaration may be a 'self'

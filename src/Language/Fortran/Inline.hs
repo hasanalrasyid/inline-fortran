@@ -113,13 +113,11 @@ import System.Random                         ( randomIO )
 
 import Language.Rust.Data.Position as P (Spanned(..), Span(..), Position(..), spanOf)
 import Language.Fortran.Syntax (Ty(..), Token(..))
-import Data.Maybe
+--import Data.Maybe
 import Data.Int (Int16)
 import qualified Data.Vector.Storable as V
 import qualified Data.Vector.Storable.Mutable as VM
 import Foreign (peek)
-
-import qualified GHC.Ptr
 
 replace :: Eq a => [a] -> [a] -> [a] -> [a]
 replace old n = intercalate n . splitOn old
@@ -356,11 +354,13 @@ deFun x = do
   go funPtr x
     where
       go ft c = case c of
-                  AppT ft t -> pure t
+                  AppT ft1 t -> if (ft1 == ft) then pure t
+                                               else error "deFun: wrong ft"
                   _ -> error "deFun"
 
 processQQ :: Safety -> Bool -> RustQuasiquoteParse -> Q Exp
-processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr locVars varsInBody rustBody ) = do
+--processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr locVars varsInBody rustBody ) = do
+processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr _ varsInBody rustBody ) = do
 
   -- Make a name to thread through Haskell/Rust (see Trac #13054)
   q <- runIO randomIO :: Q Int16
@@ -417,9 +417,9 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr locVars varsInBody 
       pure (True, ptr)
 
   --haskArgsFunPtr <- do
-  let (rustArgNamesFunPtr, rustArgs_intentsFunPtr) = unzip fortFnPtrNamedArgs
+  let (_, rustArgs_intentsFunPtr) = unzip fortFnPtrNamedArgs
   let (rustArgsFunPtr, _) = unzip rustArgs_intentsFunPtr
-  (haskArgsFunPtr, reprCArgsFunPtr) <- unzip <$> traverse (getRType . void) rustArgsFunPtr
+  (haskArgsFunPtr, _) <- unzip <$> traverse (getRType . void) rustArgsFunPtr
   -- Generate the Haskell FFI import declaration and emit it
   haskSig <- foldr (\l r -> [t| $(pure l) -> $r |]) haskRet' $ haskArgs' ++ haskArgsFunPtr
   --fail $
@@ -458,12 +458,9 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr locVars varsInBody 
       haskCall1 = if isPure && returnFfi /= UnboxedDirect
                    then [e| unsafeLocalState $haskCall' |]
                    else haskCall'
-  test <- haskCall1
-  let haskCall = haskCall1
   haskCall <- case fortFnPtrNamedArgs of
     [] -> return haskCall1
     _ -> do
-      funPtr <- newName . show =<< newName "toFunPtr"
       ptr <- newName "ptr" :: Q Name
       ret <- newName "ret" :: Q Name
       let
@@ -498,7 +495,7 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr locVars varsInBody 
       mergeArgs t (Just tInter) = (fmap (const mempty) tInter, t)
 
   -- Generate the Rust function.
-  let fortFnPtrNames = map ((++ "_ptr") . takeFnName1) fortFnPtrNamedArgs
+  let fortFnPtrNames = map ((++ "_cptr") . takeFnName1) fortFnPtrNamedArgs
   let (headSubroutine',endProcedure) =
         let param = "(" ++ intercalate ", " (fortFnPtrNames ++ rustArgNames) ++ ")"
          in case procedure of
@@ -531,20 +528,29 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr locVars varsInBody 
       genHeadSubroutine hs =
         let (h1:h1s) = chunksOf 60 hs
          in unlines $ h1:(map ("     c" ++) h1s)
-      takeFnName1 (_,(FProcedurePtr fn _ _ _ _, _)) = fn
-      takeFnName (FProcedurePtr fn _ _ _ _) = fn
+
+      takeFnName1 (_,(FProcedurePtr _ fn _ _ _, _)) = fn
+      takeFnName1 _ = error "takeFnName1: wrong pattern"
+
       takeFunctionName (FProcedurePtr _ n _ _ _) = n
-      genFuncPtrAssign (_,(FProcedurePtr fn _ _ _ _, _)) =
-        "      call c_f_procpointer("++ fn ++ "_ptr," ++ fn ++"_fptr)"
-      genFuncPtrFort (_,(FProcedurePtr fn _ _ _ _, _)) =
+      takeFunctionName _ = error "takeFunctionName: wrong pattern"
+
+      genFuncPtrAssign (_,(FProcedurePtr _ fn _ _ _, _)) =
+        "      call c_f_procpointer("++ fn ++ "_cptr," ++ fn ++"_fptr)"
+      genFuncPtrAssign _ = error "genFuncPtrAssign: wrong pattern"
+
+      genFuncPtrFort (_,(FProcedurePtr _ fn  _ _ _, _)) =
         "      procedure(" ++ fn ++ "), pointer :: " ++ fn ++ "_fptr"
       genFuncPtrFort _ = error "genFuncPtrFort: undefined input"
-      genFuncPointer (_,(FProcedurePtr fn _ _ _ _, _)) =
-        "      type(C_FUNPTR),intent(in),value :: " ++ fn ++ "_ptr"
+
+      genFuncPointer (_,(FProcedurePtr _ fn _ _ _, _)) =
+        "      type(C_FUNPTR),intent(in),value :: " ++ fn ++ "_cptr"
       genFuncPointer _ = error "genFuncPointer: undefined input"
+
       renderVarType (v,t) = renderType t ++ ",intent(in),value :: " ++ v
-      genFuncInterface (_,(FProcedurePtr fn fName retTy paramTys _, _)) =
-        let paramVars = (map (("dum" ++) . show) $ [1..(length paramTys)])
+
+      genFuncInterface (_,(FProcedurePtr fn1 fn retTy paramTys _, _)) =
+        let paramVars = (map ((fn ++) . show) $ [1..(length paramTys)])
             paramList = "(" ++ (intercalate "," paramVars ) ++ ")"
             funcStatement = "function " ++ (unwords [ fn , paramList ])
             (h:rs) = map ("      " ++) $
@@ -554,9 +560,8 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr locVars varsInBody 
               , "end function " ++ fn
               ]
          in unlines $ (genHeadSubroutine h):rs
-
-
       genFuncInterface _ = error "genFuncInterface: wrong type of input, FProcedurePtr needed"
+
       renderFuncInterface [] = ""
       renderFuncInterface xs = unlines
         [  "      interface"
@@ -566,6 +571,7 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr locVars varsInBody 
         , unlines $ map genFuncPtrFort xs
         , unlines $ map genFuncPtrAssign xs
         ]
+
       renderVarStatement (s,(FString _),(_,_)) = "c     " ++ s ++ " needs manual declaration for its length"
       renderVarStatement (s,(FArray d t _),(i,_)) =
         let intent = "intent(" ++ i ++ ")"

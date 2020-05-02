@@ -5,20 +5,20 @@
 module Main where
 
 import Language.Fortran.Inline
-import Language.Fortran.Inline.Utils
+--import Language.Fortran.Inline.Utils
 --import Data.Int
 import qualified Language.C.Inline as C
 import Foreign
 import Foreign.C.Types
 import qualified Data.Vector.Storable as V
 import qualified Data.Vector.Storable.Mutable as VM
-import qualified Data.Text.Foreign as T
-import qualified Data.Text as T
-import Eigen.Internal
+--import qualified Data.Text.Foreign as T
+--import qualified Data.Text as T
+--import Eigen.Internal
 
 import External
 
-import           Text.RawString.QQ (r)
+--import           Text.RawString.QQ (r)
 
 $(genWithPtrs 20)
 
@@ -207,6 +207,7 @@ test4 = do
           }
         |]
         return (y :: CDouble)
+  putStrLn $ "==== x: " ++ show x
   putStrLn $ "=====!test4 " -- ++ (show x)
 
 theFun :: Double -> IO Double

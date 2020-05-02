@@ -41,7 +41,7 @@ import System.Process              ( -- spawnProcess, readProcess, waitForProces
 import System.Exit                 ( ExitCode(..) )
 import System.Environment          ( lookupEnv, setEnv )
 
-import Language.Fortran.Syntax.AST
+--import Language.Fortran.Syntax.AST
 
 --import Text.JSON
 
