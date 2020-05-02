@@ -17,6 +17,7 @@ import qualified Data.Vector.Storable.Mutable as VM
 --import Eigen.Internal
 
 import External
+import Submodule.Addition
 
 --import           Text.RawString.QQ (r)
 
@@ -186,6 +187,10 @@ c     print *, "test v1",$vec(v1:inout:real:1)(1)
   test4
   hSep ""
   test5
+  hSep ""
+  test6
+  hSep ""
+  test7
 
 --withPtrs3 :: (V.Storable a) => ([Ptr a] -> IO ()) -> IO [a]
 --withPtrs3 = $(withPtrsN 3)
@@ -212,6 +217,26 @@ test4 = do
 
 theFun :: Double -> IO Double
 theFun x = return $ x*x + 1
+
+test7 :: IO ()
+test7 = do
+  putStrLn $ "test6: ==================="
+  let x = 2.3
+  y <- [fortIO| real(kind=8) ::
+      real(kind=8) :: r
+      r = $func:(otherModule:real(kind=8):real(kind=8)) ($(x:value:real(kind=8)))
+      $return = 100 + r
+      |]
+  putStrLn $ "===: y: " ++ show y
+  putStrLn $ "test6: try for withFunPtr "
+
+test6 :: IO ()
+test6 = do
+  putStrLn $ "test6: ==================="
+  let x = 2.3
+  y <- otherModule x
+  putStrLn $ "===: y: " ++ show y
+  putStrLn $ "test6: try for withFunPtr "
 
 test5 :: IO ()
 test5 = do

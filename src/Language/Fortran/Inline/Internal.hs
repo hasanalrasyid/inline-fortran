@@ -32,7 +32,7 @@ import Data.Maybe                  ( fromMaybe )
 import Data.List                   ( unfoldr )
 import Data.Char                   ( isAlpha, isAlphaNum )
 
-import System.FilePath             ( (</>), (-<.>), (<.>)
+import System.FilePath             ( (</>), (-<.>), (<.>), takeDirectory
 --                                 , takeExtension
                                    )
 import System.Directory            ( copyFile, createDirectoryIfMissing )
@@ -203,8 +203,9 @@ fileFinalizer = do
   let code = showsCodeBlocks cb ""
 
   -- Write out the file
-  runIO $ putStrLn $ "creating directory: " ++ dir
-  runIO $ createDirectoryIfMissing True dir
+  let fileLocation = takeDirectory $ dir </> thisFile
+  runIO $ putStrLn $ "creating directory: " ++ fileLocation
+  runIO $ createDirectoryIfMissing True fileLocation
   runIO $ writeFile (dir </> thisFile) code
 
 -- | Figure out what file we are currently in.

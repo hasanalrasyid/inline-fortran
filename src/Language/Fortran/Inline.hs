@@ -482,10 +482,11 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr _ varsInBody rustBo
                    ; pure $(varE ret)
                    }
             |]
-      ttt <- haskCall2
+      t1 <- lookupValueName $ show theFun
+      --     • haskCall :: AppT (AppT ArrowT (ConT GHC.Types.Double)) (AppT (AppT ArrowT (ConT GHC.Types.Double)) (AppT (ConT GHC.Types.IO) (ConT GHC.Types.Double)))
       --fail
       runIO $ putStrLn
-        $ "haskCall :: "  ++ show ttt -- (show haskArgsFunPtr2)  -- theFun ++ show theF -- rustArgsFunPtr1 -- haskArgsFunPtr1 --  ttt
+        $ "haskCall :: "  ++ show t1 -- (show haskArgsFunPtr2)  -- theFun ++ show theF -- rustArgsFunPtr1 -- haskArgsFunPtr1 --  ttt
       return haskCall2
   -- Generate the Rust function arguments and the converted arguments
   let (rustArgs', _) = unzip $ zipWith mergeArgs rustArgs reprCArgs
@@ -499,18 +500,18 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr _ varsInBody rustBo
   let (headSubroutine',endProcedure) =
         let param = "(" ++ intercalate ", " (fortFnPtrNames ++ rustArgNames) ++ ")"
          in case procedure of
-          Subroutine -> ( "      subroutine " ++ qqStrName ++ param
-                        , "      end subroutine " )
-          Function -> ("      function " ++ qqStrName ++ param
-                          , "      end function  ")
-  let (h1:h1s) = chunksOf 60 headSubroutine'
-  let headSubroutine = unlines $ h1:(map ("     c" ++) h1s)
+          Subroutine -> ( space6 ++ "subroutine " ++ qqStrName ++ param
+                        , space6 ++ "end subroutine " )
+          Function -> (space6 ++ "function " ++ qqStrName ++ param
+                          , space6 ++ "end function  ")
+--let (h1:h1s) = chunksOf 60 headSubroutine'
+--let headSubroutine = unlines $ h1:(map ("     c" ++) h1s)
   let retVarStatement = case retNamedArgs of
                           [] -> ""
                           ((_,(retTy,_)):_) -> "      "++ renderType retTy ++ " :: " ++ qqStrName
-  void . emitCodeBlock . unlines $
-    [ headSubroutine
-    , "      USE, INTRINSIC :: ISO_C_BINDING"
+  void . emitCodeBlock . unlines . chop60colsPerLine $
+    [ headSubroutine'
+    , space6 ++ "USE, INTRINSIC :: ISO_C_BINDING"
     , unlines $ map renderFortran varsInBody
     , "cccccccccccccc VarStatements"
     , unlines $ map renderVarStatement $ zip3 rustArgNames rustArgs' $ zip intents rustArgs
@@ -525,9 +526,20 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr _ varsInBody rustBo
   -- Return the Haskell call to the FFI import
   haskCall
     where
-      genHeadSubroutine hs =
-        let (h1:h1s) = chunksOf 60 hs
-         in unlines $ h1:(map ("     c" ++) h1s)
+      space6 = "      "
+      chop60colsPerLine x =
+        let go1 x1 =
+              let (a:as) = chunksOf 70 x1
+                  as1 = map ("     c" ++) as
+               in (a:as1)
+            goChop60 t = if length t < 70 then t
+                                          else unlines $ go1 t
+         in map goChop60 $ lines $ unlines x
+
+
+--    genHeadSubroutine hs =
+--      let (h1:h1s) = chunksOf 60 hs
+--       in unlines $ h1:(map ("     c" ++) h1s)
 
       takeFnName1 (_,(FProcedurePtr fn _ _ _, _)) = fn
       takeFnName1 _ = error "takeFnName1: wrong pattern"
@@ -553,23 +565,23 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr _ varsInBody rustBo
         let paramVars = (map ((fn ++) . show) $ [1..(length paramTys)])
             paramList = "(" ++ (intercalate "," paramVars ) ++ ")"
             funcStatement = "function " ++ (unwords [ fn , paramList ])
-            (h:rs) = map ("      " ++) $
-              [ funcStatement
-              , unlines $ map renderVarType $ zip paramVars paramTys
-              , renderType retTy ++ " :: " ++ fn
-              , "end function " ++ fn
+            hrs = map ("      " ++) $ concat
+              [ [ funcStatement ]
+              , map renderVarType $ zip paramVars paramTys
+              , [ renderType retTy ++ " :: " ++ fn ]
+              , [ "end function " ++ fn ]
               ]
-         in unlines $ (genHeadSubroutine h):rs
+         in unlines hrs
       genFuncInterface _ = error "genFuncInterface: wrong type of input, FProcedurePtr needed"
 
       renderFuncInterface [] = ""
-      renderFuncInterface xs = unlines
-        [  "      interface"
-        , concat $ map genFuncInterface xs
-        , "      end interface"
-        , unlines $ map genFuncPointer xs
-        , unlines $ map genFuncPtrFort xs
-        , unlines $ map genFuncPtrAssign xs
+      renderFuncInterface xs = unlines $ concat
+        [ [ "      interface" ]
+        , map genFuncInterface xs
+        , [ "      end interface" ]
+        , map genFuncPointer xs
+        , map genFuncPtrFort xs
+        , map genFuncPtrAssign xs
         ]
 
       renderVarStatement (s,(FString _),(_,_)) = "c     " ++ s ++ " needs manual declaration for its length"
