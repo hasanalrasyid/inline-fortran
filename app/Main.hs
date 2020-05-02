@@ -23,7 +23,7 @@ import           Text.RawString.QQ (r)
 $(genWithPtrs 20)
 
 --extendContext vectors
---extendContext fVectors
+extendContext fVectors
 extendContext functions
 extendContext basic
 
@@ -34,7 +34,6 @@ C.context (C.baseCtx <> C.funCtx <> C.fptrCtx)
 main :: IO ()
 main = do
   putStrLn "Haskell: Hello. Enter a number:"
-    {-
   let angstr  = 1/0.5291769
   let celvin  = 1/(2*13.606*11605)
   let second  = 1.0+17/2.4189
@@ -177,7 +176,6 @@ c     print *, "test v1",$vec(v1:inout:real:1)(1)
 -- Utils
   hSep ""
   splitF90 "test/f90split_test.f90"
--- -}
 --hSep ""
 --test2
   hSep ""

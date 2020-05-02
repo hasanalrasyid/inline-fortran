@@ -100,15 +100,8 @@ instance Monoid (Q Context) where
 --   2. The C-compatible Rust type have the same layout
 --
 lookupRTypeInContext :: RType -> Context -> First (Q HType, Maybe (Q RType),String)
-lookupRTypeInContext rustType context@(Context (rules, _, _,idCon))
-  | isFProcedurePtr rustType =
-      let r = foldMap (\fits -> fits rustType context) rules
-          x a = error $ "lookupRTypeInContext: FProcedurePtr " ++ idCon ++ (show $ length rules) ++ a
-          cekit x = snd <$> getFirst x
-       in case rustType of
-            (FProcedurePtr _ _ _ _) -> r
-            _ -> r
-  | otherwise =  foldMap (\fits -> fits rustType context) rules
+lookupRTypeInContext rustType context@(Context (rules, _, _,idCon)) =
+  foldMap (\fits -> fits rustType context) rules
 
 isFProcedurePtr :: RType -> Bool
 isFProcedurePtr (FProcedurePtr _ _ _ _) = True
@@ -334,9 +327,12 @@ fVectors = do
   pure (Context ([rule], [rev vecConT], [], "fVectors"))
   where
   rule vec context = do
-    (FArray _ t _) <- pure vec
-    (t', Nothing,i) <- lookupRTypeInContext t context
-    pure ([t| $t' |], Nothing,i)
+    ff <- pure vec
+    case ff of
+      (FArray _ t _) -> do
+        (t', Nothing,i) <- lookupRTypeInContext t context
+        pure ([t| $t' |], Nothing,i)
+      _ -> mempty
 
   rev vecConT pt context = do
     AppT vecCon t <- pure pt
