@@ -59,6 +59,7 @@ parseQQ :: String -> Q RustQuasiquoteParse
 parseQQ input = do
 
   let lexer = lexTokens lexNonSpace
+--fail $ "Parser.hs: parseQQ: fVar " ++ input
   let stream = inputStreamFromString input
   -- dari sini stream tak punya newline setelah openParen
 --  runIO $ putStrLn $ "stream: " ++ show stream
@@ -68,6 +69,7 @@ parseQQ input = do
     case execParser lexer stream initPos of
       Left (ParseFail _ msg) -> fail msg
       Right parsed -> pure parsed
+--fail $ "Parser.hs: parseQQ: fVar " ++ show stream
   -- dari sini rest1 sudah punya newline setelah openParen
 --  runIO $ putStrLn $ "rest1: " ++ show rest1
 
@@ -90,6 +92,7 @@ parseQQ input = do
 
   -- Parse body of quasiquote
   (bodyToks, vars) <- parseBody leadingTy [] [] rest2
+--fail $ "Parser.hs: parseQQ: fVar " ++ show vars
 
   -- Done!
 --  let dummy = snd $ head vars
@@ -102,6 +105,7 @@ parseQQ input = do
   bodyToks' <- cekLitTok [] bodyToks2
   runIO $ putStrLn $ "QQParse: " ++ (show $ length vars) ++ " :: " ++ show vars
   let (bodyVars1,bodyToks3) = genVarsBody bodyToks'
+--fail $ "Parser.hs: parseQQ: vars" ++ show vars
   pure (QQParse leadingTy vars locVars bodyVars1 bodyToks3)
   where
     genVarsBody :: [[SpTok]] -> ([[SpTok]],[[SpTok]])
@@ -147,6 +151,7 @@ parseQQ input = do
     parseBody leadingTy toks vars (Spanned Dollar _  : rst2) = do
       runIO $ putStrLn "parseBody: Dollar"
       (rst3, (v,i,r)) <- takeDollar Nothing [] rst2
+--    fail $ "Parser.hs: parseBody: fVar " ++ show r
 
       newR <- case r of
                    FVarReturn -> pure leadingTy
@@ -158,9 +163,11 @@ parseQQ input = do
                      pure $ FArray dim ty1 nullSpan
                    FVarProcPtr fName retTy parTy -> do
                      (Ident fNameStr _ _) <- takeIdent fName
+                   --fail $ "Parser.hs: parseBody: fVar " ++ show parTy
                      pure $ FProcedurePtr fNameStr retTy parTy nullSpan
                    _ -> fail $ "parseBody: t1: error on case rst2"
       newVars <- parseV vars v i newR
+--    fail $ "Parser.hs: parseBody: fVar " ++ show newVars
       runIO $ putStrLn $ "newVars :: " ++ show newVars ++ " :: " ++ show newR
       v1 <- setNullSpan v
       parseBody leadingTy (v1:toks) newVars rst3
@@ -222,8 +229,8 @@ parseQQ input = do
       return (rs,fVar)
 
     takeDollar Nothing [] ((Spanned (IdentTok (Ident "func" _ _)) _):_:rs) = do
-     --(rs,fVar) <- processFunPtr rs
       (res,funcVar,fVar) <- processFunPtr rs
+    --fail $ "Parser.hs: takeDollar: fVar: " ++ show fVar
       return (res, (funcVar, nullSpTok, fVar))
     takeDollar Nothing [] ((Spanned (IdentTok (Ident "return" b c)) a):rs) = do
       let newVar = Spanned (IdentTok (Ident "return__" b c)) a
@@ -255,6 +262,7 @@ processFunPtr (r:rs) = do
        : params) = splitWhen isColon $ init r1s
   let f1 =(Spanned (IdentTok (Ident (funcVar ++ "_fptr") b 0)) nullSpan)
   (retTy:paramTys) <- mapM parseFType params
+--fail $ "Parser.hs: processFunPtr: fVar " ++ show paramTys
   return (res,f1,(FVarProcPtr fN retTy paramTys))
 processFunPtr [] = fail "processFunPtr: empty list processed"
 

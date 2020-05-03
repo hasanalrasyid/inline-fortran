@@ -450,10 +450,11 @@ no_for_ty_prim :: { Ty Span }
 -- See https://github.com/rust-lang/rfcs/blob/master/text/0438-precedence-of-plus.md
 -- All types, including trait types with plus
 ty :: { Ty Span }
-  : ty ':' expr       { Array $1 $3 ($1 # $>) }
-  | self_or_ident     { FType (unspan $1) (TupExpr [] [] ($1 # $>)) ($1 # $>) }
-  | self_or_ident expr     { FType (unspan $1) $2 ($1 # $>) }
-  | '(' ')'                        { TupTy [] ($1 # $>) }
+  : ty ':' expr        { Array $1 $3 ($1 # $>) }
+  | self_or_ident      { FType (unspan $1) (TupExpr [] [] ($1 # $>)) ($1 # $>) }
+  | self_or_ident expr { FType (unspan $1) $2 ($1 # $>) }
+  | '(' ')'            { TupTy [] ($1 # $>) }
+  | '*' ty             { Ptr Mutable $2 ($1 # $2) }
 --  | ty_no_plus                                                    { $1 }
 --  | poly_trait_ref_mod_bound '+' sep_by1T(ty_param_bound_mod,'+') { TraitObject ($1 <| toNonEmpty $3) ($1 # $3) }
 

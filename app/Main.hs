@@ -24,6 +24,7 @@ import Submodule.Addition
 $(genWithPtrs 20)
 
 --extendContext vectors
+extendContext pointers
 extendContext fVectors
 extendContext functions
 extendContext basic
@@ -32,8 +33,9 @@ setCrateRoot []
 
 C.context (C.baseCtx <> C.funCtx <> C.fptrCtx)
 
-main :: IO ()
-main = do
+    {-
+main1 :: IO ()
+main1 = do
   putStrLn "Haskell: Hello. Enter a number:"
   let angstr  = 1/0.5291769
   let celvin  = 1/(2*13.606*11605)
@@ -187,10 +189,36 @@ c     print *, "test v1",$vec(v1:inout:real:1)(1)
   test6
   hSep ""
   test7
+  -}
 
 --withPtrs3 :: (V.Storable a) => ([Ptr a] -> IO ()) -> IO [a]
 --withPtrs3 = $(withPtrsN 3)
 
+theFun :: Double -> IO Double
+theFun x = return $ x*x + 1
+
+theFun3 :: Ptr Double -> Double -> IO Double
+theFun3 x y = do
+  x' <- peek x
+  return $ x' + 3 + y
+
+main :: IO ()
+main = do
+  putStrLn $ "test7: ==================="
+  let x = 2.3
+  y <- [fortIO| real(kind=8) ::
+c     TEST7
+      real(kind=8) :: r
+      real(kind=8) :: a
+      a = 1.1
+      r = $func:(theFun3:real(kind=8):*real(kind=8):real(kind=8)) ($(x:value:real(kind=8)),a)
+      $return = 100 + r
+
+      |]
+  putStrLn $ "===: y: " ++ show y
+  putStrLn $ "test7: try for withFunPtr "
+
+  {-
 test4 :: IO ()
 test4 = do
   putStrLn "===== test4"
@@ -210,21 +238,6 @@ test4 = do
         return (y :: CDouble)
   putStrLn $ "==== x: " ++ show x
   putStrLn $ "=====!test4 " -- ++ (show x)
-
-theFun :: Double -> IO Double
-theFun x = return $ x*x + 1
-
-test7 :: IO ()
-test7 = do
-  putStrLn $ "test6: ==================="
-  let x = 2.3
-  y <- [fortIO| real(kind=8) ::
-      real(kind=8) :: r
-      r = $func:(otherModule:real(kind=8):real(kind=8)) ($(x:value:real(kind=8)))
-      $return = 100 + r
-      |]
-  putStrLn $ "===: y: " ++ show y
-  putStrLn $ "test6: try for withFunPtr "
 
 test6 :: IO ()
 test6 = do
@@ -248,19 +261,6 @@ test5 = do
        |]
   putStrLn $ "===: y: " ++ show y
   putStrLn $ "test5: try for withFunPtr "
-
-hSep :: String -> IO ()
-hSep s = putStrLn $ take 70 $ "===" ++ s ++ (repeat '=')
-
-vectorFromC :: Storable a => Int -> Ptr a -> IO (V.Vector a)
-vectorFromC len ptr = do
-  ptr' <- newForeignPtr_ ptr
-  V.freeze $ VM.unsafeFromForeignPtr0 ptr' len
-
-vectorToC :: Storable a => V.Vector a -> Int -> Ptr a -> IO ()
-vectorToC vec len ptr = do
-  ptr' <- newForeignPtr_ ptr
-  V.copy (VM.unsafeFromForeignPtr0 ptr' len) vec
 
 test2 :: IO ()
 test2 = do
@@ -286,4 +286,17 @@ c     dr = inline_c_Main_0(d1)
   putStrLn $ "===!test2"
   putStrLn $ "nax: " ++ show (nax :: Double)
   putStrLn $ "x: " ++ show (x :: Double)
+-}
 
+hSep :: String -> IO ()
+hSep s = putStrLn $ take 70 $ "===" ++ s ++ (repeat '=')
+
+vectorFromC :: Storable a => Int -> Ptr a -> IO (V.Vector a)
+vectorFromC len ptr = do
+  ptr' <- newForeignPtr_ ptr
+  V.freeze $ VM.unsafeFromForeignPtr0 ptr' len
+
+vectorToC :: Storable a => V.Vector a -> Int -> Ptr a -> IO ()
+vectorToC vec len ptr = do
+  ptr' <- newForeignPtr_ ptr
+  V.copy (VM.unsafeFromForeignPtr0 ptr' len) vec

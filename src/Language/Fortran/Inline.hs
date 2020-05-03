@@ -326,6 +326,7 @@ rustQuasiQuoter safety isPure supportDecs = QuasiQuoter { quoteExp = expQuoter
 
     expQuoter qq = do
       parsed <- parseQQ qq
+--    fail $ "rustQuasiQuoter: expQuoter: " ++ show parsed
       processQQ safety isPure parsed
 
     decQuoter | supportDecs = emitCodeBlock
@@ -420,6 +421,7 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr _ varsInBody rustBo
   let (_, rustArgs_intentsFunPtr) = unzip fortFnPtrNamedArgs
   let (rustArgsFunPtr, _) = unzip rustArgs_intentsFunPtr
   (haskArgsFunPtr, _) <- unzip <$> traverse (getRType . void) rustArgsFunPtr
+--fail $ "Inline: processQQ: roller1 " ++ show rustArgsFunPtr
   -- Generate the Haskell FFI import declaration and emit it
   haskSig <- foldr (\l r -> [t| $(pure l) -> $r |]) haskRet' $ haskArgs' ++ haskArgsFunPtr
   --fail $
@@ -523,6 +525,9 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr _ varsInBody rustBo
     , endProcedure ++ qqStrName
     ]
 
+--haskCallT <- haskCall
+--fail $ "Inline: processQQ: roller2 " ++ renderFuncInterface fortFnPtrNamedArgs
+
   -- Return the Haskell call to the FFI import
   haskCall
     where
@@ -559,17 +564,19 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr _ varsInBody rustBo
         "      type(C_FUNPTR),intent(in),value :: " ++ fn ++ "_cptr"
       genFuncPointer _ = error "genFuncPointer: undefined input"
 
+      renderVarType (v, Ptr _ t _) = renderType t ++ ",intent(in):: " ++ v
       renderVarType (v,t) = renderType t ++ ",intent(in),value :: " ++ v
 
       genFuncInterface (_,(FProcedurePtr fn retTy paramTys _, _)) =
         let paramVars = (map ((fn ++) . show) $ [1..(length paramTys)])
             paramList = "(" ++ (intercalate "," paramVars ) ++ ")"
             funcStatement = "function " ++ (unwords [ fn , paramList ])
-            hrs = map ("      " ++) $ concat
-              [ [ funcStatement ]
-              , map renderVarType $ zip paramVars paramTys
-              , [ renderType retTy ++ " :: " ++ fn ]
-              , [ "end function " ++ fn ]
+            renderedVars = unlines $ map renderVarType $ zip paramVars paramTys
+            hrs = map ("      " ++) $ lines $ unlines
+              [ funcStatement
+              , renderedVars
+              , renderType retTy ++ " :: " ++ fn
+              , "end function " ++ fn
               ]
          in unlines hrs
       genFuncInterface _ = error "genFuncInterface: wrong type of input, FProcedurePtr needed"

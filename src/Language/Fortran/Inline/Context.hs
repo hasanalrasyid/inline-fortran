@@ -368,9 +368,12 @@ pointers = do
     pure (Context ([rule],[rev ptrConT],[constPtr,mutPtr],"pointers"))
   where
   rule pt context = do
-    Ptr _ t _ <- pure pt
-    (t', Nothing,i) <- lookupRTypeInContext t context
-    pure ([t| Ptr $t' |], Nothing,i)
+    ff <- pure pt
+    case ff of
+      Ptr _ t _ -> do
+        (t', Nothing,i) <- lookupRTypeInContext t context
+        pure ([t| Ptr $t' |], Nothing,i)
+      _ -> mempty
 
   rev ptrConT pt context = do
     AppT ptrCon t <- pure pt
