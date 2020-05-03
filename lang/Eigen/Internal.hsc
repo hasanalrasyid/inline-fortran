@@ -36,7 +36,7 @@ module Eigen.Internal where --   FIXME: Explicit export list
 
 --------------------------------------------------------------------------------
 
-import           Control.Monad            (when)
+--import           Control.Monad            (when)
 import           Data.Binary              (Binary(put,get))
 import           Data.Binary.Get          (getByteString, getWord32be)
 import           Data.Binary.Put          (putByteString, putWord32be)
@@ -44,10 +44,10 @@ import           Data.Bits                (xor)
 import           Data.Complex             (Complex((:+)))
 import           Data.Kind                (Type)
 import           Data.Proxy               (Proxy(Proxy))
-import           Foreign.C.String         (CString, peekCString)
+--import           Foreign.C.String         (CString, peekCString)
 import           Foreign.C.Types          (CInt(CInt), CFloat(CFloat), CDouble(CDouble), CChar)
 import           Foreign.ForeignPtr       (ForeignPtr, castForeignPtr, withForeignPtr)
-import           Foreign.Ptr              (Ptr, castPtr, nullPtr, plusPtr)
+import           Foreign.Ptr              (Ptr, castPtr, plusPtr)
 import           Foreign.Storable         (Storable(sizeOf, alignment, poke, peek, peekByteOff, peekElemOff, pokeByteOff, pokeElemOff))
 import           GHC.TypeLits             (natVal, KnownNat, Nat)
 import           System.IO.Unsafe         (unsafeDupablePerformIO)
