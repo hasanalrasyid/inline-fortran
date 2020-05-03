@@ -54,7 +54,7 @@ import Data.Char                       ( chr )
 import Data.Word                       ( Word8 )
 
 import Control.Monad                   (void)
-import Debug.Trace (trace)
+--import Debug.Trace (trace)
 
 -- Things to review:
 --   * improved error messages
