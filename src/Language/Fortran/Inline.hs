@@ -570,13 +570,15 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr _ varsInBody rustBo
       genFuncInterface (_,(FProcedurePtr fn retTy paramTys _, _)) =
         let paramVars = (map ((fn ++) . show) $ [1..(length paramTys)])
             paramList = "(" ++ (intercalate "," paramVars ) ++ ")"
-            funcStatement = "function " ++ (unwords [ fn , paramList ])
+            (funcStatement,returnVar) = case retTy of
+                              TupTy [] _ -> ("subroutine", "")
+                              _ -> ("function", renderType retTy ++ " :: " ++ fn)
             renderedVars = unlines $ map renderVarType $ zip paramVars paramTys
             hrs = map ("      " ++) $ lines $ unlines
-              [ funcStatement
+              [ unwords [ funcStatement, fn , paramList ]
               , renderedVars
-              , renderType retTy ++ " :: " ++ fn
-              , "end function " ++ fn
+              , returnVar
+              , unwords [ "end", funcStatement, fn ]
               ]
          in unlines hrs
       genFuncInterface _ = error "genFuncInterface: wrong type of input, FProcedurePtr needed"

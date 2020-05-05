@@ -17,6 +17,12 @@ aFun3 x y = do
   x' <- peek x
   return $ x' + 3 * y
 
+aFun4 :: Ptr Double -> IO ()
+aFun4 x = do
+  x' <- peek x
+  putStrLn $ "inside aFun4: " ++ show (x' * 12 :: Double)
+
+--    f = $func:(aFun3:real(kind=8):*real(kind=8):real(kind=8)) (m,$(x:value:real(kind=8)))
 outModule :: Double -> IO Double
 outModule x = do
   -- Fortran can only import IO a functions. By design, it cannot import pure function
@@ -25,7 +31,8 @@ outModule x = do
       real(kind=8) :: f
       real(kind=8) :: m
       m = 3
-      f = $func:(aFun3:real(kind=8):*real(kind=8):real(kind=8)) (m,$(x:value:real(kind=8)))
+      f = m * 2
+      call $func:(aFun4:():*real(kind=8))(m)
       $return = f
     |]
   putStrLn $ "otherModule: " ++ show y
