@@ -106,7 +106,7 @@ import Foreign.Marshal.Array                 ( withArrayLen, newArray )
 import Foreign.Marshal.Unsafe                ( unsafeLocalState )
 import Foreign.Ptr                           ( freeHaskellFunPtr, Ptr, FunPtr )
 
-import Control.Monad                         ( void, replicateM, forM )
+import Control.Monad                         ( void, replicateM, forM, zipWithM )
 import Data.List                             ( intercalate,partition )
 import Data.Traversable                      ( for )
 import System.Random                         ( randomIO )
@@ -462,6 +462,8 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr _ varsInBody rustBo
                    else haskCall'
   haskCall <- case fortFnPtrNamedArgs of
     [] -> return haskCall1
+    _  -> genHaskCallFunPtr1 haskCall1 haskArgsFunPtr rustArgsFunPtr
+      {-
     _ -> do
       ptr <- newName "ptr" :: Q Name
       ret <- newName "ret" :: Q Name
@@ -490,6 +492,7 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr _ varsInBody rustBo
       runIO $ putStrLn
         $ "haskCall :: "  ++ show t1 -- (show haskArgsFunPtr2)  -- theFun ++ show theF -- rustArgsFunPtr1 -- haskArgsFunPtr1 --  ttt
       return haskCall2
+      -}
   -- Generate the Rust function arguments and the converted arguments
   let (rustArgs', _) = unzip $ zipWith mergeArgs rustArgs reprCArgs
 
@@ -531,6 +534,43 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr _ varsInBody rustBo
   -- Return the Haskell call to the FFI import
   haskCall
     where
+      fromJustLookup f = case f of
+                           Just a -> a
+                           _ -> error $ "lookupValueName failed on " ++ show f
+      genHaskCallFunPtr1 haskCall1 haskArgsFunPtr rustArgsFunPtr = do
+        ret   <- newName "ret" :: Q Name
+        ptrs1 <- forM haskArgsFunPtr $ \_ -> newName "p"
+        theF1s <- mapM lookupValueName $ map takeFunctionName rustArgsFunPtr
+        let
+            haskArgsFunPtr2s = map deFun haskArgsFunPtr
+            theFuns = map fromJustLookup theF1s
+            genF h t = do
+              f <- newFunPtr h
+              pure $ AppE f (VarE t)
+            genApp f [] = pure f
+            genApp f (x:xs) = do
+              t <- genApp f xs
+              pure $ AppE t (VarE x)
+
+        let
+            genPtr p (t,h) = do
+              ht <- genF h t
+              f <- [e| freeHaskellFunPtr |]
+              pure $ (BindS (VarP p) ht, NoBindS $ AppE f (VarE p))
+        let genPtrs p t h = zipWithM genPtr p $ zip t h
+        let g1 = do
+                  a <- genPtrs ptrs1 theFuns haskArgsFunPtr2s
+                  let (as,ds) = unzip a
+                  h <- haskCall1
+                  b <- genApp h $ reverse ptrs1
+                  let c = BindS (VarP ret) b
+                  p <- [e| pure |]
+                  let l = NoBindS $ AppE p (VarE ret)
+                  pure $ DoE $ as ++ (c:ds) ++ [l]
+--      t2 <- g1
+--      fail $ "test : " ++ show t2
+        return g1
+
       space6 = "      "
       chop60colsPerLine x =
         let go1 x1 =
