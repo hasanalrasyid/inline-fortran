@@ -431,6 +431,7 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr _ varsInBody rustBo
       , show haskSig
       ]
   let ffiImport = ForeignD (ImportF CCall safety (qqStrName ++ "_") qqName haskSig)
+--fail $ "processQQ: ffiImport: " ++ show rustArgsFunPtr
   addTopDecls [ffiImport]
 
   -- Generate the Haskell FFI call
@@ -605,6 +606,9 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr _ varsInBody rustBo
       genFuncPointer _ = error "genFuncPointer: undefined input"
 
       renderVarType (v, Ptr _ t _) = renderType t ++ ",intent(in):: " ++ v
+      renderVarType (v, FArray d t _) =
+        let dim = "(" ++ (replicate d ':') ++ ")"
+         in renderType t ++ ",intent(in):: " ++ v ++ dim
       renderVarType (v,t) = renderType t ++ ",intent(in),value :: " ++ v
 
       genFuncInterface (_,(FProcedurePtr fn retTy paramTys _, _)) =

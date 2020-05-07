@@ -210,11 +210,11 @@ main = do
   let x = 2.3
   y <- [fortIO| real(kind=8) ::
 c     TEST7
-      real(kind=8) :: r
+      real(kind=8) :: r(5)
       real(kind=8) :: a
       a = 1.1
-      a = $func:(outModule:real(kind=8):real(kind=8))(r)
-      $return = 100 + r
+      a = $func:(outModule:real(kind=8):*real(kind=8))(r)
+      $return = 100 + r(1)
 
       |]
   putStrLn $ "===: y: " ++ show y

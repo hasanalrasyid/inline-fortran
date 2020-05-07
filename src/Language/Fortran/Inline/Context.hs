@@ -331,7 +331,7 @@ fVectors = do
     case ff of
       (FArray _ t _) -> do
         (t', Nothing,i) <- lookupRTypeInContext t context
-        pure ([t| $t' |], Nothing,i)
+        pure ([t| Ptr $t' |], Nothing,i)
       _ -> mempty
 
   rev vecConT pt context = do
