@@ -2,11 +2,15 @@ module Submodule.Addition where
 
 import Language.Fortran.Inline
 import Foreign
-import Data.Vector.Storable.Mutable as VM
+import Language.Fortran.Inline.Utils
+import qualified Data.Vector.Storable as V
+import qualified Data.Vector.Storable.Mutable as VM
+
 extendContext basic
 extendContext functions
 extendContext pointers
 extendContext fVectors
+extendContext vectors
 
 setCrateRoot []
 
@@ -24,7 +28,7 @@ aFun4 x = do
 
 aFun5 :: Ptr Double -> IO ()
 aFun5 x1 = do
-  x <- peek x1
+  x <- vectorFromC 5 x1
   putStrLn $ "inside aFun5: " ++ show x
     {-
        should be called from sumthing like
@@ -38,12 +42,12 @@ outModule u = do
   y <- [fortIO| real(kind=8) ::
       IMPLICIT NONE
       real(kind=8) :: f
-      real(kind=8) :: m(5)
+      real(kind=8),target :: m(5)
       integer :: i
       do 22 i=1,5
   22    m(i) = i + i
       f = m(2) * 2
-      call $func:(aFun5:():*real(kind=8))(m)
+      call $func:(aFun5:():real(kind=8)*1)(c_loc(m))
       $return = f
     |]
   putStrLn $ "otherModule: " ++ show y

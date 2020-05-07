@@ -47,6 +47,7 @@ import qualified Data.Vector.Storable as V
 --import qualified Debug.Trace as D
 
 import Language.Rust.Data.Position
+import Foreign hiding (void)
 
 instance Fail.MonadFail First where
   fail x = error $ "MonadFail First error: " ++ x
@@ -352,7 +353,7 @@ vectors = do
     Array t _ _  <- pure vec
 --    V.MVector t _  <- pure vec
     (t', Nothing,i) <- lookupRTypeInContext t context
-    pure ([t| $t' |], Nothing,i)
+    pure ([t| Ptr $t' |], Nothing,i)
 
   rev vecConT pt context = do
     AppT vecCon t <- pure pt

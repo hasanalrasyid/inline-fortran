@@ -515,6 +515,7 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr _ varsInBody rustBo
   let retVarStatement = case retNamedArgs of
                           [] -> ""
                           ((_,(retTy,_)):_) -> "      "++ renderType retTy ++ " :: " ++ qqStrName
+--fail $ "Inline: processQQ: roller2 " ++ renderFuncInterface fortFnPtrNamedArgs
   void . emitCodeBlock . unlines . chop60colsPerLine $
     [ headSubroutine'
     , space6 ++ "USE, INTRINSIC :: ISO_C_BINDING"
@@ -606,6 +607,10 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr _ varsInBody rustBo
       genFuncPointer _ = error "genFuncPointer: undefined input"
 
       renderVarType (v, Ptr _ t _) = renderType t ++ ",intent(in):: " ++ v
+      renderVarType (v, Array t d _) =
+        let dInt = (read $ renderExpr d) :: Int
+            dim = "(" ++ (replicate dInt ':') ++ ")"
+         in renderType t ++ ",intent(in):: " ++ v ++ dim
       renderVarType (v, FArray d t _) =
         let dim = "(" ++ (replicate d ':') ++ ")"
          in renderType t ++ ",intent(in):: " ++ v ++ dim
