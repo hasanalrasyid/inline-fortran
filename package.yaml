@@ -90,6 +90,7 @@ tests:
     main:                Main.hs
     source-dirs:         app
     #c-sources:           app/Main.c
+    extra-libraries: gfortran quadmath
     cc-options:           -Wall -O2
     ghc-options:
     - -ddump-splices

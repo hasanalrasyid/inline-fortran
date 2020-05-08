@@ -10,6 +10,12 @@ Features:
   pass by reference, using Ptr, with intent $(y:inout:real)
   vector/array, with dimensions $vec(v:inout:real:(3,3))
 
+in case of array:
+we have to only consider single dimension array passing to each another function using
+dimension (\*).
+The question remains, can the dimension be recorded as another parameters?
+it should be... using reshape or dimension
+
 Todo:
 - running haskell subroutine inside fortran,
     CALL $fun(procHaskell(p1,p2,p3,..))

@@ -411,10 +411,13 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr _ varsInBody rustBo
     for (zip haskArgs intents) $ \(haskArg,intent) -> do
       marshalForm <- ghcMarshallable haskArg
       runIO $ putStrLn $ "marshalForm: " ++ show marshalForm
-       -- cause everything is passed as pointer
+      -- cause everything is passed as pointer
       ptr <- case intent of
                "value" -> [t| $(pure haskArg) |]
-               _ -> [t| Ptr $(pure haskArg) |]
+               _ -> case marshalForm of
+                      BoxedDirect -> [t| $(pure haskArg) |]
+                      _ -> [t| Ptr $(pure haskArg) |]
+--    fail $ "processQQ: haskArg: " ++ show marshalForm ++ show ptr
       pure (True, ptr)
 
   --haskArgsFunPtr <- do
@@ -607,13 +610,10 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr _ varsInBody rustBo
       genFuncPointer _ = error "genFuncPointer: undefined input"
 
       renderVarType (v, Ptr _ t _) = renderType t ++ ",intent(in):: " ++ v
-      renderVarType (v, Array t d _) =
-        let dInt = (read $ renderExpr d) :: Int
-            dim = "(" ++ (replicate dInt ':') ++ ")"
-         in renderType t ++ ",intent(in):: " ++ v ++ dim
-      renderVarType (v, FArray d t _) =
-        let dim = "(" ++ (replicate d ':') ++ ")"
-         in renderType t ++ ",intent(in):: " ++ v ++ dim
+      renderVarType (v, Array t _ _) =
+         renderType t ++ ",intent(inout):: " ++ v ++ "(*)"
+      renderVarType (v, FArray _ t _) =
+        renderType t ++ ",intent(inout):: " ++ v ++  "(*)"
       renderVarType (v,t) = renderType t ++ ",intent(in),value :: " ++ v
 
       genFuncInterface (_,(FProcedurePtr fn retTy paramTys _, _)) =
@@ -647,7 +647,8 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr _ varsInBody rustBo
         let intent = "intent(" ++ i ++ ")"
             dim = case d of
                     0 -> ""
-                    _ -> "(" ++ ( intercalate "," $ replicate d ":") ++ ")"
+--                  _ -> "(" ++ ( intercalate "," $ replicate d ":") ++ ")"
+                    _ -> "(*)"
          in "      " ++ (renderType t) ++ "," ++ intent ++  " :: " ++ s ++ dim
       renderVarStatement (s,t,(i,r)) =
         let intent = case i of

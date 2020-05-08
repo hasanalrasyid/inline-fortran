@@ -31,6 +31,7 @@ import Data.Array.Storable         ( StorableArray, Ix, withStorableArray,
                                      getBounds )
 
 import GHC.Exts
+import Foreign.C.Types
 
 data Procedure
   = Function
@@ -82,6 +83,8 @@ ghcMarshallable ty = do
                    , [t| Int    |]
                    , [t| Word   |]
                    , [t| Double |]
+                   , [t| CDouble |]
+                   , [t| CInt |]
                    , [t| Float  |]
 
                    , [t| Bool |], [t| () |] -- TODO: let through `IO ()` but not `()`

@@ -55,7 +55,7 @@ main1 = do
   let sInit = T.append sInit' $ T.replicate (256 - T.length sInit') "X"
   let vInit = V.fromList $ take 9 [0,0 .. ] :: V.Vector Float
   let vInit1 = V.fromList $ take 9 [0,0 .. ] :: V.Vector Float
-  let vInitCComplex = V.fromList $ take 9 $ repeat (CComplex 0 0) :: V.Vector (CComplex Double)
+  let vInitCComplex = V.fromList $ take 9 $ repeat (CComplex 0 0) :: V.Vector (CComplex CDouble)
   putStrLn $ "Haskell: says vInitCComplex: " ++ show vInitCComplex
 --  v <- V.thaw vm
   putStrLn $ "Haskell: says vInit: " ++ (show vInit)
@@ -142,16 +142,16 @@ c     print *, "test v1",$vec(v1:inout:real:1)(1)
   putStrLn $ "Haskell: says v changed    : " ++ (show vInit)
   putStrLn $ "Haskell: says ix unchanged : " ++ (show ix)
   hSep ""
-  ua1 <- VM.replicate 2 1 :: IO (VM.IOVector Double)
-  ua2 <- VM.replicate 2 2 :: IO (VM.IOVector Double)
-  ua3 <- VM.replicate 2 3 :: IO (VM.IOVector Double)
-  ua4 <- VM.replicate 2 4 :: IO (VM.IOVector Double)
+  ua1 <- VM.replicate 2 1 :: IO (VM.IOVector CDouble)
+  ua2 <- VM.replicate 2 2 :: IO (VM.IOVector CDouble)
+  ua3 <- VM.replicate 2 3 :: IO (VM.IOVector CDouble)
+  ua4 <- VM.replicate 2 4 :: IO (VM.IOVector CDouble)
   let uas = [ua1,ua2,ua3,ua4]
   unsafeWithVectors uas $ \(u1:u2:u3:u4:_) -> do
 --  (flip mapM_) l $ \p -> do
 --    t <- peek p
 --    poke p $ t * t
---    tt <- peek p :: IO Double
+--    tt <- peek p :: IO CDouble
 --    putStrLn $ show tt
     [fortIO| () ::
       IMPLICIT NONE
@@ -194,15 +194,15 @@ c     print *, "test v1",$vec(v1:inout:real:1)(1)
 --withPtrs3 :: (V.Storable a) => ([Ptr a] -> IO ()) -> IO [a]
 --withPtrs3 = $(withPtrsN 3)
 
-theFun :: Double -> IO Double
+theFun :: CDouble -> IO CDouble
 theFun x = return $ x*x + 1
 
-theFun3 :: Ptr Double -> Double -> IO Double
+theFun3 :: Ptr CDouble -> CDouble -> IO CDouble
 theFun3 x y = do
   x' <- peek x
   return $ x' + 3 + y
 
---    r = $func:(theFun3:real(kind=8):*real(kind=8):real(kind=8)) ($(x:value:real(kind=8)),a)
+--    r = $proc:(theFun3:real(kind=8):*real(kind=8):real(kind=8)) ($(x:value:real(kind=8)),a)
 
 main :: IO ()
 main = do
@@ -213,7 +213,7 @@ c     TEST7
       real(kind=8) :: r(5)
       real(kind=8) :: a
       a = 1.1
-      a = $func:(outModule:real(kind=8):*real(kind=8))(r)
+      a = $proc:(outModule:real(kind=8):*real(kind=8))(r)
       $return = 100 + r(1)
 
       |]
@@ -227,7 +227,7 @@ test4 = do
   let pureFuncIO x = return $ pureFunc x
   x <- withPtr $ \pp -> do
         poke pp 2.3
-        p <- newForeignPtr_ pp :: IO (ForeignPtr CDouble)
+        p <- newForeignPtr_ pp :: IO (ForeignPtr CCDouble)
         y <- [C.block| double
           {
             double (*f)(double);
@@ -237,7 +237,7 @@ test4 = do
 
           }
         |]
-        return (y :: CDouble)
+        return (y :: CCDouble)
   putStrLn $ "==== x: " ++ show x
   putStrLn $ "=====!test4 " -- ++ (show x)
 
@@ -258,7 +258,7 @@ test5 = do
           IMPLICIT NONE
           real(kind=8) :: f
           print *,"test this: ", x
-          f = $func:(theFun2:real(kind=8):real(kind=8))($(x:value:real(kind=8)))
+          f = $proc:(theFun2:real(kind=8):real(kind=8))($(x:value:real(kind=8)))
           $return = f
        |]
   putStrLn $ "===: y: " ++ show y
@@ -286,8 +286,8 @@ c     dr = inline_c_Main_0(d1)
           |]
     return x
   putStrLn $ "===!test2"
-  putStrLn $ "nax: " ++ show (nax :: Double)
-  putStrLn $ "x: " ++ show (x :: Double)
+  putStrLn $ "nax: " ++ show (nax :: CDouble)
+  putStrLn $ "x: " ++ show (x :: CDouble)
 -}
 
 hSep :: String -> IO ()

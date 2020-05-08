@@ -5,58 +5,62 @@ import Foreign
 import Language.Fortran.Inline.Utils
 import qualified Data.Vector.Storable as V
 import qualified Data.Vector.Storable.Mutable as VM
-
+import Foreign.C.Types
 extendContext basic
 extendContext functions
 extendContext pointers
 extendContext fVectors
-extendContext vectors
 
 setCrateRoot []
 
-additionalFunction :: Double -> Double -> Double
+additionalFunction :: CDouble -> CDouble -> CDouble
 additionalFunction x y = x * y * x
 
-aFun3 :: Ptr Double -> Double -> IO Double
+aFun3 :: Ptr CDouble -> CDouble -> IO CDouble
 aFun3 x y = do
   x' <- peek x
-  return $ x' + 3 * y
+  let r = x' + 3 * y
+  putStrLn $ "aFun3: r: " ++show r
+  return r
 
-aFun4 :: Double -> IO ()
+aFun4 :: CDouble -> IO ()
 aFun4 x = do
-  putStrLn $ "inside aFun4: " ++ show (x * 12 :: Double)
+  putStrLn $ "inside aFun4: " ++ show (x * 12 :: CDouble)
 
-aFun5 :: Ptr Double -> IO ()
-aFun5 x1 = do
-  x <- vectorFromC 5 x1
+aFun5 :: Ptr CDouble -> CInt -> IO ()
+aFun5 x1 n = do
+  x <- vectorFromC n x1
   putStrLn $ "inside aFun5: " ++ show x
     {-
        should be called from sumthing like
-  u1 <- VM.replicate 5 2 :: IO (VM.IOVector Double)
+  u1 <- VM.replicate 5 2 :: IO (VM.IOVector CDouble)
   r <- unsafeWithVectors [u1] $ \(u:_) -> do
         outModule u
     -}
-outModule :: Ptr Double -> IO Double
+outModule :: Ptr CDouble -> IO CDouble
 outModule u = do
+
   -- Fortran can only import IO a functions. By design, it cannot import pure function
   y <- [fortIO| real(kind=8) ::
       IMPLICIT NONE
       real(kind=8) :: f
-      real(kind=8),target :: m(5)
-      integer :: i
+      real(kind=8),target :: m(5,3)
+      integer :: i,j
       do 22 i=1,5
-  22    m(i) = i + i
-      f = m(2) * 2
-      call $func:(aFun5:():real(kind=8)*1)(c_loc(m))
+        do 22 j = 1,3
+  22    m(i,j) = i +  (j* 0.10)
+      f = m(2,2) * 2
+      call $proc:(aFun5:():*real(kind=8):integer)(m,15)
+      f = $proc:(aFun3:real(kind=8):*real(kind=8):real(kind=8)) (m,m(3,2))
+      print *,'outModule: u:',m
       $return = f
     |]
   putStrLn $ "otherModule: " ++ show y
   return y
 
---    f = $func:(aFun3:real(kind=8):*real(kind=8):*real(kind=8):real(kind=8)) (m,$(x:value:real(kind=8)))
 
   {-
-otherModule :: Double -> IO Double
+otherModule :: CDouble -> IO CDouble
 otherModule x = do
   let additionalFunctionIO a b = return $ additionalFunction a b
   -- Fortran can only import IO a functions. By design, it cannot import pure function

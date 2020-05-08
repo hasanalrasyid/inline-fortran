@@ -228,7 +228,7 @@ parseQQ input = do
                  return $ (Spanned Eof nullSpan, Spanned Eof nullSpan, ErrFVar)
       return (rs,fVar)
 
-    takeDollar Nothing [] ((Spanned (IdentTok (Ident "func" _ _)) _):_:rs) = do
+    takeDollar Nothing [] ((Spanned (IdentTok (Ident "proc" _ _)) _):_:rs) = do
       (res,funcVar,fVar) <- processFunPtr rs
     --fail $ "Parser.hs: takeDollar: fVar: " ++ show fVar
       return (res, (funcVar, nullSpTok, fVar))
