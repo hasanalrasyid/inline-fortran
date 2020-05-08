@@ -39,7 +39,6 @@ aFun5 x1 n = do
     -}
 outModule :: Ptr CDouble -> IO CDouble
 outModule u = do
-
   -- Fortran can only import IO a functions. By design, it cannot import pure function
   y <- [fortIO| real(kind=8) ::
       IMPLICIT NONE
@@ -50,9 +49,13 @@ outModule u = do
         do 22 j = 1,3
   22    m(i,j) = i +  (j* 0.10)
       f = m(2,2) * 2
-      call $proc:(aFun5:():*real(kind=8):integer)(m,15)
-      f = $proc:(aFun3:real(kind=8):*real(kind=8):real(kind=8)) (m,m(3,2))
-      print *,'outModule: u:',m
+c     call $proc:(aFun5:():*real(kind=8):integer)(m,15)
+c     f = $proc:(aFun3:real(kind=8):*real(kind=8):real(kind=8)) (m,m(3,2))
+      print *,'outModule: u:',$vec(u:inout:real(kind=8):1)(2)
+      do 33 i=1,15
+        print *,'outModule: u: ',u(i)
+        u(i) = 10*i
+  33  continue
       $return = f
     |]
   putStrLn $ "otherModule: " ++ show y

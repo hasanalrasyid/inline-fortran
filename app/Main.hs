@@ -210,10 +210,14 @@ main = do
   let x = 2.3
   y <- [fortIO| real(kind=8) ::
 c     TEST7
-      real(kind=8) :: r(5)
+      real(kind=8) :: r(15)
       real(kind=8) :: a
+      integer :: i
       a = 1.1
+      do 33 i = 1,15
+  33    r(i) = 2+i
       a = $proc:(outModule:real(kind=8):*real(kind=8))(r)
+      print *,'Main: r: ', r
       $return = 100 + r(1)
 
       |]
