@@ -42,10 +42,10 @@ splitF90 filename = do
   putStrLn "====!splitF90"
 
 
-vectorFromC :: Storable a => CInt -> Ptr a -> IO (V.Vector a)
+vectorFromC :: Storable a => Int -> Ptr a -> IO (V.Vector a)
 vectorFromC len ptr = do
   ptr' <- newForeignPtr_ ptr
-  V.freeze $ VM.unsafeFromForeignPtr0 ptr' $ fromIntegral len
+  V.freeze $ VM.unsafeFromForeignPtr0 ptr' len
 
 vectorToC :: Storable a => V.Vector a -> Int -> Ptr a -> IO ()
 vectorToC vec len ptr = do

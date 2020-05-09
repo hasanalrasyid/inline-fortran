@@ -13,31 +13,31 @@ extendContext fVectors
 
 setCrateRoot []
 
-additionalFunction :: CDouble -> CDouble -> CDouble
+additionalFunction :: Double -> Double -> Double
 additionalFunction x y = x * y * x
 
-aFun3 :: Ptr CDouble -> CDouble -> IO CDouble
+aFun3 :: Ptr Double -> Double -> IO Double
 aFun3 x y = do
   x' <- peek x
   let r = x' + 3 * y
   putStrLn $ "aFun3: r: " ++show r
   return r
 
-aFun4 :: CDouble -> IO ()
+aFun4 :: Double -> IO ()
 aFun4 x = do
-  putStrLn $ "inside aFun4: " ++ show (x * 12 :: CDouble)
+  putStrLn $ "inside aFun4: " ++ show (x * 12 :: Double)
 
-aFun5 :: Ptr CDouble -> CInt -> IO ()
+aFun5 :: Ptr Double -> Int -> IO ()
 aFun5 x1 n = do
   x <- vectorFromC n x1
   putStrLn $ "inside aFun5: " ++ show x
     {-
        should be called from sumthing like
-  u1 <- VM.replicate 5 2 :: IO (VM.IOVector CDouble)
+  u1 <- VM.replicate 5 2 :: IO (VM.IOVector Double)
   r <- unsafeWithVectors [u1] $ \(u:_) -> do
         outModule u
     -}
-outModule :: Ptr CDouble -> IO CDouble
+outModule :: Ptr Double -> IO Double
 outModule u = do
   -- Fortran can only import IO a functions. By design, it cannot import pure function
   y <- [fortIO| real(kind=8) ::
@@ -64,7 +64,7 @@ c 33  continue
 
 
   {-
-otherModule :: CDouble -> IO CDouble
+otherModule :: Double -> IO Double
 otherModule x = do
   let additionalFunctionIO a b = return $ additionalFunction a b
   -- Fortran can only import IO a functions. By design, it cannot import pure function

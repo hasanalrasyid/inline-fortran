@@ -254,12 +254,12 @@ basic = do
     , ([ty| bool  |], [t| Word8   |], True, "bool ")
     , ([ty| ()    |], [t| ()      |], True, "()   ")
 --   Fortran
-    , ([ty| integer       |], [t| CInt            |], True , "integer     ")
+    , ([ty| integer       |], [t| Int            |], True , "integer     ")
     , ([ty| logical       |], [t| Int8            |], True , "logical     ")
     , ([ty| real          |], [t| Float           |], True , "real        ")
     , ([ty| complex       |], [t| CComplex Float  |], True , "complex     ")
-    , ([ty| character     |], [t| CChar           |], True , "character   ")
-    , ([ty| real(kind=8)  |], [t| CDouble         |], True , "real(kind=8)")
+    , ([ty| character     |], [t| Char           |], True , "character   ")
+    , ([ty| real(kind=8)  |], [t| Double         |], True , "real(kind=8)")
     , ((FString (Span NoPosition NoPosition)), [t|CChar |], True, "FString")
     {-
     , ([ty| logical(kind=1) |], [t| Int8            |])
