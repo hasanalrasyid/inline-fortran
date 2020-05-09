@@ -165,7 +165,7 @@ parseQQ input = do
                      (Ident fNameStr _ _) <- takeIdent fName
                    --fail $ "Parser.hs: parseBody: fVar " ++ show parTy
                      pure $ FProcedurePtr fNameStr retTy parTy nullSpan
-                   _ -> fail $ "parseBody: t1: error on case rst2"
+                   err -> fail $ "parseBody: t1: error on case rst2: " ++ show err
       newVars <- parseV vars v i newR
 --    fail $ "Parser.hs: parseBody: fVar " ++ show newVars
       runIO $ putStrLn $ "newVars :: " ++ show newVars ++ " :: " ++ show newR
@@ -224,7 +224,7 @@ parseQQ input = do
                   (v,i, Just (t,Just d)) <- processVITDP vitdP
                   return $ (v,i,FVarArray t d)
                _ -> do
-                 runIO $ putStrLn $ "!takeDollar: ERROR " ++ show rs
+                 _ <- fail $ "!takeDollar: ERROR " ++ (show $ reverse cs) ++ show rs
                  return $ (Spanned Eof nullSpan, Spanned Eof nullSpan, ErrFVar)
       return (rs,fVar)
 

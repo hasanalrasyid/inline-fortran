@@ -37,8 +37,10 @@ aFun5 x1 n = do
     -}
 outModule :: Ptr Double -> IO Double
 outModule u = do
+  let xx = 23
+  (_,r) <- withPtr $ \(p:: Ptr Int) -> do
   -- Fortran can only import IO a functions. By design, it cannot import pure function
-  y <- [fortIO| real(kind=8) ::
+        y <- [fortIO| real(kind=8) ::
       IMPLICIT NONE
       real(kind=8) :: f
       real(kind=8) :: m(5,3)
@@ -49,6 +51,8 @@ outModule u = do
   22    m(i,j) = i +  (j* 0.10)
       f = m(2,2) * 2
       print *,'fortIO: outModule: u:',$vec(u:inout:real(kind=8):1)(1)
+      print *,'fortIO: outModule: xx: ',$(xx:value:integer)
+      f = $(p:inout:integer)
       call $proc:(aFun5:():*real(kind=8):integer)(m,15)
       f = $proc:(aFun3:real(kind=8):*real(kind=8):real(kind=8)) (m,m(3,2))
       do 33 i=1,15
@@ -57,8 +61,9 @@ outModule u = do
   33  continue
       $return = f
     |]
-  putStrLn $ "otherModule: " ++ show y
-  return y
+        putStrLn $ "otherModule: " ++ show y
+        return y
+  return r
 
 
   {-

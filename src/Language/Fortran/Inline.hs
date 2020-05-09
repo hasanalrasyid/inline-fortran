@@ -412,12 +412,13 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr _ varsInBody rustBo
       marshalForm <- ghcMarshallable haskArg
       runIO $ putStrLn $ "marshalForm: " ++ show marshalForm
       -- cause everything is passed as pointer
-      ptr <- case intent of
-               "value" -> [t| $(pure haskArg) |]
-               _ -> case marshalForm of
-                      BoxedDirect -> [t| $(pure haskArg) |]
-                      _ -> [t| Ptr $(pure haskArg) |]
---    fail $ "processQQ: haskArg: " ++ show marshalForm ++ show ptr
+      ptr1 <- [t| $(pure haskArg) |]
+      ptr <- case ptr1 of
+              ConT _ -> case intent of
+                          "value" -> [t| $(pure ptr1) |]
+                          _ -> [t| Ptr $(pure ptr1) |]
+              _ -> [t| $(pure ptr1) |]
+--    fail $ "processQQ: haskArg: " ++ show marshalForm ++ show haskArg ++ show ptr
       pure (True, ptr)
 
   --haskArgsFunPtr <- do
@@ -434,7 +435,7 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr _ varsInBody rustBo
       , show haskSig
       ]
   let ffiImport = ForeignD (ImportF CCall safety (qqStrName ++ "_") qqName haskSig)
---fail $ "processQQ: ffiImport: " ++ show rustArgsFunPtr
+--fail $ "processQQ: ffiImport: " ++ show ffiImport
   addTopDecls [ffiImport]
 
   -- Generate the Haskell FFI call
