@@ -507,10 +507,10 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr _ varsInBody rustBo
   -- Generate the Rust function.
   let fortFnPtrNames = map ((++ "_cptr") . takeFnName1) fortFnPtrNamedArgs
   let (headSubroutine',endProcedure) =
-        let param = "(" ++ intercalate ", " (fortFnPtrNames ++ rustArgNames) ++ ")"
+        let param = "(" ++ intercalate ", " (rustArgNames ++ fortFnPtrNames ) ++ ")"
          in case procedure of
           Subroutine -> ( space6 ++ "subroutine " ++ qqStrName ++ param
-                        , space6 ++ "end subroutine " )
+                        , space6 ++ "end subroutine ")
           Function -> (space6 ++ "function " ++ qqStrName ++ param
                           , space6 ++ "end function  ")
 --let (h1:h1s) = chunksOf 60 headSubroutine'
@@ -634,11 +634,11 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr _ varsInBody rustBo
 
       renderFuncInterface [] = ""
       renderFuncInterface xs = unlines $ concat
-        [ [ "      interface" ]
+        [ map genFuncPointer xs
+        , map genFuncPtrFort xs
+        , [ "      interface" ]
         , map genFuncInterface xs
         , [ "      end interface" ]
-        , map genFuncPointer xs
-        , map genFuncPtrFort xs
         , map genFuncPtrAssign xs
         ]
 

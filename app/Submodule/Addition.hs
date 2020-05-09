@@ -43,19 +43,20 @@ outModule u = do
   y <- [fortIO| real(kind=8) ::
       IMPLICIT NONE
       real(kind=8) :: f
-      real(kind=8),target :: m(5,3)
+      real(kind=8) :: m(5,3)
       integer :: i,j
+
       do 22 i=1,5
         do 22 j = 1,3
   22    m(i,j) = i +  (j* 0.10)
       f = m(2,2) * 2
+      print *,'fortIO: outModule: u:',$vec(u:inout:real(kind=8):1)(1)
 c     call $proc:(aFun5:():*real(kind=8):integer)(m,15)
-c     f = $proc:(aFun3:real(kind=8):*real(kind=8):real(kind=8)) (m,m(3,2))
-      print *,'outModule: u:',$vec(u:inout:real(kind=8):1)(2)
-      do 33 i=1,15
-        print *,'outModule: u: ',u(i)
-        u(i) = 10*i
-  33  continue
+      f = $proc:(aFun3:real(kind=8):*real(kind=8):real(kind=8)) (m,m(3,2))
+c     do 33 i=1,15
+c       print *,'outModule: u: ',u(i)
+c       u(i) = 10*i
+c 33  continue
       $return = f
     |]
   putStrLn $ "otherModule: " ++ show y
