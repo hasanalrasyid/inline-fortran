@@ -3,9 +3,7 @@ module Submodule.Addition where
 import Language.Fortran.Inline
 import Foreign
 import Language.Fortran.Inline.Utils
-import qualified Data.Vector.Storable as V
-import qualified Data.Vector.Storable.Mutable as VM
-import Foreign.C.Types
+
 extendContext basic
 extendContext functions
 extendContext pointers
@@ -51,12 +49,12 @@ outModule u = do
   22    m(i,j) = i +  (j* 0.10)
       f = m(2,2) * 2
       print *,'fortIO: outModule: u:',$vec(u:inout:real(kind=8):1)(1)
-c     call $proc:(aFun5:():*real(kind=8):integer)(m,15)
+      call $proc:(aFun5:():*real(kind=8):integer)(m,15)
       f = $proc:(aFun3:real(kind=8):*real(kind=8):real(kind=8)) (m,m(3,2))
-c     do 33 i=1,15
-c       print *,'outModule: u: ',u(i)
-c       u(i) = 10*i
-c 33  continue
+      do 33 i=1,15
+        print *,'outModule: u: ',u(i)
+        u(i) = 10*i
+  33  continue
       $return = f
     |]
   putStrLn $ "otherModule: " ++ show y
