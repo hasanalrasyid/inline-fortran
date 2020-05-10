@@ -76,7 +76,8 @@ c     call $proc:(aFun6:():complex(kind=8))(c)
       $return = f
       |]
       putStrLn $ "otherModule: " ++ show y
-      putStrLn $ "otherModule: cp: " ++ show cp
+      cpx <- peek cp
+      putStrLn $ "otherModule: *cp: " ++ show cpx
       return y
     return rC
   return r
