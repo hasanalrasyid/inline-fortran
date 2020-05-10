@@ -164,7 +164,7 @@ cargoFinalizer extraArgs _ = do
   (ec,_,se) <- runIO $ readProcessWithExitCode inlineFC cargoArgs ""
   when (ec /= ExitSuccess) $ do
     runIO $ putStrLn se
-    reportError $ unlines [fortErrMsg, se]
+    reportError $ fortErrMsg ++ se ++ concat (inlineFC : cargoArgs)
 
   -- Move the library to a GHC temporary file
   let ext = ".o"
