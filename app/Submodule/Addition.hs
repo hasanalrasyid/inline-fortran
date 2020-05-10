@@ -37,6 +37,7 @@ aFun6 x1 = do
   putStrLn $ "inside aFun6: " ++ show x
   poke x1 $ CComplex 6.5 4.3
   putStrLn $ "!aFun6"
+
     {-
        should be called from sumthing like
   u1 <- VM.replicate 5 2 :: IO (VM.IOVector Double)
@@ -75,6 +76,13 @@ c     call $proc:(aFun6:():complex(kind=8))(c)
       print *,'outModule: c: ',c
       cp = complex(6.7,8.9)
       call $proc:(aFun6:():complex(kind=8))(cp)
+c     Due to howt complex marshaled to CComplex, we cannot make a function that
+c     have return value of complex
+c     as a workaround, we should change
+c     res = aFun7(params)
+c     into
+c     call afun7(params,res) with complex :: res
+c     c = $proc:(aFun7:complex(kind=8):complex(kind=8):*real(kind=8):integer)(cp,m,2)
       print *,'outModule: c: ',cp
       $return = f
       |]
