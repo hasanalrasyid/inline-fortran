@@ -118,6 +118,7 @@ import Data.Int (Int16)
 import qualified Data.Vector.Storable as V
 import qualified Data.Vector.Storable.Mutable as VM
 import Foreign (peek)
+import Language.Rust.Data.Ident (Ident(..))
 
 replace :: Eq a => [a] -> [a] -> [a] -> [a]
 replace old n = intercalate n . splitOn old
@@ -234,9 +235,9 @@ genWithPtrs n = fmap concat $ forM [1..n] mkWithPtrs
   where mkWithPtrs i = do
           wP <- withPtrsN i
           wT <- withPtrsNTy
-          let name = mkName $ "withPtrs" ++ show i
-          return $ [ SigD name wT
-                   , FunD name [ Clause [] (NormalB wP) [] ]
+          let nameP = mkName $ "withPtrs" ++ show i
+          return $ [ SigD nameP wT
+                   , FunD nameP [ Clause [] (NormalB wP) [] ]
                    ]
 
 withPtrsNTy :: TypeQ
@@ -619,6 +620,7 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr _ varsInBody rustBo
          renderType t ++ ",intent(inout):: " ++ v ++ "(*)"
       renderVarType (v, FArray _ t _) =
         renderType t ++ ",intent(inout):: " ++ v ++  "(*)"
+      renderVarType (v, t@(FType (Ident "complex" _ _) _ _)) = renderType t ++ ",intent(inout) :: " ++ v
       renderVarType (v,t) = renderType t ++ ",intent(in),value :: " ++ v
 
       genFuncInterface (_,(FProcedurePtr fn retTy paramTys _, _)) =

@@ -260,7 +260,7 @@ basic = do
     , ([ty| logical       |], [t| Int8            |], True , "logical     ")
     , ([ty| real          |], [t| Float           |], True , "real        ")
 --  , ([ty| complex       |], [t| CComplex Float  |], True , "complex     ")
-    , ([ty| complex(kind=8) |], [t| CComplex Double |], True , "complexDouble ")
+    , ([ty| complex(kind=8) |], [t| Ptr (CComplex Double) |], True , "complexDouble ")
     , ([ty| character     |], [t| Char           |], True , "character   ")
     , ([ty| real(kind=8)  |], [t| Double         |], True , "real(kind=8)")
     , ((FString (Span NoPosition NoPosition)), [t|CChar |], True, "FString")

@@ -35,7 +35,8 @@ aFun6 :: Ptr (CComplex Double) -> IO ()
 aFun6 x1 = do
   x <- peek x1
   putStrLn $ "inside aFun6: " ++ show x
-
+  poke x1 $ CComplex 6.5 4.3
+  putStrLn $ "!aFun6"
     {-
        should be called from sumthing like
   u1 <- VM.replicate 5 2 :: IO (VM.IOVector Double)
@@ -73,6 +74,8 @@ c     call $proc:(aFun6:():complex(kind=8))(c)
       c = $(cp:inout:complex(kind=8))
       print *,'outModule: c: ',c
       cp = complex(6.7,8.9)
+      call $proc:(aFun6:():complex(kind=8))(cp)
+      print *,'outModule: c: ',cp
       $return = f
       |]
       putStrLn $ "otherModule: " ++ show y
