@@ -32,6 +32,7 @@ import Data.Array.Storable         ( StorableArray, Ix, withStorableArray,
 
 import GHC.Exts
 import Foreign.C.Types
+import Eigen.Internal
 
 data Procedure
   = Function
@@ -95,6 +96,7 @@ ghcMarshallable ty = do
   qTyconsBoxed   = [ [t| Ptr |]
                    , [t| FunPtr |]
                    , [t| StablePtr |]
+                   , [t| CComplex |]
                    ]
 
 

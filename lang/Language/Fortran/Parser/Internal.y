@@ -741,4 +741,5 @@ nudge :: Int -> Int -> Span -> Span
 nudge leftSide rightSide (Span l r) = Span l' r'
   where l' = incPos l leftSide
         r' = incPos r rightSide
+
 }

@@ -410,15 +410,19 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr _ varsInBody rustBo
   (argsByVal, haskArgs') <- fmap unzip $
     for (zip haskArgs intents) $ \(haskArg,intent) -> do
       marshalForm <- ghcMarshallable haskArg
-      runIO $ putStrLn $ "marshalForm: " ++ show marshalForm
+--    fail $ "marshalForm: " ++ show marshalForm ++ show haskArg
       -- cause everything is passed as pointer
       ptr1 <- [t| $(pure haskArg) |]
+      pp <- [t| Ptr |]
       ptr <- case ptr1 of
               ConT _ -> case intent of
                           "value" -> [t| $(pure ptr1) |]
                           _ -> [t| Ptr $(pure ptr1) |]
-              _ -> [t| $(pure ptr1) |]
---    fail $ "processQQ: haskArg: " ++ show marshalForm ++ show haskArg ++ show ptr
+              AppT p _ -> do
+                if p /= pp then [t| Ptr $(pure ptr1) |]
+                           else [t| $(pure ptr1) |]
+              _ -> do
+                [t| Ptr $(pure ptr1) |]
       pure (True, ptr)
 
   --haskArgsFunPtr <- do

@@ -49,6 +49,8 @@ import qualified Data.Vector.Storable as V
 import Language.Rust.Data.Position
 import Foreign hiding (void)
 
+import Data.Complex
+
 instance Fail.MonadFail First where
   fail x = error $ "MonadFail First error: " ++ x
 
@@ -257,7 +259,8 @@ basic = do
     , ([ty| integer       |], [t| Int            |], True , "integer     ")
     , ([ty| logical       |], [t| Int8            |], True , "logical     ")
     , ([ty| real          |], [t| Float           |], True , "real        ")
-    , ([ty| complex       |], [t| CComplex Float  |], True , "complex     ")
+--  , ([ty| complex       |], [t| CComplex Float  |], True , "complex     ")
+    , ([ty| complex(kind=8) |], [t| CComplex Double |], True , "complexDouble ")
     , ([ty| character     |], [t| Char           |], True , "character   ")
     , ([ty| real(kind=8)  |], [t| Double         |], True , "real(kind=8)")
     , ((FString (Span NoPosition NoPosition)), [t|CChar |], True, "FString")
@@ -321,6 +324,28 @@ fImmutableVectors = do
         pure (FArray (-1) <$> t' <*> pure ())
         --pure (Ptr Mutable <$> t' <*> pure ())
 -}
+
+fComplex :: Q Context
+fComplex = do
+  vecConT <- [t| Complex |]
+  pure (Context ([rule], [rev vecConT], [], "fComplex"))
+  where
+  rule vec context = do
+    ff <- pure vec
+    case ff of
+      (FArray _ t _) -> do
+        (t', Nothing,i) <- lookupRTypeInContext t context
+        pure ([t| Ptr $t' |], Nothing,i)
+      _ -> mempty
+
+  rev vecConT pt context = do
+    AppT vecCon t <- pure pt
+    if vecCon /= vecConT
+      then mempty
+      else do
+        t' <- lookupHTypeInContext t context
+        pure (FArray (-1) <$> t' <*> pure ())
+        --pure (Ptr Mutable <$> t' <*> pure ())
 
 fVectors :: Q Context
 fVectors = do

@@ -167,7 +167,7 @@ parseQQ input = do
                      pure $ FProcedurePtr fNameStr retTy parTy nullSpan
                    err -> fail $ "parseBody: t1: error on case rst2: " ++ show err
       newVars <- parseV vars v i newR
---    fail $ "Parser.hs: parseBody: fVar " ++ show newVars
+--    fail $ "Parser.hs: parseBody: fVar " ++ show newR
       runIO $ putStrLn $ "newVars :: " ++ show newVars ++ " :: " ++ show newR
       v1 <- setNullSpan v
       parseBody leadingTy (v1:toks) newVars rst3
@@ -246,11 +246,11 @@ parseQQ input = do
     takeDollar a b [] = fail $ "takeDollar for [] " ++ show a ++ "___" ++ show b
 
 parseFType :: (Parse a, Monad m) => [SpTok] -> m a
-parseFType toks =
+parseFType toks = do
   case (parseFromToks toks) of
     Left (ParseFail _ msg) -> fail $ "parseFType: " ++ msg ++ " " ++ show toks
     Right parsed           -> do
-                                 pure parsed
+                                pure parsed
 
 setNullSpan :: Spanned a -> Q (Spanned a)
 setNullSpan (Spanned t _) = return $ Spanned t nullSpan
