@@ -171,9 +171,9 @@ cargoFinalizer extraArgs _ = do
   rustLibFp' <- addTempFile ext
   runIO $ copyFile (dir </> thisFile -<.> "o") rustLibFp'
 
-  runIO $ putStrLn $ "====cargoFinalizer: rustLibFp'" ++ show rustLibFp'
   -- Link in the static library
   addForeignFilePath RawObject (dir </> thisFile -<.> "o")
+  runIO $ putStrLn $ "====cargoFinalizer: rustLibFp'" ++ show rustLibFp'
 
 -- | Error message to display when @cargo@/@rustc@ fail to compile the module's
 -- Rust file. Unfortunately, [errors reported by TH are always followed by the
