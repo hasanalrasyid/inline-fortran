@@ -1,19 +1,19 @@
-v return value from fortIO, use () for void
+kita perlu ganti CComplex dengan storable-complex
 
 http://zvon.org/other/haskell/Outputcomplex/index.html
 https://hackage.haskell.org/package/storable-complex
 
-kita perlu ganti CComplex dengan storable-complex
+v return value from fortIO, use () for void
 
-call Haskell function as:
-  subroutine from fortran:
-    syntax:
-        call $(subroutine:routineNameInHaskell)(params)
-    routineNameInHaskell should be returned as IO ()
+v call Haskell function as:
+    subroutine from fortran:
+      syntax:
+          call $(subroutine:routineNameInHaskell)(params)
+      routineNameInHaskell should be returned as IO ()
 
 
-  function in haskell:
-    syntax:
-        x = $(function:functionNameInHaskell)(param)
-    functionNameInHaskell should be pure function, and strict
+v  function in haskell:
+      syntax:
+          x = $(function:functionNameInHaskell)(param)
+      functionNameInHaskell should be pure function, and strict
 
