@@ -41,10 +41,17 @@ aFun6 x1 = do
 
 aFun7 :: Ptr (CComplex Double) -> Ptr Double -> Int -> IO ()
 aFun7 vcp _ n = do
-  v <- vectorFromC n vcp
-  putStrLn $ "aFun7: v vcp: " ++ show v
-  V.forM_ v $ \vi -> do
-    return $ vi + (CComplex 9.8 7.6)
+{- This is a must: generate Vector using vectorFromC,
+    then thaw it using unsafeThaw to edit the vectors
+    then operate it using unsafeWithVectors, here we can use fortIO
+
+    Maybe on the next occasion, we can automate this process.
+    -}
+  v0 <- vectorFromC n vcp
+  v1 <- V.unsafeThaw v0
+  putStrLn $ "aFun7: v vcp: " ++ show v0
+  unsafeWithVectors [v1] $ \(v:_) -> do
+    poke v (CComplex 6.6 2.2)
 
 
     {-
@@ -95,7 +102,7 @@ c     res = aFun7(params)
 c     into
 c     call afun7(params,res) with complex :: res
 c     c = $proc:(aFun7:complex(kind=8):complex(kind=8):*real(kind=8):integer)(cp,m,2)
-      $proc:(aFun7:():*complex(kind=8):*real(kind=8):integer)(vcp,m,3)
+      call $proc:(aFun7:():*complex(kind=8):*real(kind=8):integer)(vcp,m,3)
       print *,'outModule: c: ',cp
       $return = f
       |]
