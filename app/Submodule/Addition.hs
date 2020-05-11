@@ -53,6 +53,9 @@ aFun7 vcp _ n = do
   unsafeWithVectors [v1] $ \(v:_) -> do
     poke v (CComplex 6.6 2.2)
 
+aFun8 :: IO ()
+aFun8 = do
+  putStrLn "aFun8: test for no params procedure"
 
     {-
        should be called from sumthing like
@@ -103,6 +106,8 @@ c     into
 c     call afun7(params,res) with complex :: res
 c     c = $proc:(aFun7:complex(kind=8):complex(kind=8):*real(kind=8):integer)(cp,m,2)
       call $proc:(aFun7:():*complex(kind=8):*real(kind=8):integer)(vcp,m,3)
+      call $proc:(zeroc:():*complex(kind=8):integer) (vcp,3)
+      call $proc:(aFun8:())
       print *,'outModule: c: ',cp
       $return = f
       |]
@@ -115,20 +120,88 @@ c     c = $proc:(aFun7:complex(kind=8):complex(kind=8):*real(kind=8):integer)(cp
   putStrLn $ "otherModule: ua1 vcp frozen: " ++ show ua1Frozen
   return r
 
-
-  {-
-otherModule :: Double -> IO Double
-otherModule x = do
-  let additionalFunctionIO a b = return $ additionalFunction a b
-  -- Fortran can only import IO a functions. By design, it cannot import pure function
-  y <- [fortIO| real(kind=8) ::
+zeroc :: Ptr (CComplex Double) -> Int -> IO ()
+zeroc x n = do
+  putStrLn $ "zeroc: "
+  [fortIO| () ::
+c     SUBROUTINE ZEROD(X,N)
+C     CopyRight T.Oda (2003.12.31)
       IMPLICIT NONE
-      real(kind=8) :: f
-      real(kind=8) :: m
-      m = 3
-      f = $func:(additionalFunctionIO:real(kind=8):real(kind=8):real(kind=8)) (m,$(x:value:real(kind=8)))
-      $return = f
-    |]
-  putStrLn $ "otherModule: " ++ show y
-  return y
--}
+      integer :: I
+
+#if defined(__PARA_OMP_ZERO)
+!$    USE OMP_LIB
+      USE PARA_MPI, ONLY: NUM_OMP
+#endif
+c     IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+c     INTEGER N,I
+c     REAL*8 X(N)
+C
+c     IF($(N.LE.500)GOTO 200
+      IF($(n:value:integer).LE.500)GOTO 200
+C
+#if defined(__PARA_OMP_ZERO)
+!$OMP PARALLEL
+!$OMP& PRIVATE(I,ITHR,J1,J2)
+      ITHR=OMP_GET_THREAD_NUM()
+      CALL SETJ1J2(N,NUM_OMP,ITHR,J1,J2)
+      DO I=J1,J2
+        X(I)=0
+      ENDDO
+!$OMP END PARALLEL
+      RETURN
+#endif
+C
+  200 CONTINUE
+C
+      DO I=1,N
+c       X(I)=0d0
+        $vec(x:inout:complex(kind=8):1)(I)=0
+      ENDDO
+C
+      RETURN
+c     END
+  |]
+
+zerod :: Ptr Double -> Int -> IO ()
+zerod x n = do
+  putStrLn $ "zerod: "
+  [fortIO| () ::
+c     SUBROUTINE ZEROD(X,N)
+C     CopyRight T.Oda (2003.12.31)
+      IMPLICIT NONE
+      integer :: I
+
+#if defined(__PARA_OMP_ZERO)
+!$    USE OMP_LIB
+      USE PARA_MPI, ONLY: NUM_OMP
+#endif
+c     IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+c     INTEGER N,I
+c     REAL*8 X(N)
+C
+c     IF($(N.LE.500)GOTO 100
+      IF($(n:value:integer).LE.500)GOTO 100
+C
+#if defined(__PARA_OMP_ZERO)
+!$OMP PARALLEL
+!$OMP& PRIVATE(I,ITHR,J1,J2)
+      ITHR=OMP_GET_THREAD_NUM()
+      CALL SETJ1J2(N,NUM_OMP,ITHR,J1,J2)
+      DO I=J1,J2
+        X(I)=0d0
+      ENDDO
+!$OMP END PARALLEL
+      RETURN
+#endif
+C
+  100 CONTINUE
+C
+      DO I=1,N
+c       X(I)=0d0
+        $vec(x:inout:real(kind=8):1)(I)=0d0
+      ENDDO
+C
+      RETURN
+c     END
+  |]

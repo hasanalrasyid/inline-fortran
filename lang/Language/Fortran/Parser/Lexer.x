@@ -981,7 +981,7 @@ $hexit             = [0-9a-fA-F]
 @inner_doc_line    = "//!" [^\r\n]*
 @inner_doc_inline  = "/*!"
 
-@line_comment      = "//" ( [^\n\/]* [^\n]* )?
+--@line_comment      = "//" ( [^\n\/]* [^\n]* )?
 @inline_comment    = "/*"
 
 -- Macro related
@@ -1089,7 +1089,7 @@ $white          { \s -> pure (Space Whitespace s) }
 @inner_doc_line   { \c -> pure (Doc (drop 3 c) Inner False) }
 @inner_doc_inline { \_ -> Doc <$> nestedComment <*> pure Inner <*> pure True }
 
-@line_comment     { \c -> pure (Space Comment (drop 2 c)) }
+--@line_comment     { \c -> pure (Space Comment (drop 2 c)) }
 @inline_comment   { \_ -> Space Comment <$> nestedComment }
 
 {
