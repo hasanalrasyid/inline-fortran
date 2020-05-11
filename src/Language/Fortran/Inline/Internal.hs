@@ -35,9 +35,9 @@ import Data.Char                   ( isAlpha, isAlphaNum )
 import System.FilePath             ( (</>), (-<.>), (<.>), takeDirectory
 --                                 , takeExtension
                                    )
-import System.Directory            ( copyFile, createDirectoryIfMissing )
-import System.Process              ( -- spawnProcess, readProcess, waitForProcess,
-                                     readProcessWithExitCode )
+import System.Directory            ( copyFile, createDirectoryIfMissing, doesFileExist )
+import System.Process              ( -- spawnProcess, waitForProcess,
+                                     readProcessWithExitCode, readProcess )
 import System.Exit                 ( ExitCode(..) )
 import System.Environment          ( lookupEnv, setEnv )
 
@@ -146,6 +146,7 @@ cargoFinalizer extraArgs _ = do
 
   let dir = ".inline-fortran" </> pkg
       thisFile = foldr1 (</>) mods <.> "f"
+      hashFile = foldr1 (</>) mods <.> "hash"
 --    crate = "q_" ++ pkg
   runIO $ createDirectoryIfMissing True dir
 
@@ -160,7 +161,26 @@ cargoFinalizer extraArgs _ = do
                                     ] ++ extraArgs
 --    msgFormat = [ "--message-format=json" ]
   runIO $ putStrLn $ unwords ("cargoArgs: " : inlineFC : cargoArgs)
-
+    {-
+  (renewFile,theHash) <- runIO $ do
+    hashExist <- doesFileExist hashFile
+    currentHash <- readProcess "md5sum" [(show $ dir </> thisFile)] []
+    putStrLn $ unwords ("renew: " : show hashExist : currentHash : [])
+    renew <- case hashExist of
+      True -> do
+        availableHash <- readFile $ dir </> thisFile -<.> "hash"
+        if availableHash == currentHash then return False
+                                        else return True
+      False -> pure True
+    return (renew,currentHash)
+  runIO $ putStrLn $ "===hashes: " ++ show renewFile ++ show thisFile ++ theHash
+  (ec,_,se) <- runIO $ do
+    case renewFile of
+      False -> return (ExitSuccess, "", "")
+      True -> do
+        writeFile (dir </> hashFile) theHash
+        readProcessWithExitCode inlineFC cargoArgs ""
+        -}
   (ec,_,se) <- runIO $ readProcessWithExitCode inlineFC cargoArgs ""
   when (ec /= ExitSuccess) $ do
     runIO $ putStrLn se

@@ -1,3 +1,5 @@
+we need to disable recompile for non-changed files
+
 kita perlu ganti CComplex dengan storable-complex
 
 http://zvon.org/other/haskell/Outputcomplex/index.html
