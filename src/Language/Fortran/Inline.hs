@@ -408,6 +408,12 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr _ varsInBody rustBo
     pure (procedure,marshalFrom, pure ret)
 
   -- Convert the Haskell arguments to marshallable FFI types
+  let
+      joinPtr ptrStat a@(AppT p r)
+        | p /= ptrStat = AppT ptrStat a
+        | otherwise = joinPtr ptrStat r
+      joinPtr ptrStat a = AppT ptrStat a
+
   (argsByVal, haskArgs') <- fmap unzip $
     for (zip haskArgs intents) $ \(haskArg,intent) -> do
       marshalForm <- ghcMarshallable haskArg
@@ -420,17 +426,17 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr _ varsInBody rustBo
                           "value" -> [t| $(pure ptr1) |]
                           _ -> [t| Ptr $(pure ptr1) |]
               AppT p _ -> do
-                if p /= pp then [t| Ptr $(pure ptr1) |]
-                           else [t| $(pure ptr1) |]
+                if p /= pp then do
+                             [t| Ptr $(pure ptr1) |]
+                           else do
+                             [t| $(pure $ joinPtr pp ptr1) |]
               _ -> do
                 [t| Ptr $(pure ptr1) |]
+--    fail $ "Inline: processQQ: roller1 " ++ show ptr
       pure (True, ptr)
-
-  --haskArgsFunPtr <- do
   let (_, rustArgs_intentsFunPtr) = unzip fortFnPtrNamedArgs
   let (rustArgsFunPtr, _) = unzip rustArgs_intentsFunPtr
   (haskArgsFunPtr, _) <- unzip <$> traverse (getRType . void) rustArgsFunPtr
---fail $ "Inline: processQQ: roller1 " ++ show rustArgsFunPtr
   -- Generate the Haskell FFI import declaration and emit it
   haskSig <- foldr (\l r -> [t| $(pure l) -> $r |]) haskRet' $ haskArgs' ++ haskArgsFunPtr
   --fail $

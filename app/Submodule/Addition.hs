@@ -4,7 +4,8 @@ import Language.Fortran.Inline
 import Foreign
 import Language.Fortran.Inline.Utils
 import Eigen.Internal
-
+import qualified Data.Vector.Storable.Mutable as VM
+import qualified Data.Vector.Storable as V
 extendContext basic
 extendContext functions
 extendContext pointers
@@ -47,18 +48,19 @@ aFun6 x1 = do
 outModule :: Ptr Double -> IO Double
 outModule u = do
   let xx = 23
+  ua1 <- VM.replicate 3 (CComplex 1.2 2.3) :: IO (VM.IOVector (CComplex Double))
   (_,r) <- withPtr $ \(p:: Ptr Int) -> do
     (_,rC) <- withPtr $ \(cp :: Ptr (CComplex Double)) -> do
-      poke cp $ CComplex 2.3 4.5
+      unsafeWithVectors [ua1] $ \(vcp:_) -> do
+        poke cp $ CComplex 2.3 4.5
   -- Fortran can only import IO a functions. By design, it cannot import pure function
-      y <- [fortIO| real(kind=8) ::
+        y <- [fortIO| real(kind=8) ::
       IMPLICIT NONE
       real(kind=8) :: f
       real(kind=8) :: m(5,3)
       integer :: i,j
       complex(kind=8) :: c
       c = cmplx(1.2,3.4)
-c     call $proc:(aFun6:():complex(kind=8))(c)
       do 22 i=1,5
         do 22 j = 1,3
   22    m(i,j) = i +  (j* 0.10)
@@ -75,6 +77,8 @@ c     call $proc:(aFun6:():complex(kind=8))(c)
       c = $(cp:inout:complex(kind=8))
       print *,'outModule: c: ',c
       cp = complex(6.7,8.9)
+      print *,'try vec of complex: ', $vec(vcp:inout:complex(kind=8):1) (1)
+      vcp(2) = (4.5,6.7)
       call $proc:(aFun6:():complex(kind=8))(cp)
 c     Due to howt complex marshaled to CComplex, we cannot make a function that
 c     have return value of complex
@@ -86,11 +90,13 @@ c     c = $proc:(aFun7:complex(kind=8):complex(kind=8):*real(kind=8):integer)(cp
       print *,'outModule: c: ',cp
       $return = f
       |]
-      putStrLn $ "otherModule: " ++ show y
-      cpx <- peek cp
-      putStrLn $ "otherModule: *cp: " ++ show cpx
-      return y
+        putStrLn $ "otherModule: " ++ show y
+        cpx <- peek cp
+        putStrLn $ "otherModule: *cp: " ++ show cpx
+        return y
     return rC
+  ua1Frozen <- V.unsafeFreeze ua1
+  putStrLn $ "otherModule: ua1 vcp frozen: " ++ show ua1Frozen
   return r
 
 
