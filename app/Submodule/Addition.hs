@@ -39,6 +39,14 @@ aFun6 x1 = do
   poke x1 $ CComplex 6.5 4.3
   putStrLn $ "!aFun6"
 
+aFun7 :: Ptr (CComplex Double) -> Ptr Double -> Int -> IO ()
+aFun7 vcp _ n = do
+  v <- vectorFromC n vcp
+  putStrLn $ "aFun7: v vcp: " ++ show v
+  V.forM_ v $ \vi -> do
+    return $ vi + (CComplex 9.8 7.6)
+
+
     {-
        should be called from sumthing like
   u1 <- VM.replicate 5 2 :: IO (VM.IOVector Double)
@@ -87,6 +95,7 @@ c     res = aFun7(params)
 c     into
 c     call afun7(params,res) with complex :: res
 c     c = $proc:(aFun7:complex(kind=8):complex(kind=8):*real(kind=8):integer)(cp,m,2)
+      $proc:(aFun7:():*complex(kind=8):*real(kind=8):integer)(vcp,m,3)
       print *,'outModule: c: ',cp
       $return = f
       |]

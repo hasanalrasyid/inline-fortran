@@ -440,21 +440,31 @@ makeIO x = do
           _ -> [t| IO $x |]
   return xx
 
+--joinPtr :: HType -> HType -> HType
+--joinPtr ptrConT a@(AppT p r)
+--  | p /= ptrConT = AppT ptrConT a
+--  | otherwise = joinPtr ptrConT r
+joinPtr ptrConT o@(AppT p2 r@(AppT p3 _))
+  | p2 == p3 && ptrConT == p2 = joinPtr ptrConT r
+  | otherwise = o
+joinPtr _ a = a
+
 functions :: Q Context
 functions = do
   funPtrT <- [t| FunPtr |]
   ioT <- [t| IO |]
-  pure (Context ([rule], [rev funPtrT ioT], [impl],"functions"))
+  ptrConT <- [t| Ptr |]
+  pure (Context ([rule ptrConT], [rev funPtrT ioT], [impl],"functions"))
   where
-  rule :: RType -> Context -> First (Q HType, Maybe (Q RType),String)
-  rule ft context = do
+  rule :: HType -> RType -> Context -> First (Q HType, Maybe (Q RType),String)
+  rule pt ft context = do
     --BareFn _ C _ (FnDecl args retTy False _) _ <- pure ft
     ff <- pure ft
     case ff of
       (FProcedurePtr _ retTy argTys _) -> do
         args' <- for argTys $ \arg -> do
           (t',_,_) <- lookupRTypeInContext arg context
-          pure t'
+          pure $ joinPtr pt <$> t'
         retTy' <- do
           (t',_,_) <- lookupRTypeInContext retTy context
           pure t'
@@ -463,9 +473,9 @@ functions = do
             retTy2 = makeIO retTy'
         let hFunTy = foldr (\l r -> [t| $l -> $r |]) retTy2 args'
         let hFunPtr = [t| FunPtr $hFunTy |]
-
         pure (hFunPtr, Nothing,"FProcedurePtr")
       _ -> mempty
+
   rev :: Type -> Type -> HType -> Context -> First (Q RType)
   rev funPtrT ioT ft context = do
     AppT funPtr t <- pure ft

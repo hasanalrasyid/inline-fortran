@@ -432,11 +432,11 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr _ varsInBody rustBo
                              [t| $(pure $ joinPtr pp ptr1) |]
               _ -> do
                 [t| Ptr $(pure ptr1) |]
---    fail $ "Inline: processQQ: roller1 " ++ show ptr
       pure (True, ptr)
   let (_, rustArgs_intentsFunPtr) = unzip fortFnPtrNamedArgs
   let (rustArgsFunPtr, _) = unzip rustArgs_intentsFunPtr
   (haskArgsFunPtr, _) <- unzip <$> traverse (getRType . void) rustArgsFunPtr
+--fail $ "Inline: processQQ: roller1 " ++ show haskArgsFunPtr
   -- Generate the Haskell FFI import declaration and emit it
   haskSig <- foldr (\l r -> [t| $(pure l) -> $r |]) haskRet' $ haskArgs' ++ haskArgsFunPtr
   --fail $
@@ -479,36 +479,6 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr _ varsInBody rustBo
   haskCall <- case fortFnPtrNamedArgs of
     [] -> return haskCall1
     _  -> genHaskCallFunPtr1 haskCall1 haskArgsFunPtr rustArgsFunPtr
-      {-
-    _ -> do
-      ptr <- newName "ptr" :: Q Name
-      ret <- newName "ret" :: Q Name
-      let
-          (haskArgsFunPtr1:_) = haskArgsFunPtr :: [HType]
-          (rustArgsFunPtr1:_) = rustArgsFunPtr
-          theF = takeFunctionName rustArgsFunPtr1 :: String
-      let haskArgsFunPtr2 = deFun haskArgsFunPtr1
-      theF1 <- lookupValueName $ takeFunctionName rustArgsFunPtr1
-      let theFun :: Name
-          theFun = case theF1 of
-                  Just f -> f
-                  _ -> error $ "haskCall: lookupValueName: can not find function: " ++ theF
-      let
-          haskCall2 :: Q Exp
-          haskCall2 =
-            [e| do { $(varP ptr) <- $(newFunPtr haskArgsFunPtr2) $(varE theFun)
-                   ; $(varP ret) <- (\a f -> f a) $(varE ptr) $ $(haskCall1)
-                   ; freeHaskellFunPtr $(varE ptr)
-                   ; pure $(varE ret)
-                   }
-            |]
-      t1 <- lookupValueName $ show theFun
-      --     • haskCall :: AppT (AppT ArrowT (ConT GHC.Types.Double)) (AppT (AppT ArrowT (ConT GHC.Types.Double)) (AppT (ConT GHC.Types.IO) (ConT GHC.Types.Double)))
-      --fail
-      runIO $ putStrLn
-        $ "haskCall :: "  ++ show t1 -- (show haskArgsFunPtr2)  -- theFun ++ show theF -- rustArgsFunPtr1 -- haskArgsFunPtr1 --  ttt
-      return haskCall2
-      -}
   -- Generate the Rust function arguments and the converted arguments
   let (rustArgs', _) = unzip $ zipWith mergeArgs rustArgs reprCArgs
 

@@ -1,5 +1,10 @@
 v return value from fortIO, use () for void
 
+http://zvon.org/other/haskell/Outputcomplex/index.html
+https://hackage.haskell.org/package/storable-complex
+
+kita perlu ganti CComplex dengan storable-complex
+
 call Haskell function as:
   subroutine from fortran:
     syntax:
