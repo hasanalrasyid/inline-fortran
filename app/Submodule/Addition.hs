@@ -32,14 +32,14 @@ aFun5 x1 n = do
   x <- vectorFromC n x1
   putStrLn $ "inside aFun5: " ++ show x
 
-aFun6 :: Ptr (CComplex Double) -> IO ()
+aFun6 :: Ptr (CComplex Float) -> IO ()
 aFun6 x1 = do
   x <- peek x1
   putStrLn $ "inside aFun6: " ++ show x
   poke x1 $ CComplex 6.5 4.3
   putStrLn $ "!aFun6"
 
-aFun7 :: Ptr (CComplex Double) -> Ptr Double -> Int -> IO ()
+aFun7 :: Ptr (CComplex Float) -> Ptr Double -> Int -> IO ()
 aFun7 vcp _ n = do
 {- This is a must: generate Vector using vectorFromC,
     then thaw it using unsafeThaw to edit the vectors
@@ -66,9 +66,9 @@ aFun8 = do
 outModule :: Ptr Double -> IO Double
 outModule u = do
   let xx = 23
-  ua1 <- VM.replicate 3 (CComplex 1.2 2.3) :: IO (VM.IOVector (CComplex Double))
+  ua1 <- VM.replicate 3 (CComplex 1.2 2.3) :: IO (VM.IOVector (CComplex Float))
   (_,r) <- withPtr $ \(p:: Ptr Int) -> do
-    (_,rC) <- withPtr $ \(cp :: Ptr (CComplex Double)) -> do
+    (_,rC) <- withPtr $ \(cp :: Ptr (CComplex Float)) -> do
       unsafeWithVectors [ua1] $ \(vcp:_) -> do
         poke cp $ CComplex 2.3 4.5
   -- Fortran can only import IO a functions. By design, it cannot import pure function
@@ -120,7 +120,7 @@ c     c = $proc:(aFun7:complex(kind=8):complex(kind=8):*real(kind=8):integer)(cp
   putStrLn $ "otherModule: ua1 vcp frozen: " ++ show ua1Frozen
   return r
 
-zeroc :: Ptr (CComplex Double) -> Int -> IO ()
+zeroc :: Ptr (CComplex Float) -> Int -> IO ()
 zeroc x n = do
   putStrLn $ "zeroc: "
   [fortIO| () ::
