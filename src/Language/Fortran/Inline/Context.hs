@@ -257,10 +257,11 @@ basic = do
     , ([ty| ()    |], [t| ()      |], True, "()   ")
 --   Fortran
     , ([ty| integer       |], [t| Int            |], True , "integer     ")
-    , ([ty| logical       |], [t| Int8            |], True , "logical     ")
+    , ([ty| logical       |], [t| Bool            |], True , "logical     ")
     , ([ty| real          |], [t| Float           |], True , "real        ")
 --  , ([ty| complex       |], [t| CComplex Float  |], True , "complex     ")
-    , ([ty| complex(kind=8) |], [t| Ptr (CComplex Double) |], True , "complexDouble ")
+    , ([ty| complex(kind=8) |], [t| Ptr (CComplex Float) |], True , "complexFloat")
+    , ([ty| complex(kind=16) |], [t| Ptr (CComplex Double) |], True , "complexDouble ")
     , ([ty| character     |], [t| Char           |], True , "character   ")
     , ([ty| real(kind=8)  |], [t| Double         |], True , "real(kind=8)")
     , ((FString (Span NoPosition NoPosition)), [t|CChar |], True, "FString")
@@ -323,7 +324,6 @@ fImmutableVectors = do
         t' <- lookupHTypeInContext t context
         pure (FArray (-1) <$> t' <*> pure ())
         --pure (Ptr Mutable <$> t' <*> pure ())
--}
 
 fComplex :: Q Context
 fComplex = do
@@ -346,6 +346,7 @@ fComplex = do
         t' <- lookupHTypeInContext t context
         pure (FArray (-1) <$> t' <*> pure ())
         --pure (Ptr Mutable <$> t' <*> pure ())
+-}
 
 fVectors :: Q Context
 fVectors = do
@@ -396,7 +397,7 @@ pointers = do
   rule pt context = do
     ff <- pure pt
     case ff of
-      Ptr _ t _ -> do
+      FByReference t _ -> do
         (t', Nothing,i) <- lookupRTypeInContext t context
         pure ([t| Ptr $t' |], Nothing,i)
       _ -> mempty
@@ -407,7 +408,7 @@ pointers = do
       then mempty
       else do
         t' <- lookupHTypeInContext t context
-        pure (Ptr Mutable <$> t' <*> pure ())
+        pure (FByReference <$> t' <*> pure ())
 
   constPtr = unlines [ "impl<T> MarshalInto<*const T> for *const T {"
                      , "  fn marshal(self) -> *const T { self }"

@@ -148,6 +148,7 @@ printType (Infer x)             = annotate x "_"
 printType (MacTy m x)           = annotate x (printMac Bracket m)
 printType (FType ty k x)           = annotate x (printIdent ty <> printExpr k )
 printType (FArray _ ty x)           = annotate x (printType ty )
+printType (FByReference ty x)           = annotate x (printType ty )
 printType (FComplex ty x)           = annotate x (printType ty )
 printType (FString x)           = annotate x ( "StringType" )
 printType (FProcedurePtr _ _ _ x)           = annotate x ( "FProcedurePtr" )

@@ -455,6 +455,7 @@ ty :: { Ty Span }
   | self_or_ident expr { FType (unspan $1) $2 ($1 # $>) }
   | '(' ')'            { TupTy [] ($1 # $>) }
   | '*' ty             { FArray 1 $2 ($1 # $2) }
+  | '&' ty             { FByReference $2 ($1 # $2) }
   | ty '*' expr        { Array $1 $3 ($1 # $>) }
 --  | '*' ty             { Ptr Mutable $2 ($1 # $2) }
 --  | ty_no_plus                                                    { $1 }

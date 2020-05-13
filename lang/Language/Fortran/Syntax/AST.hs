@@ -1024,6 +1024,7 @@ data Ty a
   | MacTy (Mac a) a
   | FType Ident (Expr a) a
   | FArray Int (Ty a) a
+  | FByReference (Ty a) a
   | FComplex (Ty a) a
   | FString a
   | FProcedurePtr String (Ty a) [Ty a] a
@@ -1050,6 +1051,7 @@ instance Located a => Located (Ty a) where
   spanOf (MacTy _ s) = spanOf s
   spanOf (FType _ _ s) = spanOf s
   spanOf (FArray _ _ s) = spanOf s
+  spanOf (FByReference _ s) = spanOf s
   spanOf (FComplex _ s) = spanOf s
   spanOf (FString s) = spanOf s
   spanOf (FProcedurePtr _ _ _ s) = spanOf s

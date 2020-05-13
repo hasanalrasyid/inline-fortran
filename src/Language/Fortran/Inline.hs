@@ -596,6 +596,8 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr _ varsInBody rustBo
          renderType t ++ ",intent(inout):: " ++ v ++ "(*)"
       renderVarType (v, FArray _ t _) =
         renderType t ++ ",intent(inout):: " ++ v ++  "(*)"
+      renderVarType (v, FByReference t _) =
+        renderType t ++ ",intent(inout):: " ++ v
       renderVarType (v, t@(FType (Ident "complex" _ _) _ _)) = renderType t ++ ",intent(inout) :: " ++ v
       renderVarType (v,t) = renderType t ++ ",intent(in),value :: " ++ v
 
@@ -628,11 +630,10 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr _ varsInBody rustBo
       renderVarStatement (s,(FString _),(_,_)) = "c     " ++ s ++ " needs manual declaration for its length"
       renderVarStatement (s,(FArray d t _),(i,_)) =
         let intent = "intent(" ++ i ++ ")"
-            dim = case d of
-                    0 -> ""
---                  _ -> "(" ++ ( intercalate "," $ replicate d ":") ++ ")"
-                    _ -> "(*)"
-         in "      " ++ (renderType t) ++ "," ++ intent ++  " :: " ++ s ++ dim
+            ini = case d of
+                    0 -> "c setit : "
+                    _ -> "      "
+         in ini ++ (renderType t) ++ "," ++ intent ++  " :: " ++ s ++ "(*)"
       renderVarStatement (s,t,(i,r)) =
         let intent = case i of
                        "in" -> "intent(" ++ i ++ ")"
