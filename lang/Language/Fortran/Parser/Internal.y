@@ -456,6 +456,7 @@ ty :: { Ty Span }
   | '(' ')'            { TupTy [] ($1 # $>) }
   | '*' ty             { FArray 1 $2 ($1 # $2) }
   | '&' ty             { FByReference $2 ($1 # $2) }
+  | '?' ty             { FOptional $2 ($1 # $2) }
   | ty '*' expr        { Array $1 $3 ($1 # $>) }
 --  | '*' ty             { Ptr Mutable $2 ($1 # $2) }
 --  | ty_no_plus                                                    { $1 }

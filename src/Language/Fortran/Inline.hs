@@ -598,6 +598,10 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr _ varsInBody rustBo
         renderType t ++ ",intent(inout):: " ++ v ++  "(*)"
       renderVarType (v, FByReference t _) =
         renderType t ++ ",intent(inout):: " ++ v
+      renderVarType (v, FOptional t _) = unlines
+        [ renderVarType (v, t)
+        , "optional :: " ++ v
+        ]
       renderVarType (v, t@(FType (Ident "complex" _ _) _ _)) = renderType t ++ ",intent(inout) :: " ++ v
       renderVarType (v,t) = renderType t ++ ",intent(in),value :: " ++ v
 

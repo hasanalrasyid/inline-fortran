@@ -397,6 +397,9 @@ pointers = do
   rule pt context = do
     ff <- pure pt
     case ff of
+      FOptional t _ -> do
+        (t', Nothing,i) <- lookupRTypeInContext t context
+        pure ([t| $t' |], Nothing,i)
       FByReference t _ -> do
         (t', Nothing,i) <- lookupRTypeInContext t context
         pure ([t| Ptr $t' |], Nothing,i)
