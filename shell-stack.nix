@@ -1,26 +1,22 @@
-{ reflex-platform ? import ./reflex-platform {
-  config.android_sdk.accept_license = true;
-  config.allowBroken = true;
-  config.extraoptions = "
-    keep-outputs = true
-    keep-derivations = true
-  ";
-  config.doHaddock = false;
-  }
-, withHoogle ? false
+{ withHoogle ? false
+, compiler ? "ghc8101"
 }:
-with reflex-platform.nixpkgs;
 let
-pkgs = reflex-platform.nixpkgs;
-ghc = pkgs.ghc;
+config = {
+  allowBroken = true;
+  packageOverrides = pkgs: rec {
+      haskellPackages = pkgs.haskell.packages.ghc8101;
+    };
+  };
+pkgs = (import ./nixpkgs {inherit config;}).pkgs;
+ghc = pkgs.haskell.packages.ghc8101.ghcWithPackages (ps: with ps; []);
 this = rec {
-    inherit pkgs;
+    inherit pkgs ghc;
   };
 project =
 pkgs.haskell.lib.buildStackProject {
-  inherit ghc;
   name = "inline-fortran";
-  buildInputs = [ git hlint protobuf haskellPackages.stylish-haskell zlib gcc.cc gfortran gfortran.cc haskellPackages.happy haskellPackages.alex ghcid gdb ];
+  buildInputs = with pkgs; [ git hlint protobuf haskellPackages.stylish-haskell zlib gcc.cc gfortran gfortran.cc haskellPackages.happy haskellPackages.alex ghcid gdb ];
   doHaddock = false;
   doCheck = false;
 };
