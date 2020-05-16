@@ -11,13 +11,18 @@
 }:
 with reflex-platform.nixpkgs;
 let
-nixpkgs = reflex-platform.nixpkgs;
-ghc = nixpkgs.ghc;
-in
-nixpkgs.haskell.lib.buildStackProject {
+pkgs = reflex-platform.nixpkgs;
+ghc = pkgs.ghc;
+this = rec {
+    inherit pkgs;
+  };
+project =
+pkgs.haskell.lib.buildStackProject {
   inherit ghc;
   name = "inline-fortran";
   buildInputs = [ git hlint protobuf haskellPackages.stylish-haskell zlib gcc.cc gfortran gfortran.cc haskellPackages.happy haskellPackages.alex ghcid gdb ];
   doHaddock = false;
   doCheck = false;
-}
+};
+in
+this // project
