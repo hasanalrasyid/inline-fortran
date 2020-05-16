@@ -39,7 +39,7 @@ dependencies:
     - parsec
     - parsers
     # bumped up to 2.14.0.0 to have addForeignFilePath
-    - template-haskell >= 2.14.0.0
+    - template-haskell >= 2.16.0.0
     - transformers
     - unordered-containers
     - vector
