@@ -86,8 +86,8 @@ outModule u = do
       print *,'fortIO: outModule: u:',$vec(u:inout:real(kind=8):1)(1)
       print *,'fortIO: outModule: xx: ',$(xx:value:integer)
       f = $(p:inout:integer)
-      call $proc:(aFun5:():*real(kind=8):integer)(m,15)
-      f = $proc:(aFun3:real(kind=8):*real(kind=8):real(kind=8)) (m,m(3,2))
+      call $proc(aFun5:():*real(kind=8):integer)(m,15)
+      f = $proc(aFun3:real(kind=8):*real(kind=8):real(kind=8)) (m,m(3,2))
       do 33 i=1,15
         print *,'outModule: u: ',u(i)
         u(i) = 10*i
@@ -97,17 +97,17 @@ outModule u = do
       cp = complex(6.7,8.9)
       print *,'try vec of complex: ', $vec(vcp:inout:complex(kind=8):1) (1)
       vcp(2) = (4.5,6.7)
-      call $proc:(aFun6:():complex(kind=8))(cp)
+      call $proc(aFun6:():complex(kind=8))(cp)
 c     Due to howt complex marshaled to CComplex, we cannot make a function that
 c     have return value of complex
 c     as a workaround, we should change
 c     res = aFun7(params)
 c     into
 c     call afun7(params,res) with complex :: res
-c     c = $proc:(aFun7:complex(kind=8):complex(kind=8):*real(kind=8):integer)(cp,m,2)
-      call $proc:(aFun7:():*complex(kind=8):*real(kind=8):integer)(vcp,m,3)
-      call $proc:(zeroc:():*complex(kind=8):integer) (vcp,3)
-      call $proc:(aFun8:())
+c     c = $proc(aFun7:complex(kind=8):complex(kind=8):*real(kind=8):integer)(cp,m,2)
+      call $proc(aFun7:():*complex(kind=8):*real(kind=8):integer)(vcp,m,3)
+      call $proc(zeroc:():*complex(kind=8):integer) (vcp,3)
+      call $proc(aFun8:())
       print *,'outModule: c: ',cp
       $return = f
       |]

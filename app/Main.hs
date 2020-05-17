@@ -197,7 +197,7 @@ theFun3 x y = do
   x' <- peek x
   return $ x' + 3 + y
 
---    r = $proc:(theFun3:real(kind=8):*real(kind=8):real(kind=8)) ($(x:value:real(kind=8)),a)
+--    r = $proc(theFun3:real(kind=8):*real(kind=8):real(kind=8)) ($(x:value:real(kind=8)),a)
 
 main :: IO ()
 main = do
@@ -211,7 +211,7 @@ c     TEST7
       a = 1.1
       do 33 i = 1,15
   33    r(i) = 2+i
-      a = $proc:(outModule:real(kind=8):*real(kind=8))(r)
+      a = $proc(outModule:real(kind=8):*real(kind=8))(r)
       print *,'Main: r: ', r
       $return = 100 + r(1)
 
@@ -257,7 +257,7 @@ test5 = do
           IMPLICIT NONE
           real(kind=8) :: f
           print *,"test this: ", x
-          f = $proc:(theFun2:real(kind=8):real(kind=8))($(x:value:real(kind=8)))
+          f = $proc(theFun2:real(kind=8):real(kind=8))($(x:value:real(kind=8)))
           $return = f
        |]
   putStrLn $ "===: y: " ++ show y
