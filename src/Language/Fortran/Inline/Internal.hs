@@ -35,9 +35,10 @@ import Data.Char                   ( isAlpha, isAlphaNum )
 import System.FilePath             ( (</>), (-<.>), (<.>), takeDirectory
 --                                 , takeExtension
                                    )
-import System.Directory            ( copyFile, createDirectoryIfMissing, doesFileExist )
-import System.Process              ( -- spawnProcess, waitForProcess,
-                                     readProcessWithExitCode, readProcess )
+import System.Directory            ( copyFile, createDirectoryIfMissing )
+--import System.Directory            ( copyFile, createDirectoryIfMissing, doesFileExist )
+import System.Process              ( -- spawnProcess, readProcess, waitForProcess,
+                                     readProcessWithExitCode )
 import System.Exit                 ( ExitCode(..) )
 import System.Environment          ( lookupEnv, setEnv )
 
@@ -146,7 +147,7 @@ cargoFinalizer extraArgs _ = do
 
   let dir = ".inline-fortran" </> pkg
       thisFile = foldr1 (</>) mods <.> "f"
-      hashFile = foldr1 (</>) mods <.> "hash"
+--    hashFile = foldr1 (</>) mods <.> "hash"
 --    crate = "q_" ++ pkg
   runIO $ createDirectoryIfMissing True dir
 

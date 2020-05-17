@@ -21,7 +21,6 @@ import Language.Fortran.Inline.TH.Strings
 import qualified Data.Vector.Storable as V
 import qualified Data.Vector.Storable.Mutable as VM
 import Foreign
-import Foreign.C.Types
 
 C.context (C.baseCtx <> C.bsCtx)
 

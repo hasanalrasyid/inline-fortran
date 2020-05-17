@@ -7,7 +7,7 @@ Maintainer  : alec.theriault@gmail.com
 Stability   : experimental
 Portability : GHC
 
-Datatypes wrapping lists and non-empty lists designed for fast append (as opposed to prepend)
+Datatypes wrapping lists and non-empty lists designed for fast append (as opposed to prepend) 
 along with the usual class instances.
 -}
 {-# LANGUAGE CPP #-}
@@ -17,7 +17,7 @@ along with the usual class instances.
 {-# LANGUAGE FlexibleContexts #-}
 #endif
 
-module Language.Fortran.Parser.Reversed (
+module Language.Rust.Parser.Reversed (
   Reversed(..),
   toNonEmpty,
   unsnoc,
@@ -27,6 +27,7 @@ module Language.Fortran.Parser.Reversed (
 import Language.Rust.Data.Position
 
 import Data.Foldable          ( Foldable(toList) )
+import Data.Semigroup as Sem  ( Semigroup(..) )
 
 import qualified Data.List.NonEmpty as N
 import qualified GHC.Exts as G
@@ -45,8 +46,8 @@ instance Foldable (Reversed N.NonEmpty) where
   foldMap f (Reversed xs) = foldMap f (N.reverse xs)
   toList (Reversed xs) = reverse (toList xs)
 
-instance Semigroup (f a) => Semigroup (Reversed f a) where
-  Reversed xs <> Reversed ys = Reversed (ys <> xs)
+instance Sem.Semigroup (f a) => Sem.Semigroup (Reversed f a) where
+  Reversed xs <> Reversed ys = Reversed (ys Sem.<> xs)
 
 instance Monoid (f a) => Monoid (Reversed f a) where
   mempty = Reversed mempty

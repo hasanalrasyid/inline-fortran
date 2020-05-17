@@ -21,7 +21,7 @@ import Language.Haskell.TH.Syntax  ( addTopDecls )
 import Data.Word
 import Data.Int
 
-import Foreign.Ptr                 ( Ptr, FunPtr, plusPtr )
+import Foreign.Ptr                 ( plusPtr )
 import Foreign.ForeignPtr          ( withForeignPtr )
 import Foreign.StablePtr           ( StablePtr )
 import Foreign.Storable            ( Storable )
@@ -31,7 +31,6 @@ import Data.Array.Storable         ( StorableArray, Ix, withStorableArray,
                                      getBounds )
 
 import GHC.Exts
-import Foreign.C.Types
 import Eigen.Internal
 
 data Procedure

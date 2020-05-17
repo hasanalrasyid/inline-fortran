@@ -7,7 +7,7 @@ Maintainer  : alec.theriault@gmail.com
 Stability   : experimental
 Portability : GHC
 
-Both the lexer and the parser run inside of the 'P' monad. As detailed in the section on
+Both the lexer and the parser run inside of the 'P' monad. As detailed in the section on 
 on [threaded-lexers](https://www.haskell.org/happy/doc/html/sec-monads.html#sec-lexers) in Happy's
 instruction manual, the benefits of this are that:
 
@@ -21,7 +21,7 @@ In our case, this shared information is held in 'PState'.
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 
-module Language.Fortran.Parser.ParseMonad (
+module Language.Rust.Parser.ParseMonad (
   -- * Parsing monad
   P,
   execParser,
@@ -47,12 +47,12 @@ module Language.Fortran.Parser.ParseMonad (
 
 import Language.Rust.Data.InputStream  ( InputStream )
 import Language.Rust.Data.Position     ( Spanned, Position, initPos, prettyPosition )
-import Language.Fortran.Syntax.Token      ( Token )
+import Language.Rust.Syntax.Token      ( Token )
 
+import Control.Monad.Fail as Fail
 import Control.Exception               ( Exception )
 import Data.Maybe                      ( listToMaybe )
 import Data.Typeable                   ( Typeable )
---import Debug.Trace (trace)
 
 -- | Parsing and lexing monad. A value of type @'P' a@ represents a parser that can be run (using
 -- 'execParser') to possibly produce a value of type @a@.
@@ -88,9 +88,8 @@ instance Monad P where
     let pOk' x s' = unParser (k x) s' pOk pFailed
     in unParser m s pOk' pFailed
 
-instance MonadFail P where
+instance Fail.MonadFail P where
   fail msg = P $ \ !s _ pFailed -> pFailed msg (curPos s)
-
 
 -- | Exceptions that occur during parsing
 data ParseFail = ParseFail Position String deriving (Eq, Typeable)
@@ -105,7 +104,6 @@ instance Exception ParseFail
 -- either the position of an error and the error message, or the value parsed.
 execParser :: P a -> InputStream -> Position -> Either ParseFail a
 execParser p input pos = execParser' p input pos id
---execParser p input pos = execParser' p input pos id
 
 -- | Generalized version of 'execParser' that expects an extra argument that lets you hot-swap a
 -- token that was just lexed before it gets passed to the parser.
@@ -128,15 +126,15 @@ swapToken t = P $ \ !s@PState{ swapFunction = f } pOk _ -> pOk (f $! t) s
 
 -- | Extract the state stored in the parser.
 getPState :: P PState
-getPState = P $ \ !s pOk _ -> pOk s s
+getPState = P $ \ !s pOk _ -> pOk s s 
 
 -- | Update the state stored in the parser.
 setPState :: PState -> P ()
-setPState s = P $ \ _ pOk _ -> pOk () s
+setPState s = P $ \ _ pOk _ -> pOk () s 
 
 -- | Modify the state stored in the parser.
 modifyPState :: (PState -> PState) -> P ()
-modifyPState f = P $ \ !s pOk _ -> pOk () (f $! s)
+modifyPState f = P $ \ !s pOk _ -> pOk () (f $! s) 
 
 -- | Retrieve the current position of the parser.
 getPosition :: P Position
@@ -148,7 +146,7 @@ setPosition pos = modifyPState $ \ s -> s{ curPos = pos }
 
 -- | Retrieve the current 'InputStream' of the parser.
 getInput :: P InputStream
-getInput = curInput <$> getPState
+getInput = curInput <$> getPState 
 
 -- | Update the current 'InputStream' of the parser.
 setInput :: InputStream -> P ()
@@ -168,5 +166,5 @@ popToken = P $ \ !s@PState{ pushedTokens = toks } pOk _ -> pOk (listToMaybe toks
 
 -- | Signal a syntax error.
 parseError :: Show b => b -> P a
-parseError b = fail ("Syntax error: the symbol `" ++ show b ++ "' does not fit here")
+parseError b = Fail.fail ("Syntax error: the symbol `" ++ show b ++ "' does not fit here")
 

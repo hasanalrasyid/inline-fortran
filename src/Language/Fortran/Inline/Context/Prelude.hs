@@ -38,8 +38,8 @@ import Data.List     ( intercalate )
 --
 -- Note that arity 0 is in 'Foreign.Storable' and arity 1 makes no sense in Haskell.
 mkStorable [t| forall a. Storable a => Storable (Maybe a) |]
-mkStorable [t| forall l r. (Storable l, Storable r) => Storable (Either l r) |]
-fmap join (traverse mkTupleStorable [2..16])
+--mkStorable [t| forall l r. (Storable l, Storable r) => Storable (Either l r) |]
+--fmap join (traverse mkTupleStorable [2..16])
 
 -- | Make a generic path type (e.g. something like @Vec<T>@).
 mkGenPathTy :: Ident -> [Ty ()] -> Ty ()

@@ -12,7 +12,7 @@ Portability : GHC
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveAnyClass #-}
 
-module Language.Fortran.Syntax.AST (
+module Language.Rust.Syntax.AST (
   -- ** Top level
   SourceFile(..),
 
@@ -104,7 +104,7 @@ module Language.Fortran.Syntax.AST (
 
 import Language.Rust.Data.Ident                  ( Ident, Name )
 import Language.Rust.Data.Position
-import {-# SOURCE #-} Language.Fortran.Syntax.Token ( Delim, Token )
+import {-# SOURCE #-} Language.Rust.Syntax.Token ( Delim, Token )
 
 import GHC.Generics                              ( Generic, Generic1 )
 
@@ -115,6 +115,7 @@ import Data.Typeable                             ( Typeable )
 import Data.Char                                 ( ord )
 import Data.List                                 ( partition )
 import Data.List.NonEmpty                        ( NonEmpty(..) )
+import Data.Semigroup as Sem                     ( Semigroup(..) )
 import Data.Word                                 ( Word8 )
 
 -- | ABIs support by Rust's foreign function interface (@syntax::abi::Abi@). Note that of these,
@@ -153,7 +154,7 @@ data Abi
 -- trait Foo {
 --   // Regular argument
 --   fn new(x: usize) -> Foo;
---
+--   
 --   // Self argument, by value
 --   fn foo(self) -> i32;
 --   fn bar(mut self);
@@ -167,8 +168,8 @@ data Abi
 -- }
 -- @
 data Arg a
-  = Arg (Maybe (Pat a)) (Ty a) a                   -- ^ Regular argument
-  | SelfValue Mutability a                         -- ^ Self argument, by value
+  = Arg (Maybe (Pat a)) (Ty a) a                   -- ^ Regular argument 
+  | SelfValue Mutability a                         -- ^ Self argument, by value 
   | SelfRegion (Maybe (Lifetime a)) Mutability a   -- ^ Self argument, by reference
   | SelfExplicit (Ty a) Mutability a               -- ^ Explicit self argument
   deriving (Eq, Ord, Show, Functor, Typeable, Data, Generic, Generic1, NFData)
@@ -251,7 +252,7 @@ data BinOp
   deriving (Eq, Ord, Enum, Bounded, Show, Typeable, Data, Generic, NFData)
 
 -- | Describes how a value bound to an identifier in a pattern is going to be borrowed
--- (@syntax::ast::BindingMode@).
+-- (@syntax::ast::BindingMode@). 
 --
 -- Example: @&mut@ in @|&mut x: i32| -> { x += 1 }@
 data BindingMode
@@ -267,7 +268,7 @@ data Block a = Block [Stmt a] Unsafety a
   deriving (Eq, Ord, Show, Functor, Typeable, Data, Generic, Generic1, NFData)
 
 instance Located a => Located (Block a) where spanOf (Block _ _ s) = spanOf s
-
+ 
 -- | Describes how a 'Closure' should close over its free variables (@syntax::ast::CaptureBy@).
 data CaptureBy
   = Value -- ^ make copies of free variables closed over (@move@ closures)
@@ -276,12 +277,12 @@ data CaptureBy
 
 -- | Const annotation to specify if a function or method is allowed to be called in constants
 -- context with constant arguments (@syntax::ast::Constness@). [Relevant
--- RFC](https://github.com/rust-lang/rfcs/blob/master/text/0911-const-fn.md)
+-- RFC](https://github.com/rust-lang/rfcs/blob/master/text/0911-const-fn.md) 
 --
 -- Example: @const@ in @const fn inc(x: i32) -> i32 { x + 1 }@
 data Constness = Const | NotConst deriving (Eq, Ord, Enum, Bounded, Show, Typeable, Data, Generic, NFData)
 
--- | An 'ImplItem' can be marked @default@ (@syntax::ast::Defaultness@).
+-- | An 'ImplItem' can be marked @default@ (@syntax::ast::Defaultness@).  
 data Defaultness = Default | Final deriving (Eq, Ord, Enum, Bounded, Show, Typeable, Data, Generic, NFData)
 
 -- | Expression (@syntax::ast::Expr@). Note that Rust pushes into expressions an unusual number
@@ -310,7 +311,7 @@ data Expr a
   | Lit [Attribute a] (Lit a) a
   -- | cast (example: @foo as f64@)
   | Cast [Attribute a] (Expr a) (Ty a) a
-  -- | type annotation (example: @x: i32@)
+  -- | type annotation (example: @x: i32@) 
   | TypeAscription [Attribute a] (Expr a) (Ty a) a
   -- | if expression, with an optional @else@ block. In the case the @else@ block is missing, the
   -- type of the @if@ is inferred to be @()@. (example: @if 1 == 2 { (1,1) } else { (2,2) }@
@@ -345,12 +346,12 @@ data Expr a
   | Index [Attribute a] (Expr a) (Expr a) a
   -- | range (examples: @1..2@, @1..@, @..2@, @1...2@, @1...@, @...2@)
   | Range [Attribute a] (Maybe (Expr a)) (Maybe (Expr a)) RangeLimits a
-  -- | variable reference
+  -- | variable reference 
   | PathExpr [Attribute a] (Maybe (QSelf a)) (Path a) a
   -- | referencing operation (example: @&a or &mut a@)
   | AddrOf [Attribute a] Mutability (Expr a) a
   -- | @break@ with an optional label and expression denoting what to break out of and what to
-  -- return (example: @break 'lbl 1@)
+  -- return (example: @break 'lbl 1@) 
   | Break [Attribute a] (Maybe (Label a)) (Maybe (Expr a)) a
   -- | @continue@ with an optional label (example: @continue@)
   | Continue [Attribute a] (Maybe (Label a)) a
@@ -478,7 +479,7 @@ instance Located a => Located (ForeignItem a) where
 --
 -- @
 -- fn nonsense\<\'a, \'b: \'c, T: \'a\>(x: i32) -\> i32
--- where Option\<T\>: Copy {
+-- where Option\<T\>: Copy { 
 --   1
 -- }@.
 data Generics a = Generics [LifetimeDef a] [TyParam a] (WhereClause a) a
@@ -490,14 +491,14 @@ whereClause (Generics _ _ wc _) = wc
 
 instance Located a => Located (Generics a) where spanOf (Generics _ _ _ s) = spanOf s
 
-instance Semigroup a => Semigroup (Generics a) where
+instance Sem.Semigroup a => Sem.Semigroup (Generics a) where
   Generics lt1 tp1 wc1 x1 <> Generics lt2 tp2 wc2 x2 = Generics lts tps wcs xs
     where lts = lt1 ++ lt2
           tps = tp1 ++ tp2
           wcs = wc1 <> wc2
           xs  = x1 <> x2
 
-instance (Semigroup a, Monoid a) => Monoid (Generics a) where
+instance (Sem.Semigroup a, Monoid a) => Monoid (Generics a) where
   mappend = (<>)
   mempty = Generics [] [] mempty mempty
 
@@ -591,7 +592,7 @@ data Item a
   -- | implementation
   -- Example: @impl\<A\> Foo\<A\> { .. }@ or @impl\<A\> Trait for Foo\<A\> { .. }@
   | Impl [Attribute a] (Visibility a) Defaultness Unsafety ImplPolarity (Generics a) (Maybe (TraitRef a)) (Ty a) [ImplItem a] a
-  -- | generated from a call to a macro
+  -- | generated from a call to a macro 
   -- Example: @foo!{ .. }@
   | MacItem [Attribute a] (Maybe Ident) (Mac a) a
   -- | definition of a macro via @macro_rules@
@@ -670,10 +671,10 @@ data SourceFile a
 -- Examples: @i32@, @isize@, and @f32@
 data Suffix
   = Unsuffixed
-  | Is | I8 | I16 | I32 | I64 | I128
+  | Is | I8 | I16 | I32 | I64 | I128 
   | Us | U8 | U16 | U32 | U64 | U128
   |                 F32 | F64
-  deriving (Eq, Ord, Show, Enum, Bounded, Typeable, Data, Generic, NFData)
+  deriving (Eq, Ord, Show, Enum, Bounded, Typeable, Data, Generic, NFData)  
 
 -- | Literals in Rust (@syntax::ast::Lit@). As discussed in 'Suffix', Rust AST is designed to parse
 -- suffixes for all literals, even if they are currently only valid on 'Int' and 'Float' literals.
@@ -704,11 +705,11 @@ byteStr s = ByteStr (map (fromIntegral . ord) s)
 suffix :: Lit a -> Suffix
 suffix (Str _ _ s _) = s
 suffix (ByteStr _ _ s _) = s
-suffix (Char _ s _) = s
-suffix (Byte _ s _) = s
-suffix (Int _ _ s _) = s
+suffix (Char _ s _) = s 
+suffix (Byte _ s _) = s 
+suffix (Int _ _ s _) = s 
 suffix (Float _ s _) = s
-suffix (Bool _ s _) = s
+suffix (Bool _ s _) = s 
 
 -- | The base of the number in an @Int@ literal can be binary (e.g. @0b1100@), octal (e.g. @0o14@),
 -- decimal (e.g. @12@), or hexadecimal (e.g. @0xc@).
@@ -799,7 +800,7 @@ instance Located a => Located (Pat a) where
   spanOf (RefP _ _ s) = spanOf s
   spanOf (LitP _ s) = spanOf s
   spanOf (RangeP _ _ s) = spanOf s
-  spanOf (SliceP _ _ _ s) = spanOf s
+  spanOf (SliceP _ _ _ s) = spanOf s 
   spanOf (MacP _ s) = spanOf s
 
 -- | Everything in Rust is namespaced using nested modules. A 'Path' represents a path into nested
@@ -845,11 +846,11 @@ instance Located a => Located (PathSegment a) where spanOf (PathSegment _ _ s) =
 
 -- | Trait ref parametrized over lifetimes introduced by a @for@ (@syntax::ast::PolyTraitRef@).
 --
--- Example: @for\<\'a,'b\> Foo\<&\'a Bar\>@
+-- Example: @for\<\'a,'b\> Foo\<&\'a Bar\>@ 
 data PolyTraitRef a = PolyTraitRef [LifetimeDef a] (TraitRef a) a
   deriving (Eq, Ord, Functor, Show, Typeable, Data, Generic, Generic1, NFData)
 
-instance Located a => Located (PolyTraitRef a) where spanOf (PolyTraitRef _ _ s) = spanOf s
+instance Located a => Located (PolyTraitRef a) where spanOf (PolyTraitRef _ _ s) = spanOf s 
 
 -- | The explicit @Self@ type in a "qualified path". The actual path, including the trait and the
 -- associated item, is stored separately. The first argument is the type given to @Self@ and the
@@ -1021,17 +1022,6 @@ data Ty a
   | Infer a
   -- | generated from a call to a macro (example: @HList![i32,(),u8]@)
   | MacTy (Mac a) a
-  | FType Ident (Expr a) a
-  | FArray Int (Ty a) a
-  | FByReference (Ty a) a
-  | FOptional (Ty a) a
-  | FComplex (Ty a) a
-  | FString a
-  | FProcedurePtr String (Ty a) [Ty a] a
---                |       |     +- parameters Type
---                |       +- return Type
---                +- function_name
--- | FProcedurePtr String (Ty a) [Ty a] a
   deriving (Eq, Ord, Functor, Show, Typeable, Data, Generic, Generic1, NFData)
 
 instance Located a => Located (Ty a) where
@@ -1049,13 +1039,6 @@ instance Located a => Located (Ty a) where
   spanOf (Typeof _ s) = spanOf s
   spanOf (Infer s) = spanOf s
   spanOf (MacTy _ s) = spanOf s
-  spanOf (FType _ _ s) = spanOf s
-  spanOf (FArray _ _ s) = spanOf s
-  spanOf (FByReference _ s) = spanOf s
-  spanOf (FOptional _ s) = spanOf s
-  spanOf (FComplex _ s) = spanOf s
-  spanOf (FString s) = spanOf s
-  spanOf (FProcedurePtr _ _ _ s) = spanOf s
 
 -- | Type parameter definition used in 'Generics' (@syntax::ast::TyParam@). Note that each
 -- parameter can have any number of (lifetime or trait) bounds, as well as possibly a default type.
@@ -1086,7 +1069,7 @@ partitionTyParamBounds = partition isTraitBound
 -- | Unary operators, used in the 'Unary' constructor of 'Expr' (@syntax::ast::UnOp@).
 --
 -- Example: @!@ as in @!true@
-data UnOp
+data UnOp 
   = Deref -- ^ @*@ operator (dereferencing)
   | Not   -- ^ @!@ operator (logical inversion)
   | Neg   -- ^ @-@ operator (negation)
@@ -1153,7 +1136,7 @@ data UseTree a
   = UseTreeSimple (Path a) (Maybe Ident) a
   -- | Path ending in a glob pattern
   | UseTreeGlob (Path a) a
-  -- | Path ending in a list of more paths
+  -- | Path ending in a list of more paths 
   | UseTreeNested (Path a) [UseTree a] a
   deriving (Eq, Ord, Functor, Show, Typeable, Data, Generic, Generic1, NFData)
 
@@ -1166,14 +1149,14 @@ instance Located a => Located (UseTree a) where
 -- (@ast::syntax::Visibility@). [RFC about adding restricted
 -- visibility](https://github.com/rust-lang/rfcs/blob/master/text/1422-pub-restricted.md)
 data Visibility a
-  = PublicV               -- ^ @pub@ is accessible from everywhere
+  = PublicV               -- ^ @pub@ is accessible from everywhere 
   | CrateV                -- ^ @pub(crate)@ is accessible from within the crate
   | RestrictedV (Path a)  -- ^ for some path @p@, @pub(p)@ is visible at that path
   | InheritedV            -- ^ if no visbility is specified, this is the default
   deriving (Eq, Ord, Functor, Show, Typeable, Data, Generic, Generic1, NFData)
 
 -- | A @where@ clause in a definition, where one can apply a series of constraints to the types
--- introduced and used by a 'Generic' clause (@syntax::ast::WhereClause@). In many cases, @where@
+-- introduced and used by a 'Generic' clause (@syntax::ast::WhereClause@). In many cases, @where@ 
 -- is the /only/ way to express certain bounds (since those bounds may not be immediately on a type
 -- defined in the generic, but on a type derived from types defined in the generic).
 --
@@ -1190,10 +1173,10 @@ data WhereClause a = WhereClause [WherePredicate a] a
 
 instance Located a => Located (WhereClause a) where spanOf (WhereClause _ s) = spanOf s
 
-instance Semigroup a => Semigroup (WhereClause a) where
+instance Sem.Semigroup a => Sem.Semigroup (WhereClause a) where
   WhereClause wp1 x1 <> WhereClause wp2 x2 = WhereClause (wp1 ++ wp2) (x1 <> x2)
 
-instance (Semigroup a, Monoid a) => Monoid (WhereClause a) where
+instance (Sem.Semigroup a, Monoid a) => Monoid (WhereClause a) where
   mappend = (<>)
   mempty = WhereClause [] mempty
 

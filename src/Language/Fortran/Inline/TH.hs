@@ -1,9 +1,9 @@
 
-module Language.Fortran.Inline.TH ( adtCtx, rustTyCtx, mkStorable, mkTupleStorable ) where
+module Language.Fortran.Inline.TH ( adtCtx, rustTyCtx, mkStorable ) where
 
 import Language.Fortran.Inline.TH.Utilities  ( getTyConOpt, getTyCon )
 import Language.Fortran.Inline.TH.ReprC
-import Language.Fortran.Inline.TH.Storable ( mkStorable, mkTupleStorable )
+import Language.Fortran.Inline.TH.Storable ( mkStorable )
 import Language.Fortran.Inline.Context
 import Language.Fortran.Inline.Internal
 import Language.Fortran.Inline.Pretty

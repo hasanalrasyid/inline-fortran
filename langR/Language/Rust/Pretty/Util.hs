@@ -21,13 +21,14 @@ neutral element for @<+>@, @hsep@, @<#>@, @vsep@, and @</>@.
 -}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Language.Fortran.Pretty.Util where
+module Language.Rust.Pretty.Util where
 
+import Data.Monoid as M
 
 import qualified Data.Text.Prettyprint.Doc as PP
 import Data.Text.Prettyprint.Doc.Internal.Type ( Doc(..) )
 
-import Language.Fortran.Syntax.Token ( Delim(..) )
+import Language.Rust.Syntax.Token ( Delim(..) )
 
 -- | Indentation level
 n :: Int
@@ -43,15 +44,15 @@ emptyElim _ f doc   = f doc
 
 -- | Vertically concatenate two 'Doc's with a collapsible line between them
 (<##>) :: Doc a -> Doc a -> Doc a
-d1 <##> d2 = d1 <> PP.line' <> d2
+d1 <##> d2 = d1 M.<> PP.line' M.<> d2
 
 -- | Flatten a 'Doc'
 flatten :: Doc a -> Doc a
 flatten d@Fail{}          = d
-flatten d@Empty{}         = d
-flatten d@Char{}          = d
-flatten d@Text{}          = d
-flatten d@Line{}          = d
+flatten d@Empty{}         = d 
+flatten d@Char{}          = d 
+flatten d@Text{}          = d 
+flatten d@Line{}          = d 
 flatten (FlatAlt _ d)     = d
 flatten (Cat d1 d2)       = Cat (flatten d1) (flatten d2)
 flatten (Nest i d)        = Nest i (flatten d)
@@ -128,7 +129,7 @@ string new = foldMap (\c -> case c of { '\n' -> new; _ -> Char c })
 -- Note that this will try to fit things on one line when possible, so if you want a block that is
 -- sure /not/ to be condensed on one line (e.g. for a function), you have to construct it manually.
 block :: Delim           -- ^ outer delimiters
-       -> Bool           -- ^ prefer to be on one line (as opposed to multiline)?
+       -> Bool           -- ^ prefer to be on one line (as opposed to multiline)? 
        -> Doc a          -- ^ seperator
        -> Doc a          -- ^ attributes doc, after which no seperator will (use 'mempty' to ignore)
        -> [Doc a]        -- ^ entries
@@ -156,5 +157,5 @@ block delim p s as xs = group' (lDel # PP.vsep (as' ++ ys) # rDel)
   ys = go xs where go [] = []
                    go [z] = [ PP.flatAlt (PP.indent n z <> s) (flatten z) ]
                    go (z:zs) = PP.flatAlt (PP.indent n z <> s) (flatten z <> s) : go zs
-
+  
 

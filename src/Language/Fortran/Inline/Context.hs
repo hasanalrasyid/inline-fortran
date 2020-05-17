@@ -27,13 +27,12 @@ import Language.Haskell.TH
 --import Data.Semigroup             hiding (Arg)
 import Data.Monoid
 import Data.Typeable               ( Typeable )
-import Control.Monad               ( void, liftM2, fail )
+import Control.Monad               ( void, liftM2 )
 import Data.Traversable            ( for )
 import Data.List                   ( intercalate )
 
-import Data.Int                    ( Int8, Int16, Int32, Int64 )
-import Data.Word                   ( Word8, Word16, Word32, Word64 )
-import Foreign.Ptr                 ( Ptr, FunPtr )
+--import Data.Int                    ( Int8, Int16, Int32, Int64 )
+--import Data.Word                   ( Word8, Word16, Word32, Word64 )
 import Foreign.C.Types             -- pretty much every type here is used
 
 import GHC.Exts                    ( Char#, Int#, Word#, Float#, Double#,
@@ -49,7 +48,7 @@ import qualified Data.Vector.Storable as V
 import Language.Rust.Data.Position
 import Foreign hiding (void)
 
-import Data.Complex
+--import Data.Complex
 
 instance Fail.MonadFail First where
   fail x = error $ "MonadFail First error: " ++ x
@@ -448,6 +447,7 @@ makeIO x = do
 --joinPtr ptrConT a@(AppT p r)
 --  | p /= ptrConT = AppT ptrConT a
 --  | otherwise = joinPtr ptrConT r
+joinPtr :: HType -> HType -> HType
 joinPtr ptrConT o@(AppT p2 r@(AppT p3 _))
   | p2 == p3 && ptrConT == p2 = joinPtr ptrConT r
   | otherwise = o

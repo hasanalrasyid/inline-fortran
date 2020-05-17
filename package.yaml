@@ -27,7 +27,6 @@ default-extensions:
 #  - GeneralizedNewtypeDeriving
   - ForeignFunctionInterface
   - ScopedTypeVariables
-  - MonadFailDesugaring
 
 dependencies:
     - base >= 4.7 && < 5

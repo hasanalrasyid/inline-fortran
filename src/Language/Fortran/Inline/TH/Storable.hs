@@ -15,7 +15,7 @@ Portability : GHC
                                    -- TODO: GHC feature around setting extensions from within TH
 module Language.Fortran.Inline.TH.Storable (
   mkStorable,
-  mkTupleStorable,
+--mkTupleStorable,
 ) where
 
 import Language.Fortran.Inline.TH.Utilities
@@ -60,6 +60,7 @@ mkStorable tyq = do
   dec <- instanceD (pure ctx) (pure (AppT storable ty')) (map pure methods)
   pure [dec]
 
+  {-
 mkTupleStorable :: Int     -- ^ arity of tuple
                 -> Q [Dec] -- ^ the instance declaration
 mkTupleStorable n = do
@@ -74,6 +75,7 @@ mkTupleStorable n = do
   methods <- processADT [ (tupCon, map VarT tyVars) ]
   let dec = InstanceD Nothing ctx instHead methods
   pure [dec]
+-}
 
 -- * Constructor utilities
 data Constructor = Constructor
@@ -84,8 +86,8 @@ data Constructor = Constructor
 nameCon :: Name -> Constructor
 nameCon n = Constructor (ConP n) (foldl AppE (ConE n))
 
-tupCon :: Constructor
-tupCon = Constructor TupP TupE
+--tupCon :: Constructor
+--tupCon = Constructor TupP TupE
 
 
 -- * Alignment

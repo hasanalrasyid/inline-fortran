@@ -323,7 +323,7 @@ rustQuasiQuoter safety isPure supportDecs = QuasiQuoter { quoteExp = expQuoter
     who | supportDecs = "expressions and declarations"
         | otherwise   = "expressions"
 
-    err = fail ("(inline-rust): Only " ++ who ++ " can be quasiquoted")
+    err = error ("(inline-rust): Only " ++ who ++ " can be quasiquoted")
 
     expQuoter qq = do
       parsed <- parseQQ qq
@@ -409,14 +409,16 @@ processQQ safety isPure (QQParse rustRet rustNamedArgs_FnPtr _ varsInBody rustBo
 
   -- Convert the Haskell arguments to marshallable FFI types
   let
+    {-
       joinPtr ptrStat a@(AppT p r)
         | p /= ptrStat = AppT ptrStat a
         | otherwise = joinPtr ptrStat r
       joinPtr ptrStat a = AppT ptrStat a
+-}
 
   (argsByVal, haskArgs') <- fmap unzip $
     for (zip haskArgs intents) $ \(haskArg,intent) -> do
-      marshalForm <- ghcMarshallable haskArg
+--    marshalForm <- ghcMarshallable haskArg
 --    fail $ "marshalForm: " ++ show marshalForm ++ show haskArg
       -- cause everything is passed as pointer
       ptr1 <- [t| $(pure haskArg) |]

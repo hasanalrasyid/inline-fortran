@@ -60,21 +60,21 @@ And now we have generated valid code.
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE OverloadedLists #-}
 
-module Language.Fortran.Pretty.Resolve (
+module Language.Rust.Pretty.Resolve (
   Resolve(resolve, resolve', resolveVerbose),
   Issue(..),
   Severity(..),
   ResolveFail(..),
 ) where
 
-import Language.Fortran.Syntax
+import Language.Rust.Syntax
 
 import Language.Rust.Data.Ident        ( Ident(..), mkIdent )
 import Language.Rust.Data.InputStream  ( inputStreamFromString )
 import Language.Rust.Data.Position     ( initPos, Spanned(..) )
 
-import Language.Fortran.Parser.Lexer      ( lexTokens, lexToken )
-import Language.Fortran.Parser.ParseMonad ( execParser )
+import Language.Rust.Parser.Lexer      ( lexTokens, lexToken )
+import Language.Rust.Parser.ParseMonad ( execParser )
 
 import Control.Exception               ( throw, Exception )
 import Control.Monad                   ( when )
@@ -459,8 +459,6 @@ resolveTy _ a@(Array ty' e x) = scope a (Array <$> resolveTy AnyType ty' <*> res
 resolveTy _ m@(MacTy (Mac p t x) x') = scope m $ do
   p' <- resolvePath TypePath p
   MacTy <$> resolveMac TypePath (Mac p' t x) <*> pure x'
-
-resolveTy _ _ = pure (Never mempty)
 
 instance (Typeable a, Monoid a) => Resolve (Ty a) where resolveM = resolveTy AnyType
 

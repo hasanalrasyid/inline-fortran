@@ -245,7 +245,7 @@ parseQQ input = do
       | otherwise = takeDollar j (r:cs) rs
     takeDollar a b [] = fail $ "takeDollar for [] " ++ show a ++ "___" ++ show b
 
-parseFType :: (Parse a, Monad m) => [SpTok] -> m a
+parseFType :: (Parse a, Monad m,MonadFail m) => [SpTok] -> m a
 parseFType toks = do
   case (parseFromToks toks) of
     Left (ParseFail _ msg) -> fail $ "parseFType: " ++ msg ++ " " ++ show toks
