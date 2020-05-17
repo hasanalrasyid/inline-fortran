@@ -2,35 +2,50 @@
 , compiler ? "ghc8101"
 }:
 let
+  fetchFromGitHub = { owner, repo, rev, sha256, branch }:
+    builtins.fetchTarball {
+        inherit sha256;
+        url = "https://github.com/${owner}/${repo}/archive/${rev}.tar.gz";
+      };
+
 config = {
   doCheck = false;
   allowBroken = true;
   packageOverrides = pkgs: rec {
       haskellPackages = pkgs.haskell.packages.ghc8101.override {
           overrides = (self: super: {
-            microlens = pkgs.haskellPackages.callHackage "microlens" "0.4.11.2" {};
-            ed25519 = pkgs.haskell.lib.overrideCabal super.ed25519 (drv: {
-                doCheck = false;
-                        patchPhase = ''
-                          sed -i -e 's|ghc-prim .*$|ghc-prim ,|' ed25519.cabal
-                        '';
-              });
-            cryptohash-sha256 = pkgs.haskell.lib.overrideCabal super.cryptohash-sha256 (drv: {
-                doCheck = false;
-                        patchPhase = ''
-                          sed -i -e 's|base .*$|base|' cryptohash-sha256.cabal
-                        '';
-              });
+            stack = pkgs.haskellPackages.callCabal2nix "stack" (
+              builtins.fetchTarball {
+                url = "https://github.com/commercialhaskell/stack/archive/9dcef52902d01646d63fe76fc8e6b1b3ac6cc9b8.tar.gz";
+                sha256 = "0xyiaj3z0hm4zdkdird5296q5r9lb5dpqlm4352z9kglksq66k63";
+            }){};
             });
         };
     };
   };
-pkgs = (import ./nixpkgs {inherit config;}).pkgs;
-HsYAML = pkgs.haskell.lib.addBuildDepend pkgs.haskellPackages.HsYAML (with pkgs;
-      [ haskellPackages.base_4_12_0_0 ]);
-microlens = pkgs.haskellPackages.callHackage "microlens" "0.4.11.2" {};
-#stack = pkgs.haskellPackages.callHackage "stack" "2.3.1" {};
-ghc = pkgs.haskellPackages.ghc;
+npkgs = (import ./nixpkgs {inherit config;});
+pkgs = npkgs.pkgs;
+ghc = pkgs.haskellPackages.ghcWithPackages (pkgs: with pkgs; [
+  GenericPretty
+  QuickCheck
+  alex
+  ansi
+  fgl
+  happy
+  hashable
+  inline
+  json
+  language
+  lens
+  parsers
+  prettyprinter
+  random
+  raw
+  split
+  uniplate
+  unordered
+  vector
+  ]);
 
 this = rec {
     inherit pkgs ghc;
@@ -38,9 +53,8 @@ this = rec {
 project =
 pkgs.haskell.lib.buildStackProject {
   name = "inline-fortran";
-# buildInputs = with pkgs; [ git protobuf zlib gcc.cc gfortran gfortran.cc haskellPackages.happy haskellPackages.alex gdb
-# stack
-# ];
+  buildInputs = with pkgs; [ git protobuf zlib gcc.cc gfortran gfortran.cc haskellPackages.happy haskellPackages.alex gdb 
+  ];
   doHaddock = false;
   doCheck = false;
 
